@@ -28,7 +28,7 @@ export default function Header() {
       return [
         { href: "/", label: "Home" },
         { href: "/about", label: "About" },
-        { href: "/analytics", label: "Analytics" },
+        { href: "/analytics", label: "Impact" },
       ];
     }
 
@@ -37,8 +37,8 @@ export default function Header() {
       return [
         { href: "/dashboard", label: "Dashboard" },
         { href: "/my-listings", label: "My Listings" },
-        { href: "/add-listing", label: "Add Food" },
-        { href: "/analytics", label: "My Analytics" },
+        { href: "/add-listing", label: "Share Food" },
+        { href: "/analytics", label: "My Impact" },
         { href: "/profile", label: "Profile" },
       ];
     }
@@ -47,9 +47,9 @@ export default function Header() {
     if (userType === "receiver") {
       return [
         { href: "/dashboard", label: "Dashboard" },
-        { href: "/browse", label: "Browse Food" },
+        { href: "/browse", label: "Find Food" },
         { href: "/my-requests", label: "My Requests" },
-        { href: "/notifications", label: "Notifications" },
+        { href: "/notifications", label: "Alerts" },
         { href: "/profile", label: "Profile" },
       ];
     }
@@ -65,43 +65,52 @@ export default function Header() {
   const navigationLinks = getNavigationLinks();
 
   return (
-    <header className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50 border-b border-green-100">
+    <header className="bg-gray-900/95 backdrop-blur-md border-b border-gray-800 shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo / Brand */}
-          <Link href="/" className="flex items-center gap-2">
-            <span className="bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full p-2 font-bold text-lg">
-              🍽️
-            </span>
-            <span className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-              ZeroWaste
-            </span>
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="relative">
+              <span className="bg-gradient-to-r from-emerald-500 via-orange-500 to-amber-500 text-white rounded-xl p-2.5 font-bold text-lg shadow-lg group-hover:scale-110 transition-transform duration-300">
+                🍽️
+              </span>
+              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 via-orange-500 to-amber-500 rounded-xl blur opacity-20 group-hover:opacity-40 transition duration-300"></div>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xl font-bold bg-gradient-to-r from-emerald-400 via-orange-400 to-amber-400 bg-clip-text text-transparent">
+                SaveServe
+              </span>
+              <span className="text-xs text-gray-400 -mt-1">Zero Waste Campus</span>
+            </div>
           </Link>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex gap-6 text-gray-700 font-medium">
+          <nav className="hidden md:flex gap-8 text-gray-300 font-medium">
             {navigationLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="hover:text-green-600 transition-colors duration-200"
+                className="relative px-3 py-2 rounded-lg hover:text-amber-400 transition-all duration-200 group"
               >
-                {link.label}
+                <span className="relative z-10">{link.label}</span>
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-orange-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
               </Link>
             ))}
           </nav>
 
           {/* Desktop Auth Section */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-4">
             <SignedOut>
               <SignInButton>
-                <button className="px-4 py-2 rounded-full border border-green-500 text-green-600 font-medium hover:bg-green-50 transition-all duration-200">
+                <button className="px-6 py-2.5 rounded-full border border-emerald-500/50 text-emerald-400 font-medium hover:bg-emerald-500/10 hover:border-emerald-400 transition-all duration-200">
                   Sign In
                 </button>
               </SignInButton>
               <SignUpButton>
-                <button className="bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full font-medium px-4 py-2 hover:scale-105 transition-transform duration-200 shadow-md">
-                  Get Started
+                <button className="relative px-6 py-2.5 rounded-full font-medium text-white overflow-hidden group">
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 via-orange-500 to-amber-500"></div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 via-orange-600 to-amber-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+                  <span className="relative z-10">Get Started</span>
                 </button>
               </SignUpButton>
             </SignedOut>
@@ -110,9 +119,11 @@ export default function Header() {
               <UserButton
                 appearance={{
                   elements: {
-                    avatarBox: "w-10 h-10 border-2 border-green-500 rounded-full",
-                    userButtonPopoverCard: "shadow-xl border border-green-100",
-                    userPreviewMainIdentifier: "font-semibold text-green-700",
+                    avatarBox: "w-10 h-10 border-2 border-amber-500 rounded-full shadow-lg",
+                    userButtonPopoverCard: "bg-gray-800 border border-gray-700 shadow-2xl",
+                    userPreviewMainIdentifier: "font-semibold text-amber-400",
+                    userPreviewSecondaryIdentifier: "text-gray-400",
+                    userButtonPopoverActionButton: "text-gray-300 hover:text-amber-400 hover:bg-gray-700",
                   },
                 }}
                 afterSignOutUrl="/"
@@ -120,14 +131,14 @@ export default function Header() {
             </SignedIn>
           </div>
 
-          {/* Mobile Hamburger Button */}
+          {/* Mobile Section */}
           <div className="md:hidden flex items-center gap-3">
             <SignedIn>
               <UserButton
                 appearance={{
                   elements: {
-                    avatarBox: "w-8 h-8 border-2 border-green-500 rounded-full",
-                    userButtonPopoverCard: "shadow-xl border border-green-100",
+                    avatarBox: "w-9 h-9 border-2 border-amber-500 rounded-full shadow-lg",
+                    userButtonPopoverCard: "bg-gray-800 border border-gray-700 shadow-2xl",
                   },
                 }}
                 afterSignOutUrl="/"
@@ -136,29 +147,14 @@ export default function Header() {
             
             <button
               onClick={toggleMobileMenu}
-              className="p-2 rounded-md text-gray-600 hover:text-green-600 hover:bg-green-50 transition-colors duration-200"
+              className="p-2.5 rounded-lg text-gray-400 hover:text-amber-400 hover:bg-gray-800 transition-all duration-200"
               aria-label="Toggle mobile menu"
             >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 {isMobileMenuOpen ? (
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 ) : (
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 )}
               </svg>
             </button>
@@ -167,13 +163,13 @@ export default function Header() {
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-green-100 bg-white/95 backdrop-blur-sm">
-            <div className="px-2 pt-2 pb-3 space-y-1">
+          <div className="md:hidden border-t border-gray-800 bg-gray-900/98 backdrop-blur-sm">
+            <div className="px-4 pt-4 pb-6 space-y-2">
               {navigationLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="block px-3 py-2 rounded-md text-gray-700 hover:text-green-600 hover:bg-green-50 font-medium transition-colors duration-200"
+                  className="block px-4 py-3 rounded-lg text-gray-300 hover:text-amber-400 hover:bg-gray-800 font-medium transition-all duration-200"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {link.label}
@@ -181,10 +177,10 @@ export default function Header() {
               ))}
               
               <SignedOut>
-                <div className="pt-3 space-y-2">
+                <div className="pt-4 space-y-3 border-t border-gray-800 mt-4">
                   <SignInButton>
                     <button 
-                      className="w-full text-left px-3 py-2 rounded-md border border-green-500 text-green-600 font-medium hover:bg-green-50 transition-colors duration-200"
+                      className="w-full text-left px-4 py-3 rounded-lg border border-emerald-500/50 text-emerald-400 font-medium hover:bg-emerald-500/10 transition-all duration-200"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       Sign In
@@ -192,7 +188,7 @@ export default function Header() {
                   </SignInButton>
                   <SignUpButton>
                     <button 
-                      className="w-full text-left px-3 py-2 rounded-md bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium hover:scale-105 transition-transform duration-200"
+                      className="w-full text-left px-4 py-3 rounded-lg bg-gradient-to-r from-emerald-500 via-orange-500 to-amber-500 text-white font-medium hover:from-emerald-600 hover:via-orange-600 hover:to-amber-600 transition-all duration-200"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       Get Started
