@@ -9,10 +9,61 @@ import {
   UserButton,
   useUser,
 } from "@clerk/nextjs";
-import { checkUser } from "@/lib/queries/user";
 
 export default function Header() {
-  checkUser(); // Ensure user is checked on header load
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user } = useUser();
+  
+  // Get user type from user metadata (you'll need to set this during registration)
+  const userType = user?.publicMetadata?.userType; // 'provider' or 'receiver'
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  // Navigation links based on authentication and user type
+  const getNavigationLinks = () => {
+    // Not logged in - show public pages
+    if (!user) {
+      return [
+        { href: "/", label: "Home" },
+        { href: "/about", label: "About" },
+        { href: "/analytics", label: "Impact" },
+      ];
+    }
+
+    // Logged in as provider
+    if (userType === "provider") {
+      return [
+        { href: "/dashboard", label: "Dashboard" },
+        { href: "/my-listings", label: "My Listings" },
+        { href: "/add-listing", label: "Share Food" },
+        { href: "/analytics", label: "My Impact" },
+        { href: "/profile", label: "Profile" },
+      ];
+    }
+
+    // Logged in as receiver
+    if (userType === "receiver") {
+      return [
+        { href: "/dashboard", label: "Dashboard" },
+        { href: "/browse", label: "Find Food" },
+        { href: "/my-requests", label: "My Requests" },
+        { href: "/notifications", label: "Alerts" },
+        { href: "/profile", label: "Profile" },
+      ];
+    }
+
+    // Default for logged in users without specific type
+    return [
+      { href: "/dashboard", label: "Dashboard" },
+      { href: "/browse", label: "Browse" },
+      { href: "/profile", label: "Profile" },
+    ];
+  };
+
+  const navigationLinks = getNavigationLinks();
+
   return (
     <header className="bg-gray-900/95 backdrop-blur-md border-b border-gray-800 shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -21,7 +72,7 @@ export default function Header() {
           <Link href="/" className="flex items-center gap-3 group">
             <div className="relative">
               <span className="bg-gradient-to-r from-emerald-500 via-orange-500 to-amber-500 text-white rounded-xl p-2.5 font-bold text-lg shadow-lg group-hover:scale-110 transition-transform duration-300">
-                🍽️
+                🍽
               </span>
               <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 via-orange-500 to-amber-500 rounded-xl blur opacity-20 group-hover:opacity-40 transition duration-300"></div>
             </div>
