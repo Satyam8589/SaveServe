@@ -6,8 +6,10 @@ import {
   SignUpButton,
   UserButton,
 } from "@clerk/nextjs";
+import { checkUser } from "@/lib/queries/user";
 
-export default function Header() {
+export default async function Header() {
+  const user = await checkUser();
   return (
     <header className="bg-white/70 backdrop-blur-md shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

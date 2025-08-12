@@ -6,6 +6,7 @@ const isProtectedRoute = createRouteMatcher([
   "/create-listing(.*)",   // Food providers create new listing
   "/pickups(.*)",          // Receivers see claimed food
   "/analytics(.*)",        // Admin/Moderator dashboard
+  "/listings(.*)",         // General listings page
   "/events(.*)",           // Event management
   "/admin(.*)",            // Admin-only
   "/profile(.*)",          // User profile page
