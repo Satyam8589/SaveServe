@@ -1,5 +1,5 @@
 // app/dashboard/page.jsx
-import { currentUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 
 export default async function Dashboard() {
   const user = await currentUser();
