@@ -1,13 +1,6 @@
-import React from 'react'
-import { SignIn } from '@clerk/nextjs';
+// app/sign-in/[[...index]]/page.jsx
+import { SignIn } from "@clerk/nextjs";
 
-
-const page = () => {
-  return (
-    <div>
-      <SignIn />
-    </div>
-  )
+export default function SignInPage() {
+  return <SignIn afterSignInUrl="/post-login" />;
 }
-
-export default page

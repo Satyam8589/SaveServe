@@ -1,12 +1,6 @@
-import React from 'react'
-import { SignUp } from '@clerk/nextjs';
+// app/sign-up/[[...index]]/page.jsx
+import { SignUp } from "@clerk/nextjs";
 
-const page = () => {
-  return (
-    <div>
-      <SignUp />
-    </div>
-  )
+export default function SignUpPage() {
+  return <SignUp redirectUrl="/post-login" />;
 }
-
-export default page
