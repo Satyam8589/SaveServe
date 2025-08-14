@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
+import Footer from "@/components/Footer";
 
 export default function Home() {
   const [isVisible, setIsVisible] = useState(false);
@@ -293,6 +294,9 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
+
+      {/* Footer Section */}
+            <Footer />
     </div>
   );
 }

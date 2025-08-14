@@ -10,7 +10,7 @@ import {
   useUser,
 } from "@clerk/nextjs";
 
-export default function Header() {
+export default function Header({ userData }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, isLoaded } = useUser();
 

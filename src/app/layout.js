@@ -1,13 +1,12 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
-import Providers from "./providers";
-import Header from "@/components/header";
 import Footer from "@/components/Footer";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { Toaster } from "sonner";
-import { checkUser } from "@/lib/queries/user";
+import Header from "@/components/Header";
+import { currentUser } from "@clerk/nextjs/server";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -17,7 +16,7 @@ export const metadata = {
 };
 
 export default async function RootLayout({ children }) {
-  const user = await checkUser();
+  await currentUser();
   return (
     <ClerkProvider
       appearance={{
@@ -36,12 +35,11 @@ export default async function RootLayout({ children }) {
         
             {/* Header Section */}
             <Header />
+
             <main className="min-h-screen">{children}</main>
             <Toaster richColors />
 
-            {/* Footer Section */}
-            <Footer />
-            </Providers>
+            
           </ThemeProvider>
         </body>
       </html>
