@@ -44,6 +44,7 @@ const OnboardingPage = () => {
       }
 
       return await response.json();
+      
     } catch (error) {
       console.error("API call failed:", error);
       throw error;
@@ -51,56 +52,63 @@ const OnboardingPage = () => {
   };
 
   const handleRoleSelect = async (mainRole, subRole) => {
-    try {
-      await updateUserMetadata({
-        mainRole,
-        subRole,
-        hasOnboarded: true, // Still need to complete profile
-      });
+  try {
+    await updateUserMetadata({
+      mainRole,
+      subRole,
+      hasOnboarded: true, // Mark onboarding complete
+    });
 
-      setUserRoles({ mainRole, subRole });
-      setStep(2);
-    } catch (error) {
-      console.error("Error updating user roles:", error);
-      throw error;
-    }
-  };
+    setUserRoles({ mainRole, subRole });
 
-  // For now, let's complete onboarding after role selection
-  // You can uncomment and implement this when ProfileForm is ready
-  const handleProfileSubmit = async (profileData) => {
-    try {
-      await updateUserMetadata({
-        mainRole: userRoles.mainRole,
-        subRole: userRoles.subRole,
-        profileData,
-        hasOnboarded: true,
-      });
-
-      // Redirect to dashboard
+    // Redirect based on main role
+    if (mainRole.toLowerCase() === "provider") {
+      router.push("/providerDashboard");
+    } else if (mainRole.toLowerCase() === "recipient") {
+      router.push("/recipientDashboard");
+    } else {
+      // Fallback - if role doesn't match, go to a default dashboard
       router.push("/dashboard");
-    } catch (error) {
-      console.error("Error saving profile:", error);
-      throw error;
     }
-  };
+  } catch (error) {
+    console.error("Error updating user roles:", error);
+  }
+};
 
-  // Temporary: Complete onboarding immediately after role selection
-  // Remove this when ProfileForm is implemented
-  const handleSkipProfile = async () => {
-    try {
-      await updateUserMetadata({
-        mainRole: userRoles.mainRole,
-        subRole: userRoles.subRole,
-        hasOnboarded: true, // Complete onboarding
-      });
 
-      router.push("/dashboard");
-    } catch (error) {
-      console.error("Error completing onboarding:", error);
-      alert("Error completing onboarding. Please try again.");
-    }
-  };
+  // const handleProfileSubmit = async (profileData) => {
+  //   try {
+  //     // Call your API route instead of the server action directly
+  //     const token = await getToken();
+
+  //     const response = await fetch("/api/save-profile", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //         Authorization: `Bearer ${token}`,
+  //       },
+  //       body: JSON.stringify(profileData),
+  //     });
+
+  //     if (!response.ok) {
+  //       const error = await response.json();
+  //       throw new Error(error.error || "Failed to save profile");
+  //     }
+
+  //     const result = await response.json();
+
+  //     // Also update Clerk metadata to mark onboarding as complete
+  //     await updateUserMetadata({
+  //       hasOnboarded: true,
+  //     });
+
+  //     // Redirect to dashboard
+  //     router.push("/dashboard");
+  //   } catch (error) {
+  //     console.error("Error saving profile:", error);
+  //     throw error;
+  //   }
+  // };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-800 to-slate-900">
@@ -121,12 +129,12 @@ const OnboardingPage = () => {
             >
               <User className="w-5 h-5" />
             </div>
-            <div
+            {/* <div
               className={`h-1 w-24 transition-all ${
                 step >= 2 ? "bg-emerald-500" : "bg-gray-600"
               }`}
-            />
-            <div
+            /> */}
+            {/* <div
               className={`flex items-center justify-center w-12 h-12 rounded-full border-2 transition-all ${
                 step >= 2
                   ? "bg-emerald-500 border-emerald-500 text-white"
@@ -134,7 +142,7 @@ const OnboardingPage = () => {
               }`}
             >
               <CheckCircle className="w-5 h-5" />
-            </div>
+            </div> */}
           </div>
 
           <div className="flex justify-center gap-8 text-center">
@@ -146,59 +154,28 @@ const OnboardingPage = () => {
               <div className="font-semibold">Choose Role</div>
               <div className="text-sm">Select your community role</div>
             </div>
-            <div
+            {/* <div
               className={`transition-colors ${
                 step >= 2 ? "text-emerald-400" : "text-gray-500"
               }`}
             >
               <div className="font-semibold">Complete Profile</div>
               <div className="text-sm">Add your details</div>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="relative z-10 pb-12">
-        {step === 1 && <RoleSelector onRoleSelect={handleRoleSelect} />}
-        {step === 2 && (
-          <div className="max-w-2xl mx-auto px-8 text-center">
-            <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-8 border border-white/10">
-              <h2 className="text-2xl font-bold text-white mb-4">
-                Profile Setup (Coming Soon)
-              </h2>
-              <p className="text-gray-300 mb-6">
-                You've selected:{" "}
-                <span className="text-emerald-400 font-semibold">
-                  {userRoles.mainRole}
-                </span>{" "}
-                -{" "}
-                <span className="text-emerald-400 font-semibold">
-                  {userRoles.subRole}
-                </span>
-              </p>
-              <p className="text-gray-400 mb-8">
-                Profile form will be implemented here. For now, you can skip to
-                the dashboard.
-              </p>
-              <button
-                onClick={handleSkipProfile}
-                className="px-8 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl transition-all"
-              >
-                Continue to Dashboard
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Uncomment when ProfileForm is ready
-        {step === 2 && (
+        <RoleSelector onRoleSelect={handleRoleSelect} />
+        {/* {step === 1 && <RoleSelector onRoleSelect={handleRoleSelect} />} */}
+        {/* {step === 2 && (
           <ProfileForm
             onProfileSubmit={handleProfileSubmit}
             userRoles={userRoles}
           />
-        )}
-        */}
+        )} */}
       </div>
     </div>
   );
