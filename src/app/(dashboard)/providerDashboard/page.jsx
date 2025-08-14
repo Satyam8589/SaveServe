@@ -41,6 +41,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import DashboardLayout from "./_components/DashboardLayout"
 import {
   Select,
   SelectContent,
@@ -229,6 +230,7 @@ export default function providerDashboard() {
   ];
 
   return (
+    <DashboardLayout>
     <div className="bg-slate-900 min-h-screen">
       <SidebarProvider defaultOpen={true}>
         <div className="flex h-screen">
@@ -733,5 +735,6 @@ export default function providerDashboard() {
         </div>
       </SidebarProvider>
     </div>
+    </DashboardLayout>
   );
 }

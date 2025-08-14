@@ -55,6 +55,7 @@ export default clerkMiddleware(async (auth, req) => {
     "/providerDashboard",
     "/recipientDashboard",
     "/providerDashboard/listings",
+    "/providerDashboard/overview",
   ];
   if (publicPages.includes(currentPath) || currentPath.startsWith("/sign-")) {
     return NextResponse.next();
