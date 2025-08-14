@@ -729,6 +729,8 @@ export default function providerDashboard() {
                 </TabsContent>
               </Tabs>
             </main>
+            {/* Footer Section */}
+            <Footer />
           </SidebarInset>
         </div>
       </SidebarProvider>
