@@ -50,6 +50,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import Footer from "@/components/Footer";
 import {
   Select,
   SelectContent,
@@ -1056,6 +1057,8 @@ export default function RecipientDashboardPage() {
                 </DialogContent>
               </Dialog>
             </main>
+            {/* Footer Section */}
+            <Footer />
           </SidebarInset>
         </div>
       </SidebarProvider>

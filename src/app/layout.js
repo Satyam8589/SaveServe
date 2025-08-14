@@ -37,8 +37,7 @@ export default async function RootLayout({ children }) {
             <main className="min-h-screen">{children}</main>
             <Toaster richColors />
 
-            {/* Footer Section */}
-            <Footer />
+            
           </ThemeProvider>
         </body>
       </html>
