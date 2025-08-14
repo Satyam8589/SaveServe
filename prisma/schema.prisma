@@ -24,7 +24,7 @@ model User {
   firstName String?
   lastName  String?
   imageUrl  String?
-  
+
   // Profile Information
   role          UserRole     @default(STUDENT)
   phoneNumber   String?
@@ -32,23 +32,23 @@ model User {
   roomNumber    String?
   department    String?
   year          String?      // Academic year (1st, 2nd, 3rd, 4th)
-  
+
   // Location & Preferences
   campusLocation String?     // Building/area on campus
   latitude       Float?
   longitude      Float?
-  
+
   // Notification Preferences
   emailNotifications    Boolean @default(true)
   pushNotifications     Boolean @default(true)
   smsNotifications      Boolean @default(false)
   notificationRadius    Int     @default(1000) // meters
-  
+
   // Dietary Preferences & Allergies
   dietaryRestrictions   String[] // ["vegetarian", "vegan", "gluten-free", etc.]
   allergies            String[] // ["nuts", "dairy", "shellfish", etc.]
   foodPreferences      String[] // ["indian", "chinese", "continental", etc.]
-  
+
   // Gamification
   totalPoints          Int      @default(0)
   currentLevel         Int      @default(1)
@@ -57,16 +57,17 @@ model User {
   totalWaterSaved      Float    @default(0) // in liters
   streakDays           Int      @default(0)
   lastActivityDate     DateTime?
-  
+
   // Account Status
   isActive             Boolean  @default(true)
   isVerified           Boolean  @default(false)
+  hasCompletedOnboarding Boolean @default(false) // <-- Added here
   lastLoginAt          DateTime?
-  
+
   // Timestamps
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
-  
+
   // Relations
   foodListings         FoodListing[]
   pickupRequests       PickupRequest[]
@@ -80,9 +81,10 @@ model User {
   eventLogs            EventLog[]
   ngoProfile           NGOProfile?
   adminProfile         AdminProfile?
-  
+
   @@map("users")
 }
+
 
 enum UserRole {
   STUDENT

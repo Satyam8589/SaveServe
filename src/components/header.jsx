@@ -10,7 +10,7 @@ import {
   useUser,
 } from "@clerk/nextjs";
 
-export default function Header() {
+export default function Header({ userData }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user } = useUser();
   
@@ -35,7 +35,7 @@ export default function Header() {
     // Logged in as provider
     if (userType === "provider") {
       return [
-        { href: "/dashboard", label: "Dashboard" },
+        { href: "/provider-dashboard", label: "Dashboard" },
         { href: "/my-listings", label: "My Listings" },
         { href: "/add-listing", label: "Share Food" },
         { href: "/analytics", label: "My Impact" },
@@ -46,7 +46,7 @@ export default function Header() {
     // Logged in as receiver
     if (userType === "receiver") {
       return [
-        { href: "/dashboard", label: "Dashboard" },
+        { href: "/receiver-dashboard", label: "Dashboard" },
         { href: "/browse", label: "Find Food" },
         { href: "/my-requests", label: "My Requests" },
         { href: "/notifications", label: "Alerts" },

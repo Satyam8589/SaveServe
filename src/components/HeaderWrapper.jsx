@@ -1,9 +1,15 @@
 // src/components/HeaderWrapper.jsx (Server Component)
-import { checkUser } from "@/lib/queries/user";
-import Header from "./Header";
+import { checkUser } from "@/actions/user";
+import Header from "@/components/header";
+import React from "react";
+import OnboardingChecker from "./OnboardingChecker";
 
 export default async function HeaderWrapper() {
   const userData = await checkUser();
-
-  return <Header userData={userData} />;
+  
+  return (
+    <OnboardingChecker userData={userData}>
+      <Header userData={userData} />
+    </OnboardingChecker>
+  );
 }
