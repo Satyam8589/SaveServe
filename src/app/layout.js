@@ -5,7 +5,8 @@ import Footer from "@/components/Footer";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { Toaster } from "sonner";
-import HeaderWrapper from "@/components/HeaderWrapper";
+import Header from "@/components/Header";
+import { currentUser } from "@clerk/nextjs/server";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -15,6 +16,7 @@ export const metadata = {
 };
 
 export default async function RootLayout({ children }) {
+  await currentUser();
   return (
     <ClerkProvider
       appearance={{
@@ -30,7 +32,7 @@ export default async function RootLayout({ children }) {
             disableTransitionOnChange
           >
             {/* Header Section */}
-            <HeaderWrapper />
+            <Header />
 
             <main className="min-h-screen">{children}</main>
             <Toaster richColors />
