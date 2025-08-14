@@ -1,6 +1,7 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import Providers from "./providers";
 import Header from "@/components/header";
 import Footer from "@/components/Footer";
 import { ClerkProvider } from "@clerk/nextjs";
@@ -31,6 +32,8 @@ export default async function RootLayout({ children }) {
             enableSystem
             disableTransitionOnChange
           >
+            <Providers>
+        
             {/* Header Section */}
             <Header />
             <main className="min-h-screen">{children}</main>
@@ -38,6 +41,7 @@ export default async function RootLayout({ children }) {
 
             {/* Footer Section */}
             <Footer />
+            </Providers>
           </ThemeProvider>
         </body>
       </html>
