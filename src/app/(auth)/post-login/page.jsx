@@ -1,5 +1,6 @@
 // app/post-login/page.jsx
 "use client";
+
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -12,10 +13,19 @@ export default function PostLogin() {
     if (!isLoaded) return;
 
     const hasOnboarded = user?.publicMetadata?.hasOnboarded;
+    const mainRole = user?.publicMetadata?.mainRole?.toLowerCase();
 
-    if (hasOnboarded) {
-      router.replace("/dashboard");
+    if (hasOnboarded === true) {
+      // Redirect to correct dashboard based on role
+      if (mainRole === "provider") {
+        router.replace("/providerDashboard");
+      } else if (mainRole === "recipient") {
+        router.replace("/recipientDashboard");
+      } else {
+        router.replace("/dashboard");
+      }
     } else {
+      // Not onboarded → force onboarding
       router.replace("/onboarding");
     }
   }, [isLoaded, user, router]);

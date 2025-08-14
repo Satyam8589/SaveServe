@@ -17,55 +17,48 @@ datasource db {
 // USER MANAGEMENT
 // ================================
 
+// Simplified User Schema with Role-Based Architecture
+
 model User {
   id        String   @id @default(cuid())
-  clerkId   String   @unique // Clerk user ID
+  clerkId   String   @unique
   email     String   @unique
   firstName String?
   lastName  String?
   imageUrl  String?
   
-  // Profile Information
+  // Core Role System - Single source of truth
   role          UserRole     @default(STUDENT)
-  phoneNumber   String?
-  hostel        String?
-  roomNumber    String?
-  department    String?
-  year          String?      // Academic year (1st, 2nd, 3rd, 4th)
+  userType      UserType     @default(RECIPIENT) // PROVIDER or RECIPIENT
   
-  // Location & Preferences
-  campusLocation String?     // Building/area on campus
+  // Basic Contact Info (all users)
+  phoneNumber   String?
+  
+  // Location & Campus Info (all users)
+  campusLocation String?
   latitude       Float?
   longitude      Float?
   
-  // Notification Preferences
+  // Notification Preferences (all users)
   emailNotifications    Boolean @default(true)
   pushNotifications     Boolean @default(true)
   smsNotifications      Boolean @default(false)
-  notificationRadius    Int     @default(1000) // meters
+  notificationRadius    Int     @default(1000)
   
-  // Dietary Preferences & Allergies
-  dietaryRestrictions   String[] // ["vegetarian", "vegan", "gluten-free", etc.]
-  allergies            String[] // ["nuts", "dairy", "shellfish", etc.]
-  foodPreferences      String[] // ["indian", "chinese", "continental", etc.]
-  
-  // Gamification
-  totalPoints          Int      @default(0)
-  currentLevel         Int      @default(1)
-  totalFoodSaved       Float    @default(0) // in kg
-  totalCarbonSaved     Float    @default(0) // in kg CO2
-  totalWaterSaved      Float    @default(0) // in liters
-  streakDays           Int      @default(0)
-  lastActivityDate     DateTime?
-  
-  // Account Status
+  // Account Status (all users)
   isActive             Boolean  @default(true)
   isVerified           Boolean  @default(false)
+  hasOnboarded         Boolean  @default(false)
   lastLoginAt          DateTime?
   
   // Timestamps
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+  
+  // Role-specific profiles (optional, based on role)
+  studentProfile       StudentProfile?
+  ngoProfile           NGOProfile?
+  providerProfile      ProviderProfile?
   
   // Relations
   foodListings         FoodListing[]
@@ -78,20 +71,125 @@ model User {
   reportsMade          Report[] @relation("ReportsMade")
   reportsReceived      Report[] @relation("ReportsReceived")
   eventLogs            EventLog[]
-  ngoProfile           NGOProfile?
-  adminProfile         AdminProfile?
   
   @@map("users")
 }
 
+// Simplified Role Enum
 enum UserRole {
   STUDENT
   STAFF
   FACULTY
   NGO
-  ADMIN
   CANTEEN_MANAGER
+  HOSTEL_MANAGER
   EVENT_ORGANIZER
+  ADMIN
+}
+
+// User Type Classification
+enum UserType {
+  PROVIDER    // Can provide food (canteen, hostel, event organizer)
+  RECIPIENT   // Can receive food (student, staff, faculty, NGO)
+}
+
+// Role-specific profile models
+
+// For Students and Staff (similar needs)
+
+model StudentProfile {
+  id         String @id @default(cuid())
+  userId     String @unique
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Academic/Work Info
+  department    String?
+  year          String?      // Academic year or employment duration
+  hostel        String?
+  roomNumber    String?
+  
+  // Food Preferences
+  dietaryRestrictions   String[]
+  allergies            String[]
+  foodPreferences      String[]
+  
+  // Gamification (mainly for students/staff)
+  totalPoints          Int      @default(0)
+  currentLevel         Int      @default(1)
+  totalFoodSaved       Float    @default(0)
+  totalCarbonSaved     Float    @default(0)
+  totalWaterSaved      Float    @default(0)
+  streakDays           Int      @default(0)
+  lastActivityDate     DateTime?
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  @@map("student_profiles")
+}
+
+// For NGOs (different requirements)
+model NGOProfile {
+  id           String @id @default(cuid())
+  userId       String @unique
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // NGO Specific Info
+  organizationName     String
+  registrationNumber   String?
+  description          String?
+  website              String?
+  address              String?
+  contactPerson        String?
+  
+  // Operational Info
+  operatingHours       String?
+  serviceAreas         String[] // Areas they serve
+  capacity             Int?     // How many people they can serve
+  
+  // Verification Status
+  isVerifiedNGO        Boolean  @default(false)
+  verificationDocs     String[] // Document URLs
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  @@map("ngo_profiles")
+}
+
+// For Providers (canteen, hostel, event organizers)
+model ProviderProfile {
+  id           String @id @default(cuid())
+  userId       String @unique
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Provider Info
+  businessName         String?
+  businessType         ProviderType
+  description          String?
+  address              String?
+  
+  // Operational Details
+  operatingHours       String?
+  serviceRadius        Int      @default(1000) // meters
+  averageDailyFood     Float?   // kg per day
+  
+  // Business Verification
+  isVerifiedProvider   Boolean  @default(false)
+  licenseNumber        String?
+  verificationDocs     String[]
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  @@map("provider_profiles")
+}
+
+enum ProviderType {
+  CANTEEN
+  HOSTEL
+  EVENT_ORGANIZER
+  OTHER
 }
 
 // ================================
@@ -565,47 +663,6 @@ enum EventAction {
 // NGO & VOLUNTEER MANAGEMENT
 // ================================
 
-model NGOProfile {
-  id          String   @id @default(cuid())
-  
-  // Organization Details
-  organizationName String
-  registrationNumber String? @unique
-  description     String?
-  website         String?
-  
-  // Contact Information
-  primaryContact  String
-  alternateContact String?
-  address         String
-  pincode         String?
-  
-  // Service Areas
-  serviceAreas    String[]  // Areas they serve
-  maxCapacity     Int?      // Maximum people they can serve
-  
-  // Verification
-  isVerified      Boolean   @default(false)
-  verifiedAt      DateTime?
-  verificationDocs String[] // Document URLs
-  
-  // Preferences
-  preferredFoodTypes String[]
-  pickupVehicles     String[] // ["bike", "car", "van", etc.]
-  
-  // Timestamps
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  
-  // Relations
-  userId          String    @unique
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  bulkRequests    BulkPickupRequest[]
-  volunteers      Volunteer[]
-  
-  @@map("ngo_profiles")
-}
 
 model BulkPickupRequest {
   id          String   @id @default(cuid())

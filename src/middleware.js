@@ -11,7 +11,6 @@ const isProtectedRoute = createRouteMatcher([
   "/events(.*)",
   "/admin(.*)",
   "/profile(.*)",
-  "/dashboard(.*)",
 ]);
 
 const isOnboardingRoute = createRouteMatcher(["/onboarding(.*)"]);
@@ -22,12 +21,10 @@ const isPostLoginRoute = createRouteMatcher([
   "/sign-in/sso-callback(.*)",
 ]);
 
-// Only protect API routes that you want the middleware to check
 const isProtectedApiRoute = createRouteMatcher([
   "/api/listings(.*)",
   "/api/profile(.*)",
   "/api/admin(.*)",
-  // Do NOT include /api/update-user-metadata here
 ]);
 
 const isPublicApiRoute = createRouteMatcher([
@@ -45,17 +42,24 @@ export default clerkMiddleware(async (auth, req) => {
     if (isProtectedApiRoute(req) && !userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    // Let backend API handle auth for other routes
     return NextResponse.next();
   }
 
   // Public pages
-  const publicPages = ["/", "/about", "/contact", "/sign-in", "/sign-up"];
+  const publicPages = [
+    "/",
+    "/about",
+    "/contact",
+    "/sign-in",
+    "/sign-up",
+    "/providerDashboard",
+    "/recipientDashboard",
+  ];
   if (publicPages.includes(currentPath) || currentPath.startsWith("/sign-")) {
     return NextResponse.next();
   }
 
-  // Protected app pages
+  // Protected pages
   if (!userId && isProtectedRoute(req)) {
     return redirectToSignIn({ returnBackUrl: req.url });
   }
@@ -63,14 +67,24 @@ export default clerkMiddleware(async (auth, req) => {
   // Onboarding logic
   if (userId) {
     const hasOnboarded = sessionClaims?.publicMetadata?.hasOnboarded;
+    const mainRole = sessionClaims?.publicMetadata?.mainRole?.toLowerCase();
 
-    if (hasOnboarded !== true) {
-      if (isOnboardingRoute(req) || isPostLoginRoute(req)) return NextResponse.next();
-      return NextResponse.redirect(new URL("/onboarding", req.url));
+    // 🚀 New: If user is onboarded, block onboarding page completely
+    if (hasOnboarded === true && isOnboardingRoute(req)) {
+      if (mainRole === "PROVIDER") {
+        return NextResponse.redirect(new URL("/providerDashboard", req.url));
+      } else if (mainRole === "RECIPIENT") {
+        return NextResponse.redirect(new URL("/recipientDashboard", req.url));
+      } else {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
     }
 
-    if (hasOnboarded === true && isOnboardingRoute(req)) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+    // If not onboarded yet → force onboarding
+    if (hasOnboarded !== true) {
+      if (!isOnboardingRoute(req) && !isPostLoginRoute(req)) {
+        return NextResponse.redirect(new URL("/onboarding", req.url));
+      }
     }
   }
 
@@ -79,7 +93,6 @@ export default clerkMiddleware(async (auth, req) => {
 
 export const config = {
   matcher: [
-    // Apply to all pages and API routes, except static files
     "/((?!_next|.*\\..*).*)",
     "/(api|trpc)(.*)",
   ],

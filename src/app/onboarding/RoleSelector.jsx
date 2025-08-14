@@ -17,8 +17,9 @@ export default function RoleSelector({ onRoleSelect }) {
 
     setLoading(true);
     try {
-      // Call the parent component's handler instead of making API call directly
-      await onRoleSelect(mainRole, subRole, { hasOnboarded: true });
+      // Call the parent component's handler with just mainRole and subRole
+      // Remove the third parameter as it's not expected by the parent function
+      await onRoleSelect(mainRole, subRole);
     } catch (error) {
       console.error("Error selecting roles:", error);
       alert("Failed to save role. Please try again.");
@@ -141,7 +142,7 @@ export default function RoleSelector({ onRoleSelect }) {
               </>
             ) : (
               <>
-                Continue to Profile
+                Continue
                 <ArrowRight className="w-5 h-5" />
               </>
             )}
