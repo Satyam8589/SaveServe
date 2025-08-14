@@ -46,12 +46,20 @@ export default clerkMiddleware(async (auth, req) => {
   }
 
   // Public pages
-  const publicPages = ["/", "/about", "/contact", "/sign-in", "/sign-up","/providerDashboard","/recipientDashboard"];
+  const publicPages = [
+    "/",
+    "/about",
+    "/contact",
+    "/sign-in",
+    "/sign-up",
+    "/providerDashboard",
+    "/recipientDashboard",
+  ];
   if (publicPages.includes(currentPath) || currentPath.startsWith("/sign-")) {
     return NextResponse.next();
   }
 
-      // Protected pages
+  // Protected pages
   if (!userId && isProtectedRoute(req)) {
     return redirectToSignIn({ returnBackUrl: req.url });
   }
@@ -61,20 +69,21 @@ export default clerkMiddleware(async (auth, req) => {
     const hasOnboarded = sessionClaims?.publicMetadata?.hasOnboarded;
     const mainRole = sessionClaims?.publicMetadata?.mainRole?.toLowerCase();
 
-    if (hasOnboarded !== true) {
-      // User hasn't onboarded → force to onboarding
-      if (isOnboardingRoute(req) || isPostLoginRoute(req)) return NextResponse.next();
-      return NextResponse.redirect(new URL("/onboarding", req.url));
-    }
-
-    // User onboarded → redirect if trying to visit onboarding page
+    // 🚀 New: If user is onboarded, block onboarding page completely
     if (hasOnboarded === true && isOnboardingRoute(req)) {
-      if (mainRole === "provider") {
+      if (mainRole === "PROVIDER") {
         return NextResponse.redirect(new URL("/providerDashboard", req.url));
-      } else if (mainRole === "recipient") {
+      } else if (mainRole === "RECIPIENT") {
         return NextResponse.redirect(new URL("/recipientDashboard", req.url));
       } else {
         return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
+    }
+
+    // If not onboarded yet → force onboarding
+    if (hasOnboarded !== true) {
+      if (!isOnboardingRoute(req) && !isPostLoginRoute(req)) {
+        return NextResponse.redirect(new URL("/onboarding", req.url));
       }
     }
   }

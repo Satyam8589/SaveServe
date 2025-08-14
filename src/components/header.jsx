@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import Link from "next/link";
 import { useState } from "react";
 import {
@@ -12,10 +12,32 @@ import {
 
 export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user } = useUser();
-  
-  // Get user type from user metadata (you'll need to set this during registration)
-  const userType = user?.publicMetadata?.userType; // 'provider' or 'receiver'
+  const { user, isLoaded } = useUser();
+
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center">
+        <div className="loader"></div>
+      </div>
+    ); // or a loading spinner
+  }
+
+  const mainRole = user?.publicMetadata?.mainRole;
+
+  console.log("User's main role:", mainRole);
+
+  const getDashboardRoute = () => {
+    switch (mainRole) {
+      case "PROVIDER":
+        return "/providerDashboard";
+      case "RECEIVER":
+        return "/receiverDashboard";
+      case "ADMIN":
+        return "/adminDashboard";
+      default:
+        return "/dashboard"; // fallback
+    }
+  };
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -33,9 +55,9 @@ export default function Header() {
     }
 
     // Logged in as provider
-    if (userType === "provider") {
+    if (mainRole === "provider") {
       return [
-        { href: "/dashboard", label: "Dashboard" },
+        { href: getDashboardRoute(), label: "Dashboard" },
         { href: "/my-listings", label: "My Listings" },
         { href: "/add-listing", label: "Share Food" },
         { href: "/analytics", label: "My Impact" },
@@ -44,9 +66,9 @@ export default function Header() {
     }
 
     // Logged in as receiver
-    if (userType === "receiver") {
+    if (mainRole === "receiver") {
       return [
-        { href: "/dashboard", label: "Dashboard" },
+        { href: getDashboardRoute(), label: "Dashboard" },
         { href: "/browse", label: "Find Food" },
         { href: "/my-requests", label: "My Requests" },
         { href: "/notifications", label: "Alerts" },
@@ -56,7 +78,7 @@ export default function Header() {
 
     // Default for logged in users without specific type
     return [
-      { href: "/dashboard", label: "Dashboard" },
+      { href: getDashboardRoute(), label: "Dashboard" },
       { href: "/browse", label: "Browse" },
       { href: "/profile", label: "Profile" },
     ];
@@ -80,7 +102,9 @@ export default function Header() {
               <span className="text-xl font-bold bg-gradient-to-r from-emerald-400 via-orange-400 to-amber-400 bg-clip-text text-transparent">
                 SaveServe
               </span>
-              <span className="text-xs text-gray-400 -mt-1">Zero Waste Campus</span>
+              <span className="text-xs text-gray-400 -mt-1">
+                Zero Waste Campus
+              </span>
             </div>
           </Link>
 
@@ -119,11 +143,14 @@ export default function Header() {
               <UserButton
                 appearance={{
                   elements: {
-                    avatarBox: "w-10 h-10 border-2 border-amber-500 rounded-full shadow-lg",
-                    userButtonPopoverCard: "bg-gray-800 border border-gray-700 shadow-2xl",
+                    avatarBox:
+                      "w-10 h-10 border-2 border-amber-500 rounded-full shadow-lg",
+                    userButtonPopoverCard:
+                      "bg-gray-800 border border-gray-700 shadow-2xl",
                     userPreviewMainIdentifier: "font-semibold text-amber-400",
                     userPreviewSecondaryIdentifier: "text-gray-400",
-                    userButtonPopoverActionButton: "text-gray-300 hover:text-amber-400 hover:bg-gray-700",
+                    userButtonPopoverActionButton:
+                      "text-gray-300 hover:text-amber-400 hover:bg-gray-700",
                   },
                 }}
                 afterSignOutUrl="/"
@@ -137,24 +164,41 @@ export default function Header() {
               <UserButton
                 appearance={{
                   elements: {
-                    avatarBox: "w-9 h-9 border-2 border-amber-500 rounded-full shadow-lg",
-                    userButtonPopoverCard: "bg-gray-800 border border-gray-700 shadow-2xl",
+                    avatarBox:
+                      "w-9 h-9 border-2 border-amber-500 rounded-full shadow-lg",
+                    userButtonPopoverCard:
+                      "bg-gray-800 border border-gray-700 shadow-2xl",
                   },
                 }}
                 afterSignOutUrl="/"
               />
             </SignedIn>
-            
+
             <button
               onClick={toggleMobileMenu}
               className="p-2.5 rounded-lg text-gray-400 hover:text-amber-400 hover:bg-gray-800 transition-all duration-200"
               aria-label="Toggle mobile menu"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 {isMobileMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
                 )}
               </svg>
             </button>
@@ -175,11 +219,11 @@ export default function Header() {
                   {link.label}
                 </Link>
               ))}
-              
+
               <SignedOut>
                 <div className="pt-4 space-y-3 border-t border-gray-800 mt-4">
                   <SignInButton>
-                    <button 
+                    <button
                       className="w-full text-left px-4 py-3 rounded-lg border border-emerald-500/50 text-emerald-400 font-medium hover:bg-emerald-500/10 transition-all duration-200"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
@@ -187,7 +231,7 @@ export default function Header() {
                     </button>
                   </SignInButton>
                   <SignUpButton>
-                    <button 
+                    <button
                       className="w-full text-left px-4 py-3 rounded-lg bg-gradient-to-r from-emerald-500 via-orange-500 to-amber-500 text-white font-medium hover:from-emerald-600 hover:via-orange-600 hover:to-amber-600 transition-all duration-200"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
