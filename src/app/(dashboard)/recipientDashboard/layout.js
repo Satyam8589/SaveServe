@@ -95,7 +95,7 @@ export default function RecipientLayout({ children }) {
               </div>
             </SidebarHeader>
 
-            <SidebarContent className="flex min-h-[250px] py-5 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden p-0 pl-3">
+            <SidebarContent className="flex min-h-[250px] px-3 py-5 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden p-0 pl-3">
               <SidebarMenu>
                 {sidebarItems.map((item) => (
                   <SidebarMenuItem key={item.id}>
