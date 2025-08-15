@@ -147,6 +147,15 @@ export default function FoodListingTable() {
                 {listings.map((listing) => (
                   <tr key={listing._id} className="hover:bg-gray-600">
                     <td className="px-6 py-4 whitespace-nowrap">
+                      {listing.imageUrl ? (
+                        <img src={listing.imageUrl} alt={listing.title} className="w-20 h-16 object-cover rounded-md" />
+                      ) : (
+                        <div className="w-20 h-16 bg-gray-700 rounded-md flex items-center justify-center">
+                          <span className="text-xs text-gray-400">No Image</span>
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-100">
                           {listing.title}
@@ -185,6 +194,13 @@ export default function FoodListingTable() {
           <div className="md:hidden">
             {listings.map((listing) => (
               <div key={listing._id} className="p-4 border-b border-gray-700">
+                {listing.imageUrl ? (
+                  <img src={listing.imageUrl} alt={listing.title} className="w-full h-32 object-cover rounded-md mb-3" />
+                ) : (
+                  <div className="w-full h-32 bg-gray-700 rounded-md flex items-center justify-center mb-3">
+                    <span className="text-xs text-gray-400">No Image</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="text-lg font-medium text-gray-100">{listing.title}</h3>
                   <span className={getStatusBadge(listing.freshnessStatus)}>
