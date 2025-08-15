@@ -1,5 +1,6 @@
 "use client"
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { useUser } from "@clerk/nextjs";
 import {
   Package,
   MapPin,
@@ -11,10 +12,11 @@ import {
   ShoppingCart,
   AlertTriangle,
   QrCode,
-  Eye,
   RefreshCw,
   Phone,
-  Calendar
+  Calendar,
+  X,
+  MessageCircle
 } from "lucide-react";
 import {
   Card,
@@ -25,96 +27,37 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+// import { toast } from "@/hooks/use-toast";
 import QRCodeDisplay from "@/components/QRCodeDisplay";
+import { useRouter } from "next/navigation";import { 
+  useUserBookings, 
+  useRateBooking, 
+  useCancelBooking 
+} from "@/hooks/useBookings";
 
-const ClaimsPage = () => {
-  const [claims, setClaims] = useState([]);
-  const [loading, setLoading] = useState(true);
+const IntegratedClaimsPage = () => {
+  const { user, isLoaded } = useUser();
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showQRCode, setShowQRCode] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [feedback, setFeedback] = useState("");
+  const router = useRouter();
 
-  // Sample data - replace with actual API call
-  const sampleClaims = [
-    {
-      _id: "1",
-      title: "Pasta Portions",
-      requestedQuantity: 5,
-      approvedQuantity: 5,
-      status: "approved",
-      requestedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      scheduledPickupTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
-      qrCode: JSON.stringify({
-        bookingId: "1",
-        recipientId: "user_123",
-        listingId: "listing_456",
-        timestamp: new Date().toISOString(),
-        type: 'food_collection',
-        hash: 'abc123'
-      }),
-      qrCodeImage: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", // Placeholder
-      qrCodeExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      collectionCode: "123456",
-      foodListing: {
-        title: "Fresh Pasta with Marinara",
-        location: "Main Canteen, Ground Floor",
-        providerId: "provider_123",
-        providerName: "Campus Canteen Team",
-        pickupInstructions: "Ask for John at the counter"
-      },
-      providerName: "Campus Canteen Team"
-    },
-    {
-      _id: "2",
-      title: "Fresh Bread Loaves",
-      requestedQuantity: 3,
-      approvedQuantity: 2,
-      status: "collected",
-      requestedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
-      scheduledPickupTime: new Date(Date.now() - 4 * 60 * 60 * 1000),
-      collectedAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
-      rating: 5,
-      foodListing: {
-        title: "Artisan Sourdough Bread",
-        location: "Campus Bakery",
-        providerId: "bakery_456",
-        providerName: "Campus Bakery"
-      },
-      providerName: "Campus Bakery"
-    },
-    {
-      _id: "3",
-      title: "Vegetable Curry",
-      requestedQuantity: 8,
-      approvedQuantity: 0,
-      status: "pending",
-      requestedAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
-      scheduledPickupTime: new Date(Date.now() + 13 * 60 * 60 * 1000),
-      foodListing: {
-        title: "Mixed Vegetable Curry",
-        location: "Hostel B Mess",
-        providerId: "hostel_789",
-        providerName: "Hostel B Kitchen Staff"
-      },
-      providerName: "Hostel B Kitchen Staff"
-    }
-  ];
 
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setClaims(sampleClaims);
-      setLoading(false);
-    }, 1000);
-  }, []);
+  // Fetch user's bookings
+  const {
+    data: bookingsData,
+    isLoading,
+    error,
+    refetch
+  } = useUserBookings(user?.id);
 
-  const refreshClaims = async () => {
-    setLoading(true);
-    // Replace with actual API call
-    setTimeout(() => {
-      setClaims(sampleClaims);
-      setLoading(false);
-    }, 1000);
-  };
+  // Mutations
+  const rateBookingMutation = useRateBooking();
+  const cancelBookingMutation = useCancelBooking();
+
+  const claims = bookingsData?.data || [];
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -207,11 +150,84 @@ const ClaimsPage = () => {
     setSelectedBooking(null);
   };
 
+  const handleRateBooking = (booking) => {
+    setSelectedBooking(booking);
+    setShowRatingModal(true);
+  };
+
+  const submitRating = async () => {
+    if (!selectedBooking || rating === 0) {
+      toast({
+        title: "Error",
+        description: "Please select a rating",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await rateBookingMutation.mutateAsync({
+        bookingId: selectedBooking._id,
+        rating,
+        feedback: feedback.trim()
+      });
+
+      toast({
+        title: "Success",
+        description: "Thank you for your feedback!",
+      });
+
+      setShowRatingModal(false);
+      setSelectedBooking(null);
+      setRating(0);
+      setFeedback("");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit rating",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelBooking = async (booking) => {
+    if (!confirm("Are you sure you want to cancel this booking?")) {
+      return;
+    }
+
+    try {
+      await cancelBookingMutation.mutateAsync({
+        bookingId: booking._id,
+        reason: "Cancelled by user"
+      });
+
+      toast({
+        title: "Success",
+        description: "Booking cancelled successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to cancel booking",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRefresh = () => {
+    refetch();
+  };
+
   const activeClaims = claims.filter(claim => 
     ['pending', 'approved'].includes(claim.status)
   );
 
-  if (loading) {
+  const goToDashboard = () => {
+    router.push('/recipientDashboard');
+  };
+
+  // Loading state
+  if (!isLoaded || isLoading) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -239,6 +255,35 @@ const ClaimsPage = () => {
     );
   }
 
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-100">My Claims</h2>
+            <p className="text-gray-400">Error loading your claims</p>
+          </div>
+        </div>
+        <Card className="bg-gray-800 border-gray-700">
+          <CardContent className="p-12 text-center">
+            <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-300 mb-2">
+              Failed to Load Claims
+            </h3>
+            <p className="text-gray-400 mb-4">
+              {error.message || "Something went wrong"}
+            </p>
+            <Button onClick={handleRefresh} className="bg-emerald-600 hover:bg-emerald-700">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -251,13 +296,13 @@ const ClaimsPage = () => {
             {activeClaims.length} Active
           </Badge>
           <Button
-            onClick={refreshClaims}
+            onClick={handleRefresh}
             variant="outline"
             size="sm"
             className="border-gray-600 text-gray-300"
-            disabled={loading}
+            disabled={isLoading}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
@@ -270,7 +315,7 @@ const ClaimsPage = () => {
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <CardTitle className="text-gray-100 text-lg mb-2">
-                    {claim.foodListing?.title || claim.title}
+                    {claim.listingId?.title || claim.title || "Food Item"}
                   </CardTitle>
                   <div className="flex items-center space-x-4 text-sm text-gray-400">
                     <div className="flex items-center space-x-1">
@@ -284,7 +329,7 @@ const ClaimsPage = () => {
                     </div>
                     <div className="flex items-center space-x-1">
                       <Clock className="h-4 w-4" />
-                      <span>Claimed {formatTime(claim.requestedAt)}</span>
+                      <span>Claimed {formatTime(claim.requestedAt || claim.createdAt)}</span>
                     </div>
                   </div>
                 </div>
@@ -306,11 +351,11 @@ const ClaimsPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-300 mb-4">
                 <div className="flex items-center space-x-2">
                   <MapPin className="h-4 w-4 text-emerald-400" />
-                  <span>{claim.foodListing?.location}</span>
+                  <span>{claim.listingId?.location || claim.pickupLocation || "Location not specified"}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Users className="h-4 w-4 text-emerald-400" />
-                  <span>{claim.providerName}</span>
+                  <span>{claim.providerName || "Provider"}</span>
                 </div>
                 {claim.scheduledPickupTime && (
                   <div className="flex items-center space-x-2">
@@ -329,7 +374,7 @@ const ClaimsPage = () => {
               <Separator className="bg-gray-700 my-4" />
 
               <div className="flex flex-wrap gap-2">
-                {claim.status === "approved" && claim.qrCode && (
+                {claim.status === "approved" && claim.qrCode && !isQRExpired(claim.qrCodeExpiry) && (
                   <Button
                     size="sm"
                     onClick={() => handleViewQRCode(claim)}
@@ -346,6 +391,13 @@ const ClaimsPage = () => {
                       size="sm"
                       variant="outline"
                       className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                      onClick={() => {
+                        // Implement directions functionality
+                        toast({
+                          title: "Directions",
+                          description: "Opening directions to pickup location...",
+                        });
+                      }}
                     >
                       <Navigation className="h-4 w-4 mr-2" />
                       Directions
@@ -354,6 +406,13 @@ const ClaimsPage = () => {
                       size="sm"
                       variant="outline"
                       className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                      onClick={() => {
+                        // Implement contact functionality
+                        toast({
+                          title: "Contact",
+                          description: "Contact feature coming soon...",
+                        });
+                      }}
                     >
                       <Phone className="h-4 w-4 mr-2" />
                       Contact
@@ -365,6 +424,8 @@ const ClaimsPage = () => {
                   <Button
                     size="sm"
                     className="bg-blue-600 hover:bg-blue-700"
+                    onClick={() => handleRateBooking(claim)}
+                    disabled={rateBookingMutation.isPending}
                   >
                     <Star className="h-4 w-4 mr-2" />
                     Rate Experience
@@ -372,25 +433,73 @@ const ClaimsPage = () => {
                 )}
 
                 {claim.status === "pending" && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-yellow-600 text-yellow-400 cursor-default"
+                      disabled
+                    >
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      Awaiting Approval
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-red-600 text-red-400 hover:bg-red-900/20"
+                      onClick={() => handleCancelBooking(claim)}
+                      disabled={cancelBookingMutation.isPending}
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                  </>
+                )}
+
+                {claim.status === "approved" && (
                   <Button
                     size="sm"
                     variant="outline"
-                    className="border-yellow-600 text-yellow-400 cursor-default"
-                    disabled
+                    className="border-red-600 text-red-400 hover:bg-red-900/20"
+                    onClick={() => handleCancelBooking(claim)}
+                    disabled={cancelBookingMutation.isPending}
                   >
-                    <AlertTriangle className="h-4 w-4 mr-2" />
-                    Awaiting Approval
+                    <X className="h-4 w-4 mr-2" />
+                    Cancel
                   </Button>
                 )}
-
-                {claim.status === "rejected" && claim.providerResponse && (
-                  <div className="w-full mt-2 p-3 bg-red-900/20 border border-red-500/20 rounded-lg">
-                    <p className="text-red-400 text-sm">
-                      <strong>Provider Response:</strong> {claim.providerResponse}
-                    </p>
-                  </div>
-                )}
               </div>
+
+              {/* Provider Response */}
+              {claim.status === "rejected" && claim.providerResponse && (
+                <div className="mt-3 p-3 bg-red-900/20 border border-red-500/20 rounded-lg">
+                  <p className="text-red-400 text-sm">
+                    <strong>Provider Response:</strong> {claim.providerResponse}
+                  </p>
+                </div>
+              )}
+
+              {/* Rating Display */}
+              {claim.rating && (
+                <div className="mt-3 p-3 bg-blue-900/20 border border-blue-500/20 rounded-lg">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <span className="text-blue-400 text-sm font-medium">Your Rating:</span>
+                    <div className="flex">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`h-4 w-4 ${
+                            i < claim.rating ? 'text-yellow-400 fill-current' : 'text-gray-400'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  {claim.feedback && (
+                    <p className="text-gray-300 text-sm">{claim.feedback}</p>
+                  )}
+                </div>
+              )}
 
               {/* Special notices */}
               {claim.status === 'approved' && claim.qrCodeExpiry && isQRExpired(claim.qrCodeExpiry) && (
@@ -429,7 +538,7 @@ const ClaimsPage = () => {
             <p className="text-gray-400 mb-4">
               Start browsing food listings to make your first claim
             </p>
-            <Button className="bg-emerald-600 hover:bg-emerald-700">
+            <Button onClick={goToDashboard} className="bg-emerald-600 hover:bg-emerald-700">
               Browse Food Listings
             </Button>
           </CardContent>
@@ -443,8 +552,93 @@ const ClaimsPage = () => {
           onClose={handleCloseQRCode}
         />
       )}
+
+      {/* Rating Modal */}
+      {showRatingModal && selectedBooking && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-gray-100 flex items-center justify-between">
+                Rate Your Experience
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowRatingModal(false)}
+                  className="text-gray-400 hover:text-gray-100"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-300 block mb-2">
+                  Rating (1-5 stars)
+                </label>
+                <div className="flex space-x-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => setRating(star)}
+                      className="focus:outline-none"
+                    >
+                      <Star
+                        className={`h-8 w-8 ${
+                          star <= rating
+                            ? 'text-yellow-400 fill-current'
+                            : 'text-gray-400 hover:text-yellow-400'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-300 block mb-2">
+                  Feedback (optional)
+                </label>
+                <textarea
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                  placeholder="Share your experience..."
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 placeholder-gray-400 focus:border-emerald-500 focus:outline-none resize-none"
+                  rows={3}
+                  maxLength={500}
+                />
+                <div className="text-xs text-gray-400 mt-1">
+                  {feedback.length}/500 characters
+                </div>
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <Button
+                  onClick={() => setShowRatingModal(false)}
+                  variant="outline"
+                  className="flex-1 border-gray-600 text-gray-300"
+                  disabled={rateBookingMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={submitRating}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  disabled={rating === 0 || rateBookingMutation.isPending}
+                >
+                  {rateBookingMutation.isPending ? (
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                  )}
+                  Submit Rating
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };
 
-export default ClaimsPage;
+export default IntegratedClaimsPage;
