@@ -53,6 +53,10 @@ const foodListingSchema = new mongoose.Schema({
   providerName: {
     type: String,
     required: [true, 'Provider name is required']
+  },
+  imageUrl: {
+    type: String,
+    trim: true
   }
 }, {
   timestamps: true

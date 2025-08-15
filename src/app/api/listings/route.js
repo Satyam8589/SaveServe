@@ -24,6 +24,7 @@ export async function GET(request) {
     }
 
     const listings = await FoodListing.find(query)
+      .select('title description quantity freshnessStatus availabilityWindow location expiryTime isActive providerId providerName imageUrl createdAt')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -57,6 +58,12 @@ export async function POST(request) {
 
     const body = await request.json();
     
+    console.log('🔍 POST /api/listings - Received body:');
+    console.log('📋 Full request body:', JSON.stringify(body, null, 2));
+    console.log('🖼️ imageUrl in request:', body.imageUrl);
+    console.log('📊 imageUrl type:', typeof body.imageUrl);
+    console.log('📏 imageUrl length:', body.imageUrl?.length || 0);
+    
     // Validate required fields
     const {
       title,
@@ -69,7 +76,18 @@ export async function POST(request) {
       providerName
     } = body;
 
+    console.log('✅ Required fields check:');
+    console.log('- title:', !!title);
+    console.log('- quantity:', !!quantity);
+    console.log('- freshnessStatus:', !!freshnessStatus);
+    console.log('- availabilityWindow:', !!availabilityWindow);
+    console.log('- location:', !!location);
+    console.log('- expiryTime:', !!expiryTime);
+    console.log('- providerId:', !!providerId);
+    console.log('- providerName:', !!providerName);
+
     if (!title || !quantity || !freshnessStatus || !availabilityWindow || !location || !expiryTime || !providerId || !providerName) {
+      console.log('❌ Missing required fields');
       return NextResponse.json({
         success: false,
         error: 'Missing required fields'
@@ -82,6 +100,7 @@ export async function POST(request) {
     const expiry = new Date(expiryTime);
 
     if (startTime >= endTime) {
+      console.log('❌ Invalid time range');
       return NextResponse.json({
         success: false,
         error: 'End time must be after start time'
@@ -89,22 +108,47 @@ export async function POST(request) {
     }
 
     if (expiry <= new Date()) {
+      console.log('❌ Invalid expiry time');
       return NextResponse.json({
         success: false,
         error: 'Expiry time must be in the future'
       }, { status: 400 });
     }
 
-    const newListing = new FoodListing({
-      ...body,
+    // ✅ CRITICAL: Explicitly handle imageUrl
+    const listingData = {
+      title,
+      description: body.description || '',
+      category: body.category || '',
+      quantity: parseInt(quantity, 10),
+      unit: body.unit || '',
+      freshnessStatus,
+      freshnessHours: body.freshnessHours || 24,
       availabilityWindow: {
         startTime,
         endTime
       },
-      expiryTime: expiry
-    });
+      location,
+      expiryTime: expiry,
+      providerId,
+      providerName,
+      imageUrl: body.imageUrl || '', // ✅ Always include imageUrl, even if empty
+      bookedBy: body.bookedBy || [],
+      remainingQuantity: body.remainingQuantity || parseInt(quantity, 10),
+      isActive: body.isActive !== undefined ? body.isActive : true
+    };
 
+    console.log('📦 Final listing data to save:');
+    console.log('🖼️ imageUrl being saved:', listingData.imageUrl);
+    console.log('📋 Full listing data:', JSON.stringify(listingData, null, 2));
+
+    const newListing = new FoodListing(listingData);
     const savedListing = await newListing.save();
+
+    console.log('✅ Listing saved successfully:');
+    console.log('🆔 Saved listing ID:', savedListing._id);
+    console.log('🖼️ Saved imageUrl:', savedListing.imageUrl);
+    console.log('📋 Full saved listing:', JSON.stringify(savedListing.toObject(), null, 2));
 
     return NextResponse.json({
       success: true,
@@ -112,9 +156,11 @@ export async function POST(request) {
     }, { status: 201 });
 
   } catch (error) {
-    console.error('POST /api/listings error:', error);
+    console.error('❌ POST /api/listings error:', error);
     
     if (error.name === 'ValidationError') {
+      console.log('❌ Mongoose validation error:', error.message);
+      console.log('❌ Validation errors:', error.errors);
       return NextResponse.json({
         success: false,
         error: error.message
