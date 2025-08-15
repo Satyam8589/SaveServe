@@ -60,6 +60,13 @@ export default clerkMiddleware(async (auth, req) => {
     "/providerDashboard/recipients",
     "/providerDashboard/schedule",
     "/providerDashboard/notifications",
+    "/recipientDashboard/history",
+    "/recipientDashboard/notifications",
+    "/recipientDashboard/impact",
+    "/recipientDashboard/favorites",
+    "/recipientDashboard/claims",
+    "/recipientDashboard/browse",
+    "/recipientDashboard(*)",
   ];
   if (publicPages.includes(currentPath) || currentPath.startsWith("/sign-")) {
     return NextResponse.next();
