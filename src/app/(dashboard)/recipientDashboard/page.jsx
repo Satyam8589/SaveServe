@@ -16,6 +16,7 @@ import {
   Check,
   Filter,
   Loader2,
+  X,
 } from "lucide-react";
 import {
   Card,
@@ -46,6 +47,7 @@ export default function BrowseFoodPage() {
   const [sortBy, setSortBy] = useState("time");
   const [selectedFood, setSelectedFood] = useState(null);
   const [isClaimDialogOpen, setIsClaimDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [foodListings, setFoodListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -54,7 +56,6 @@ export default function BrowseFoodPage() {
     mealsSaved: 0,
   });
 
-  // Fetch food listings from API
   useEffect(() => {
     fetchFoodListings();
   }, []);
@@ -83,32 +84,30 @@ export default function BrowseFoodPage() {
     setSelectedFood(foodItem);
     setIsClaimDialogOpen(true);
   };
+  
+  const handleViewFood = (foodItem) => {
+    setSelectedFood(foodItem);
+    setIsViewDialogOpen(true);
+  };
+  
+  const handleClaimFromView = () => {
+    setIsViewDialogOpen(false);
+    setTimeout(() => {
+      setIsClaimDialogOpen(true);
+    }, 150);
+  };
 
   const confirmClaim = async () => {
     try {
-      // Here you would typically send a claim request to your API
       console.log("Claiming food:", selectedFood);
-      
-      // You might want to create an API endpoint for claiming food:
-      // const response = await fetch('/api/claims', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     foodListingId: selectedFood.id,
-      //     // other claim data
-      //   })
-      // });
       
       setIsClaimDialogOpen(false);
       setSelectedFood(null);
       
-      // Optionally refresh the listings
       fetchFoodListings();
       
-      // You might want to show a success toast here
     } catch (error) {
       console.error('Error claiming food:', error);
-      // Handle error (show toast, etc.)
     }
   };
 
@@ -141,11 +140,9 @@ export default function BrowseFoodPage() {
     return matchesFilter;
   });
 
-  // Sort filtered food
   const sortedFood = [...filteredFood].sort((a, b) => {
     switch (sortBy) {
       case "time":
-        // Sort by urgency first, then by time left
         if (a.status === "urgent" && b.status !== "urgent") return -1;
         if (b.status === "urgent" && a.status !== "urgent") return 1;
         return new Date(a.expiryTime) - new Date(b.expiryTime);
@@ -160,7 +157,6 @@ export default function BrowseFoodPage() {
     }
   });
 
-  // Calculate stats from current listings
   const urgentCount = foodListings.filter(f => f.status === "urgent").length;
 
   if (loading) {
@@ -320,10 +316,9 @@ export default function BrowseFoodPage() {
           {sortedFood.map((food) => (
             <Card
               key={food.id}
-              className="bg-gray-800 border-gray-700 hover:border-emerald-500 transition-colors"
+              className="bg-gray-800 border-gray-700 hover:border-emerald-500 transition-colors flex flex-col"
             >
-              <CardContent className="p-0">
-                {/* Food Image */}
+              <CardContent className="p-0 flex flex-col flex-grow">
                 <div className="h-48 bg-gray-700 rounded-t-lg flex items-center justify-center overflow-hidden">
                   {food.imageUrl ? (
                     <img 
@@ -336,7 +331,7 @@ export default function BrowseFoodPage() {
                   )}
                 </div>
 
-                <div className="p-4">
+                <div className="p-4 flex flex-col flex-grow">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-semibold text-gray-100 text-lg">
                       {food.title}
@@ -360,7 +355,6 @@ export default function BrowseFoodPage() {
                       <Package className="h-4 w-4" />
                       <span>{food.quantity}</span>
                     </div>
-
                     <div className="flex items-center space-x-2">
                       <MapPin className="h-4 w-4" />
                       <span>{food.location}</span>
@@ -368,7 +362,6 @@ export default function BrowseFoodPage() {
                         ({food.distance})
                       </span>
                     </div>
-
                     <div className="flex items-center space-x-2">
                       <Clock className="h-4 w-4" />
                       <span
@@ -381,12 +374,10 @@ export default function BrowseFoodPage() {
                         {food.timeLeft} left
                       </span>
                     </div>
-
                     <div className="flex items-center space-x-2">
                       <AlertTriangle className="h-4 w-4" />
                       <span>{food.freshness}</span>
                     </div>
-
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <Star className="h-4 w-4 text-yellow-400" />
@@ -399,7 +390,7 @@ export default function BrowseFoodPage() {
                     </div>
                   </div>
 
-                  <div className="mt-4 flex space-x-2">
+                  <div className="mt-auto pt-4 flex space-x-2">
                     <Button
                       className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
                       onClick={() => handleClaimFood(food)}
@@ -411,6 +402,7 @@ export default function BrowseFoodPage() {
                       variant="outline"
                       size="sm"
                       className="border-gray-600"
+                      onClick={() => handleViewFood(food)}
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
@@ -428,6 +420,83 @@ export default function BrowseFoodPage() {
           ))}
         </div>
       )}
+
+      {/* Full Screen View Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="bg-gray-800 border-gray-700 text-gray-100 sm:max-w-3xl p-0">
+          {selectedFood && (
+            <div>
+              <div className="relative">
+                <div className="h-64 md:h-80 w-full bg-gray-700">
+                   {selectedFood.imageUrl ? (
+                    <img 
+                      src={selectedFood.imageUrl} 
+                      alt={selectedFood.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Utensils className="h-24 w-24 text-gray-500" />
+                    </div>
+                  )}
+                </div>
+                 <Button 
+                    size="icon"
+                    variant="ghost"
+                    className="absolute top-2 right-2 bg-black/50 hover:bg-black/75 rounded-full"
+                    onClick={() => setIsViewDialogOpen(false)}
+                  >
+                    <X className="h-5 w-5 text-white" />
+                  </Button>
+              </div>
+
+              <div className="p-6">
+                <DialogHeader className="mb-4">
+                  <div className="flex justify-between items-center">
+                     <DialogTitle className="text-2xl font-bold text-gray-100">
+                        {selectedFood.title}
+                     </DialogTitle>
+                     <Badge className={getStatusColor(selectedFood.status) + " px-3 py-1 text-sm"}>
+                        {getStatusIcon(selectedFood.status)}
+                        <span className="ml-1.5 capitalize">{selectedFood.status}</span>
+                     </Badge>
+                  </div>
+                </DialogHeader>
+                
+                <p className="text-gray-400 mb-6">
+                  {selectedFood.description}
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-gray-300">
+                    <div className="flex items-center space-x-3"><Package className="h-5 w-5 text-emerald-400" /><span>Quantity: <strong>{selectedFood.quantity}</strong></span></div>
+                    <div className="flex items-center space-x-3"><MapPin className="h-5 w-5 text-emerald-400" /><span>Location: <strong>{selectedFood.location} ({selectedFood.distance})</strong></span></div>
+                    <div className="flex items-center space-x-3"><Clock className="h-5 w-5 text-emerald-400" /><span>Time Left: <strong className={selectedFood.status === 'urgent' ? 'text-red-400' : ''}>{selectedFood.timeLeft}</strong></span></div>
+                    <div className="flex items-center space-x-3"><AlertTriangle className="h-5 w-5 text-emerald-400" /><span>Freshness: <strong>{selectedFood.freshness}</strong></span></div>
+                    <div className="flex items-center space-x-3"><Star className="h-5 w-5 text-yellow-400" /><span>Rating: <strong>{selectedFood.rating}</strong> ({selectedFood.claims} claims)</span></div>
+                    <div className="flex items-center space-x-3"><Timer className="h-5 w-5 text-emerald-400" /><span>Posted: <strong>{selectedFood.posted}</strong></span></div>
+                </div>
+
+                <DialogFooter className="mt-8">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsViewDialogOpen(false)}
+                    className="border-gray-600 text-gray-300"
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    onClick={handleClaimFromView}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Proceed to Claim
+                  </Button>
+                </DialogFooter>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Claim Confirmation Dialog */}
       <Dialog
