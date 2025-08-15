@@ -13,7 +13,7 @@ export const LISTING_KEYS = {
 export function useListings(params = {}) {
   return useQuery({
     queryKey: LISTING_KEYS.list(params),
-    queryFn: () => listingService.getAllListings(),
+    queryFn: () => listingService.getAllListings(params),
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
     refetchOnWindowFocus: true,
