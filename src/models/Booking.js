@@ -43,6 +43,28 @@ const bookingSchema = new mongoose.Schema({
     trim: true,
     maxlength: [300, 'Request message cannot exceed 300 characters']
   },
+  qrCode: {
+    type: String,
+    unique: true,
+    required: true
+  },
+  qrCodeExpiry: {
+    type: Date,
+    required: true
+  },
+  collectionCode: {
+    type: String,
+    required: true,
+    length: 6 // 6-digit verification code as backup
+  },
+  collectedAt: {
+    type: Date,
+    default: null
+  },
+  collectionVerifiedBy: {
+    type: String, // Provider's user ID who verified the collection
+    default: null
+  },
   providerResponse: {
     type: String,
     trim: true,

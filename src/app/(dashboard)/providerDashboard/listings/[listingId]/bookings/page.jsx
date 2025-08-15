@@ -1,7 +1,8 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useFoodListingBookings, useFoodListing } from '@/hooks/useFoodListings';
+import { useFoodListing } from '@/hooks/useFoodListings';
+import { useFoodListingBookings } from '@/hooks/useBookings';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
