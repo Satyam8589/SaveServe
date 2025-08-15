@@ -2,9 +2,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useListings } from '@/hooks/useListings';
 
 export default function FoodListingTable() {
+  const router = useRouter();
   const [filters, setFilters] = useState({
     location: '',
     page: 1,
@@ -145,7 +147,11 @@ export default function FoodListingTable() {
               </thead>
               <tbody className="bg-gray-500 divide-y divide-gray-200">
                 {listings.map((listing) => (
-                  <tr key={listing._id} className="hover:bg-gray-600">
+                  <tr key={listing._id} className="hover:bg-gray-600 cursor-pointer" onClick={() => {
+                    const url = `/providerDashboard/listings/${listing._id}/bookings`;
+                    console.log('Navigating to:', url);
+                    router.push(url);
+                  }}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {listing.imageUrl ? (
                         <img src={listing.imageUrl} alt={listing.title} className="w-20 h-16 object-cover rounded-md" />
@@ -193,7 +199,11 @@ export default function FoodListingTable() {
           {/* Mobile Cards */}
           <div className="md:hidden">
             {listings.map((listing) => (
-              <div key={listing._id} className="p-4 border-b border-gray-700">
+              <div key={listing._id} className="p-4 border-b border-gray-700 cursor-pointer" onClick={() => {
+                const url = `/providerDashboard/listings/${listing._id}/bookings`;
+                console.log('Navigating to:', url);
+                router.push(url);
+              }}>
                 {listing.imageUrl ? (
                   <img src={listing.imageUrl} alt={listing.title} className="w-full h-32 object-cover rounded-md mb-3" />
                 ) : (

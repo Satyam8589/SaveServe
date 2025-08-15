@@ -71,10 +71,10 @@ export const useBookFoodListing = () => {
 };
 
 // 7. Hook to fetch bookings for a specific listing
-export const useFoodListingBookings = (listingId) => {
+export const useFoodListingBookings = (listingId, providerId) => {
   return useQuery({
-    queryKey: [LISTING_BOOKINGS_QUERY_KEY, listingId],
-    queryFn: () => listingService.getListingBookings(listingId),
-    enabled: !!listingId, // Only run query if listingId is provided
+    queryKey: [LISTING_BOOKINGS_QUERY_KEY, listingId, providerId],
+    queryFn: () => listingService.getListingBookings(listingId, providerId),
+    enabled: !!listingId && !!providerId, // Only run query if listingId and providerId are provided
   });
 };

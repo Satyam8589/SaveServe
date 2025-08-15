@@ -90,7 +90,7 @@ export default function ProviderDashboardLayout({ children }) {
                     <Link href={item.href} passHref>
                       <SidebarMenuButton
                         className={`text-gray-300 hover:text-gray-100 hover:bg-gray-700 ${
-                          pathname === item.href
+                          (item.href === "/providerDashboard/listings" && pathname.startsWith(item.href)) || pathname === item.href
                             ? "bg-orange-500 text-white"
                             : ""
                         }`}

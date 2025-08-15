@@ -15,7 +15,7 @@ const foodListingSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['Cooked Food', 'Raw Ingredients', 'Packaged Food', 'Beverages', 'Snacks'],
+    enum: ['Cooked Food', 'fruits', 'snacks', 'Raw Ingredients', 'Packaged Food', 'Beverages'],
     required: [true, 'Category is required']
   },
   quantity: {
@@ -31,7 +31,7 @@ const foodListingSchema = new mongoose.Schema({
   freshnessStatus: {
     type: String,
     required: [true, 'Freshness status is required'],
-    enum: ['Fresh', 'Safe to Eat for 2 hours', 'Safe to Eat for 4 hours', 'Safe to Eat for 6 hours', 'Safe to Eat for 12 hours']
+    enum: ['Fresh', 'Safe to Eat for 2 hours', 'Safe to Eat for 4 hours', 'Safe to Eat for 6 hours', 'Safe to Eat for 8 hours', 'Safe to Eat for 12 hours']
   },
   freshnessHours: {
     type: Number,

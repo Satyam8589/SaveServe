@@ -71,8 +71,8 @@ const listingService = {
     return response.json();
   },
 
-  getListingBookings: async (listingId) => {
-    const response = await fetch(`${API_BASE_URL}/listings/${listingId}/bookings`);
+  getListingBookings: async (listingId, providerId) => {
+    const response = await fetch(`${API_BASE_URL}/listings/${listingId}/bookings?providerId=${providerId}`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }

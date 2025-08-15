@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import FoodListing from '@/models/FoodListing';
-import connectDB from '@/lib/db'; // Assuming this connects to MongoDB
+import { connectDB } from '@/lib/db'; // Assuming this connects to MongoDB
 
 export async function GET(request, { params }) {
   await connectDB();
   try {
-    const { id } = params;
+    const { id } = await params;
     const listing = await FoodListing.findById(id);
 
     if (!listing) {
