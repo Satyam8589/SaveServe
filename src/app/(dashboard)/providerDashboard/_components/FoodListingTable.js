@@ -84,7 +84,7 @@ export default function FoodListingTable() {
   const listings = data?.data || [];
 
   return (
-    <div className="bg-white rounded-lg shadow-md">
+    <div className="bg-gray-800 rounded-lg shadow-md border-gray-700">
       <div className="p-6 border-b border-gray-200">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
@@ -121,7 +121,7 @@ export default function FoodListingTable() {
           {/* Desktop Table */}
           <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-700">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Food Item
@@ -143,22 +143,22 @@ export default function FoodListingTable() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-gray-500 divide-y divide-gray-200">
                 {listings.map((listing) => (
-                  <tr key={listing._id} className="hover:bg-gray-50">
+                  <tr key={listing._id} className="hover:bg-gray-600">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-gray-100">
                           {listing.title}
                         </div>
                         {listing.description && (
-                          <div className="text-sm text-gray-500 truncate max-w-xs">
+                          <div className="text-sm text-gray-300 truncate max-w-xs">
                             {listing.description}
                           </div>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
                       {listing.quantity}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -166,13 +166,13 @@ export default function FoodListingTable() {
                         {listing.freshnessStatus}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
                       {listing.location}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
                       {formatTimeRemaining(listing.expiryTime)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
                       {listing.providerName}
                     </td>
                   </tr>
@@ -184,34 +184,34 @@ export default function FoodListingTable() {
           {/* Mobile Cards */}
           <div className="md:hidden">
             {listings.map((listing) => (
-              <div key={listing._id} className="p-4 border-b border-gray-200">
+              <div key={listing._id} className="p-4 border-b border-gray-700">
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-lg font-medium text-gray-900">{listing.title}</h3>
+                  <h3 className="text-lg font-medium text-gray-100">{listing.title}</h3>
                   <span className={getStatusBadge(listing.freshnessStatus)}>
                     {listing.freshnessStatus}
                   </span>
                 </div>
                 
                 {listing.description && (
-                  <p className="text-sm text-gray-600 mb-3">{listing.description}</p>
+                  <p className="text-sm text-gray-300 mb-3">{listing.description}</p>
                 )}
                 
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="font-medium text-gray-700">Quantity:</span>
-                    <span className="ml-1 text-gray-900">{listing.quantity}</span>
+                    <span className="font-medium text-gray-500">Quantity:</span>
+                    <span className="ml-1 text-gray-100">{listing.quantity}</span>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-700">Time Left:</span>
-                    <span className="ml-1 text-gray-900">{formatTimeRemaining(listing.expiryTime)}</span>
+                    <span className="font-medium text-gray-500">Time Left:</span>
+                    <span className="ml-1 text-gray-100">{formatTimeRemaining(listing.expiryTime)}</span>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-700">Location:</span>
-                    <span className="ml-1 text-gray-900">{listing.location}</span>
+                    <span className="font-medium text-gray-500">Location:</span>
+                    <span className="ml-1 text-gray-100">{listing.location}</span>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-700">Provider:</span>
-                    <span className="ml-1 text-gray-900">{listing.providerName}</span>
+                    <span className="font-medium text-gray-500">Provider:</span>
+                    <span className="ml-1 text-gray-100">{listing.providerName}</span>
                   </div>
                 </div>
               </div>
@@ -220,9 +220,9 @@ export default function FoodListingTable() {
 
           {/* Pagination */}
           {data?.pagination && data.pagination.pages > 1 && (
-            <div className="px-6 py-4 border-t border-gray-200">
+            <div className="px-6 py-4 border-t border-gray-500">
               <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-700">
+                <div className="text-sm text-gray-200">
                   Showing page {data.pagination.current} of {data.pagination.pages}
                 </div>
                 <div className="flex space-x-2">
