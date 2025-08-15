@@ -4,6 +4,7 @@
 import { useState, useRef } from 'react';
 import { useCreateListing } from '@/hooks/useListings';
 import { uploadImageToCloudinary } from '@/utils/cloudinary';
+import { useAuth } from '@clerk/nextjs';
 
 const FRESHNESS_OPTIONS = [
   { value: 'Fresh', hours: 24, label: 'Fresh (24 hours)' },
@@ -27,6 +28,8 @@ const FOOD_CATEGORIES = [
 ];
 
 export default function FoodListingForm({ onSuccess, onCancel }) {
+  const { userId } = useAuth(); // Get the current user's Clerk ID
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -40,7 +43,7 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
       endTime: ''
     },
     location: '',
-    providerId: 'temp-provider-id',
+    providerId: userId || '', // Use the actual Clerk user ID
     providerName: 'Sample Provider',
     imageUrl: '' // ✅ Ensure this is always present
   });
