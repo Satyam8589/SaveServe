@@ -1,52 +1,135 @@
 // File: /components/FoodListingForm.js
-'use client';
+"use client";
 
-import { useState, useRef } from 'react';
-import { useCreateListing } from '@/hooks/useListings';
-import { uploadImageToCloudinary } from '@/utils/cloudinary';
-import { useAuth } from '@clerk/nextjs';
+import { useState, useRef, useEffect } from "react";
+import { useCreateListing } from "@/hooks/useListings";
+import { useUserProfile } from "@/hooks/useProfile";
+import { uploadImageToCloudinary } from "@/utils/cloudinary";
+import { useAuth } from "@clerk/nextjs";
 
 const FRESHNESS_OPTIONS = [
-  { value: 'Fresh', hours: 24, label: 'Fresh (24 hours)' },
-  { value: 'Safe to Eat for 12 hours', hours: 12, label: 'Safe to Eat for 12 hours' },
-  { value: 'Safe to Eat for 8 hours', hours: 8, label: 'Safe to Eat for 8 hours' },
-  { value: 'Safe to Eat for 6 hours', hours: 6, label: 'Safe to Eat for 6 hours' },
-  { value: 'Safe to Eat for 4 hours', hours: 4, label: 'Safe to Eat for 4 hours' },
-  { value: 'Safe to Eat for 2 hours', hours: 2, label: 'Safe to Eat for 2 hours' }
+  { value: "Fresh", hours: 24, label: "Fresh (24 hours)" },
+  {
+    value: "Safe to Eat for 12 hours",
+    hours: 12,
+    label: "Safe to Eat for 12 hours",
+  },
+  {
+    value: "Safe to Eat for 8 hours",
+    hours: 8,
+    label: "Safe to Eat for 8 hours",
+  },
+  {
+    value: "Safe to Eat for 6 hours",
+    hours: 6,
+    label: "Safe to Eat for 6 hours",
+  },
+  {
+    value: "Safe to Eat for 4 hours",
+    hours: 4,
+    label: "Safe to Eat for 4 hours",
+  },
+  {
+    value: "Safe to Eat for 2 hours",
+    hours: 2,
+    label: "Safe to Eat for 2 hours",
+  },
 ];
 
 const FOOD_CATEGORIES = [
-  { value: 'rice_based', label: 'Rice Based Items', unit: 'servings', examples: 'Rice, Biryani, Pulao' },
-  { value: 'curry_gravy', label: 'Curry/Gravy Items', unit: 'servings', examples: 'Dal, Sabzi, Curry' },
-  { value: 'bread_roti', label: 'Bread/Roti Items', unit: 'pieces', examples: 'Roti, Naan, Paratha' },
-  { value: 'snacks', label: 'Snacks', unit: 'pieces', examples: 'Samosa, Pakora, Sandwich' },
-  { value: 'sweets', label: 'Sweets/Desserts', unit: 'pieces', examples: 'Cake, Gulab Jamun, Laddu' },
-  { value: 'fruits', label: 'Fruits', unit: 'pieces', examples: 'Apple, Banana, Orange' },
-  { value: 'beverages', label: 'Beverages', unit: 'glasses', examples: 'Juice, Lassi, Tea' },
-  { value: 'combo_meals', label: 'Combo Meals', unit: 'plates', examples: 'Thali, Combo Plate' },
-  { value: 'other', label: 'Other', unit: 'units', examples: 'Specify in description' }
+  {
+    value: "rice_based",
+    label: "Rice Based Items",
+    unit: "servings",
+    examples: "Rice, Biryani, Pulao",
+  },
+  {
+    value: "curry_gravy",
+    label: "Curry/Gravy Items",
+    unit: "servings",
+    examples: "Dal, Sabzi, Curry",
+  },
+  {
+    value: "bread_roti",
+    label: "Bread/Roti Items",
+    unit: "pieces",
+    examples: "Roti, Naan, Paratha",
+  },
+  {
+    value: "snacks",
+    label: "Snacks",
+    unit: "pieces",
+    examples: "Samosa, Pakora, Sandwich",
+  },
+  {
+    value: "sweets",
+    label: "Sweets/Desserts",
+    unit: "pieces",
+    examples: "Cake, Gulab Jamun, Laddu",
+  },
+  {
+    value: "fruits",
+    label: "Fruits",
+    unit: "pieces",
+    examples: "Apple, Banana, Orange",
+  },
+  {
+    value: "beverages",
+    label: "Beverages",
+    unit: "glasses",
+    examples: "Juice, Lassi, Tea",
+  },
+  {
+    value: "combo_meals",
+    label: "Combo Meals",
+    unit: "plates",
+    examples: "Thali, Combo Plate",
+  },
+  {
+    value: "other",
+    label: "Other",
+    unit: "units",
+    examples: "Specify in description",
+  },
 ];
 
 export default function FoodListingForm({ onSuccess, onCancel }) {
   const { userId } = useAuth(); // Get the current user's Clerk ID
-
+  const {
+    data: userProfile,
+    isLoading: isProfileLoading,
+    error: profileError,
+  } = useUserProfile();
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category: '',
-    quantity: '',
-    unit: '',
-    freshnessStatus: 'Fresh',
+    title: "",
+    description: "",
+    category: "",
+    quantity: "",
+    unit: "",
+    freshnessStatus: "Fresh",
     freshnessHours: 24,
     availabilityWindow: {
-      startTime: '',
-      endTime: ''
+      startTime: "",
+      endTime: "",
     },
-    location: '',
-    providerId: userId || '', // Use the actual Clerk user ID
-    providerName: 'Sample Provider',
-    imageUrl: '' // ✅ Ensure this is always present
+    location: "",
+    providerName: "",
+    providerId: userId || "",
+    imageUrl: "",
   });
+
+  useEffect(() => {
+    // Check if the userProfile data has been successfully fetched
+    if (userProfile) {
+      setFormData((prev) => ({
+        ...prev,
+        // Set the providerName from the fullName in the profile
+        providerName: userProfile.fullName || "",
+        // Set the location from the campusLocation in the profile
+        location: userProfile.campusLocation || "",
+      }));
+    }
+  }, [userProfile]);
 
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -57,34 +140,38 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    
-    if (name.startsWith('availabilityWindow.')) {
-      const field = name.split('.')[1];
-      setFormData(prev => ({
+
+    if (name.startsWith("availabilityWindow.")) {
+      const field = name.split(".")[1];
+      setFormData((prev) => ({
         ...prev,
         availabilityWindow: {
           ...prev.availabilityWindow,
-          [field]: value
-        }
+          [field]: value,
+        },
       }));
-    } else if (name === 'category') {
-      const selectedCategory = FOOD_CATEGORIES.find(cat => cat.value === value);
-      setFormData(prev => ({
+    } else if (name === "category") {
+      const selectedCategory = FOOD_CATEGORIES.find(
+        (cat) => cat.value === value
+      );
+      setFormData((prev) => ({
         ...prev,
         [name]: value,
-        unit: selectedCategory ? selectedCategory.unit : ''
+        unit: selectedCategory ? selectedCategory.unit : "",
       }));
-    } else if (name === 'freshnessStatus') {
-      const selectedOption = FRESHNESS_OPTIONS.find(opt => opt.value === value);
-      setFormData(prev => ({
+    } else if (name === "freshnessStatus") {
+      const selectedOption = FRESHNESS_OPTIONS.find(
+        (opt) => opt.value === value
+      );
+      setFormData((prev) => ({
         ...prev,
         [name]: value,
-        freshnessHours: selectedOption ? selectedOption.hours : 24
+        freshnessHours: selectedOption ? selectedOption.hours : 24,
       }));
     } else {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        [name]: value
+        [name]: value,
       }));
     }
   };
@@ -92,18 +179,18 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (!file.type.startsWith('image/')) {
-        alert('Please select a valid image file');
+      if (!file.type.startsWith("image/")) {
+        alert("Please select a valid image file");
         return;
       }
-      
+
       if (file.size > 5 * 1024 * 1024) {
-        alert('Image size should be less than 5MB');
+        alert("Image size should be less than 5MB");
         return;
       }
 
       setImageFile(file);
-      
+
       const reader = new FileReader();
       reader.onload = (e) => {
         setImagePreview(e.target.result);
@@ -114,25 +201,25 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
 
   const uploadImage = async () => {
     if (!imageFile) {
-      console.log('❌ No image file to upload');
+      console.log("❌ No image file to upload");
       return null;
     }
-    
-    console.log('📤 Starting image upload...');
+
+    console.log("📤 Starting image upload...");
     setUploadingImage(true);
-    
+
     try {
       const uploadResult = await uploadImageToCloudinary(imageFile);
-      console.log('✅ Upload successful:', uploadResult);
-      
+      console.log("✅ Upload successful:", uploadResult);
+
       if (!uploadResult || !uploadResult.url) {
-        throw new Error('Upload result is missing URL');
+        throw new Error("Upload result is missing URL");
       }
-      
+
       return uploadResult.url;
     } catch (error) {
-      console.error('❌ Image upload failed:', error);
-      throw new Error('Failed to upload image: ' + error.message);
+      console.error("❌ Image upload failed:", error);
+      throw new Error("Failed to upload image: " + error.message);
     } finally {
       setUploadingImage(false);
     }
@@ -141,9 +228,9 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
   const removeImage = () => {
     setImageFile(null);
     setImagePreview(null);
-    setFormData(prev => ({ ...prev, imageUrl: '' }));
+    setFormData((prev) => ({ ...prev, imageUrl: "" }));
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
@@ -151,41 +238,45 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
     if (!formData.availabilityWindow.startTime || !formData.freshnessHours) {
       return null;
     }
-    
+
     const startTime = new Date(formData.availabilityWindow.startTime);
-    const expiryTime = new Date(startTime.getTime() + (formData.freshnessHours * 60 * 60 * 1000));
+    const expiryTime = new Date(
+      startTime.getTime() + formData.freshnessHours * 60 * 60 * 1000
+    );
     return expiryTime;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    console.log('🚀 Form submission started');
-    console.log('📝 Initial form data:', formData);
-    console.log('🖼️ Image file present:', !!imageFile);
-    
+
+    console.log("🚀 Form submission started");
+    console.log("📝 Initial form data:", formData);
+    console.log("🖼️ Image file present:", !!imageFile);
+
     try {
-      let finalImageUrl = formData.imageUrl || '';
+      let finalImageUrl = formData.imageUrl || "";
 
       // Upload new image if selected
       if (imageFile) {
-        console.log('📤 Uploading image...');
+        console.log("📤 Uploading image...");
         const uploadedUrl = await uploadImage();
-        
+
         if (uploadedUrl) {
           finalImageUrl = uploadedUrl;
-          console.log('✅ Final image URL:', finalImageUrl);
+          console.log("✅ Final image URL:", finalImageUrl);
         } else {
-          console.log('⚠️ Image upload returned no URL');
+          console.log("⚠️ Image upload returned no URL");
         }
       } else {
-        console.log('ℹ️ No image selected, using existing URL:', finalImageUrl);
+        console.log("ℹ️ No image selected, using existing URL:", finalImageUrl);
       }
 
       // Calculate expiry time
       const expiryTime = calculateExpiryTime();
       if (!expiryTime) {
-        throw new Error('Cannot calculate expiry time. Please check availability start time.');
+        throw new Error(
+          "Cannot calculate expiry time. Please check availability start time."
+        );
       }
 
       // ✅ CRITICAL: Ensure imageUrl is always included, even if empty
@@ -205,41 +296,41 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
         expiryTime: expiryTime.toISOString(),
         bookedBy: [],
         remainingQuantity: parseInt(formData.quantity, 10),
-        isActive: true
+        isActive: true,
       };
 
-      console.log('📦 Final payload being sent to API:');
-      console.log('🔍 imageUrl in payload:', listingPayload.imageUrl);
-      console.log('📋 Full payload:', JSON.stringify(listingPayload, null, 2));
+      console.log("📦 Final payload being sent to API:");
+      console.log("🔍 imageUrl in payload:", listingPayload.imageUrl);
+      console.log("📋 Full payload:", JSON.stringify(listingPayload, null, 2));
 
       const result = await createListingMutation.mutateAsync(listingPayload);
-      console.log('✅ API response:', result);
+      console.log("✅ API response:", result);
 
       // Reset form
       setFormData({
-        title: '',
-        description: '',
-        category: '',
-        quantity: '',
-        unit: '',
-        freshnessStatus: 'Fresh',
+        title: "",
+        description: "",
+        category: "",
+        quantity: "",
+        unit: "",
+        freshnessStatus: "Fresh",
         freshnessHours: 24,
         availabilityWindow: {
-          startTime: '',
-          endTime: ''
+          startTime: "",
+          endTime: "",
         },
-        location: '',
-        providerId: 'temp-provider-id',
-        providerName: 'Sample Provider',
-        imageUrl: ''
+        location: "",
+        providerId: "temp-provider-id",
+        providerName: "Sample Provider",
+        imageUrl: "",
       });
       setImageFile(null);
       setImagePreview(null);
 
       if (onSuccess) onSuccess();
     } catch (error) {
-      console.error('❌ Failed to create listing:', error);
-      alert('Failed to create listing: ' + error.message);
+      console.error("❌ Failed to create listing:", error);
+      alert("Failed to create listing: " + error.message);
     }
   };
 
@@ -249,7 +340,13 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
     return now.toISOString().slice(0, 16);
   };
 
-  const selectedCategory = FOOD_CATEGORIES.find(cat => cat.value === formData.category);
+  const selectedCategory = FOOD_CATEGORIES.find(
+    (cat) => cat.value === formData.category
+  );
+
+  if (isProfileLoading) {
+    return <div>Loading user information...</div>;
+  }
 
   return (
     <div className="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700">
@@ -265,8 +362,18 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
             onClick={onCancel}
             className="text-gray-400 hover:text-orange-400 transition-colors"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         )}
@@ -278,7 +385,7 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
           <label className="block text-sm font-medium text-amber-400 mb-2">
             Food Image (Optional)
           </label>
-          
+
           {!imagePreview ? (
             <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center">
               <input
@@ -289,8 +396,18 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
                 className="hidden"
               />
               <div className="space-y-2">
-                <svg className="w-12 h-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                <svg
+                  className="w-12 h-12 text-gray-400 mx-auto"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                  />
                 </svg>
                 <p className="text-gray-400">Click to upload food image</p>
                 <p className="text-sm text-gray-500">PNG, JPG up to 5MB</p>
@@ -315,8 +432,18 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
                 onClick={removeImage}
                 className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -352,14 +479,20 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
             >
               <option value="">Select Category</option>
-              {FOOD_CATEGORIES.map(category => (
-                <option key={category.value} value={category.value} className="bg-gray-700">
+              {FOOD_CATEGORIES.map((category) => (
+                <option
+                  key={category.value}
+                  value={category.value}
+                  className="bg-gray-700"
+                >
                   {category.label}
                 </option>
               ))}
             </select>
             {selectedCategory && (
-              <p className="text-xs text-gray-400 mt-1">Examples: {selectedCategory.examples}</p>
+              <p className="text-xs text-gray-400 mt-1">
+                Examples: {selectedCategory.examples}
+              </p>
             )}
           </div>
         </div>
@@ -381,7 +514,7 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
                 placeholder="10"
               />
               <div className="px-4 py-3 bg-gray-600 border border-gray-600 border-l-0 rounded-r-lg text-gray-300 flex items-center">
-                {formData.unit || 'units'}
+                {formData.unit || "units"}
               </div>
             </div>
           </div>
@@ -397,8 +530,12 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
               required
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
             >
-              {FRESHNESS_OPTIONS.map(option => (
-                <option key={option.value} value={option.value} className="bg-gray-700">
+              {FRESHNESS_OPTIONS.map((option) => (
+                <option
+                  key={option.value}
+                  value={option.value}
+                  className="bg-gray-700"
+                >
                   {option.label}
                 </option>
               ))}
@@ -427,7 +564,7 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
           <input
             type="text"
             name="location"
-            value={formData.location}
+            value={formData.location} // This value is now controlled by the state
             onChange={handleInputChange}
             required
             className="w-full px-4 py-3 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 placeholder-gray-400 transition-colors"
@@ -470,14 +607,18 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
         {/* Expiry Time Preview */}
         {formData.availabilityWindow.startTime && formData.freshnessHours && (
           <div className="bg-gray-700 rounded-lg p-4">
-            <h4 className="text-amber-400 font-medium mb-2">📅 Calculated Expiry Time</h4>
+            <h4 className="text-amber-400 font-medium mb-2">
+              📅 Calculated Expiry Time
+            </h4>
             <p className="text-gray-300">
-              This food will expire on: <span className="font-medium text-white">
+              This food will expire on:{" "}
+              <span className="font-medium text-white">
                 {calculateExpiryTime()?.toLocaleString()}
               </span>
             </p>
             <p className="text-sm text-gray-400 mt-1">
-              Based on availability start time + freshness duration ({formData.freshnessHours} hours)
+              Based on availability start time + freshness duration (
+              {formData.freshnessHours} hours)
             </p>
           </div>
         )}
@@ -499,23 +640,52 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
           >
             {createListingMutation.isPending || uploadingImage ? (
               <span className="flex items-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <svg
+                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
                 </svg>
-                {uploadingImage ? 'Uploading Image...' : 'Creating...'}
+                {uploadingImage ? "Uploading Image..." : "Creating..."}
               </span>
-            ) : 'Create Listing'}
+            ) : (
+              "Create Listing"
+            )}
           </button>
         </div>
 
         {createListingMutation.isError && (
           <div className="mt-4 p-4 bg-red-900/50 border border-red-700 rounded-lg">
             <p className="text-red-400 flex items-center">
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-5 h-5 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
-              {createListingMutation.error?.message || 'Failed to create listing'}
+              {createListingMutation.error?.message ||
+                "Failed to create listing"}
             </p>
           </div>
         )}
