@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   SignedIn,
   SignedOut,
@@ -13,39 +14,50 @@ import {
 export default function Header({ userData }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, isLoaded } = useUser();
+  const router = useRouter();
+
+  // Redirect logic
+  useEffect(() => {
+    if (isLoaded && user) {
+      const hasOnboarded = user.publicMetadata?.hasOnboarded || false;
+      const mainRole = user.publicMetadata?.mainRole;
+
+      if (!hasOnboarded) {
+        router.replace("/onboarding");
+      } else {
+        switch (mainRole) {
+          case "PROVIDER":
+            router.replace("/providerDashboard");
+            break;
+          case "RECIPIENT":
+            router.replace("/recipientDashboard");
+            break;
+          case "ADMIN":
+            router.replace("/adminDashboard");
+            break;
+          default:
+            router.replace("/onboarding");
+        }
+      }
+    }
+  }, [isLoaded, user, router]);
 
   if (!isLoaded) {
     return (
       <div className="flex items-center justify-center">
         <div className="loader"></div>
       </div>
-    ); // or a loading spinner
+    );
   }
 
   const mainRole = user?.publicMetadata?.mainRole;
-
-  console.log("User's main role:", mainRole);
-
-  const getDashboardRoute = () => {
-    switch (mainRole) {
-      case "PROVIDER":
-        return "/providerDashboard";
-      case "RECIPIENT":
-        return "/recipientDashboard";
-      case "ADMIN":
-        return "/adminDashboard";
-      default:
-        return "/onboarding"; // fallback
-    }
-  };
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
-  // Navigation links based on authentication and user type
+  // Navigation links
   const getNavigationLinks = () => {
-    // Not logged in - show public pages
     if (!user) {
       return [
         { href: "/", label: "Home" },
@@ -54,10 +66,9 @@ export default function Header({ userData }) {
       ];
     }
 
-    // Logged in as provider
     if (mainRole === "PROVIDER") {
       return [
-        { href: getDashboardRoute(), label: "Dashboard" },
+        { href: "/providerDashboard", label: "Dashboard" },
         { href: "/my-listings", label: "My Listings" },
         { href: "/add-listing", label: "Share Food" },
         { href: "/analytics", label: "My Impact" },
@@ -65,10 +76,9 @@ export default function Header({ userData }) {
       ];
     }
 
-    // Logged in as receiver
     if (mainRole === "RECIPIENT") {
       return [
-        { href: getDashboardRoute(), label: "Dashboard" },
+        { href: "/recipientDashboard", label: "Dashboard" },
         { href: "/browse", label: "Find Food" },
         { href: "/my-requests", label: "My Requests" },
         { href: "/notifications", label: "Alerts" },
@@ -76,9 +86,8 @@ export default function Header({ userData }) {
       ];
     }
 
-    // Default for logged in users without specific type
     return [
-      { href: getDashboardRoute(), label: "Dashboard" },
+      { href: "/onboarding", label: "Onboarding" },
       { href: "/browse", label: "Browse" },
       { href: "/profile", label: "Profile" },
     ];
@@ -244,3 +253,4 @@ export default function Header({ userData }) {
     </header>
   );
 }
+
