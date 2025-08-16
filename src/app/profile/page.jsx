@@ -1071,6 +1071,7 @@ const ProfilePage = () => {
                         {action.label}
                       </span>
                     </button>
+                    
                   ))}
                 </div>
               </div>
