@@ -106,6 +106,11 @@ const UserProfileSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    area: { // Added area field
+      type: String,
+      trim: true,
+      maxlength: [100, "Area cannot exceed 100 characters."],
+    },
     isActive: {
       type: Boolean,
       default: true,

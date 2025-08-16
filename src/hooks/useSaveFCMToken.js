@@ -23,11 +23,14 @@ const saveFCMToken = async ({ token, userId, role, area }) => {
   return response.json();
 };
 
-export const useSaveFCMToken = () => {
+export const useSaveFCMToken = (onSuccessCallback) => {
   return useMutation({
     mutationFn: saveFCMToken,
     onSuccess: (data) => {
       console.log('FCM token saved successfully:', data);
+      if (onSuccessCallback) {
+        onSuccessCallback();
+      }
     },
     onError: (error) => {
       console.error('Failed to save FCM token:', error);

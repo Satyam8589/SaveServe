@@ -49,7 +49,7 @@ export async function POST(request) {
     }
 
     // Validate role if provided
-    if (role && !['provider', 'recipient'].includes(role)) {
+    if (role && !['provider', 'recipient'].includes(role.toLowerCase())) {
       return NextResponse.json({
         success: false,
         error: 'Invalid role. Must be either "provider" or "recipient"'

@@ -1,25 +1,28 @@
 // public/firebase-messaging-sw.js
 // Firebase service worker for handling background notifications
 
-import { initializeApp } from 'firebase/app';
-import { getMessaging, onBackgroundMessage } from 'firebase/messaging/sw';
+// Import Firebase scripts using importScripts (required for service workers)
+importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js');
 
 // Firebase configuration - same as client
 const firebaseConfig = {
-  apiKey: "your-api-key", // Replace with your actual values
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "your-app-id"
+  apiKey: "AIzaSyAvxSwi3t0G7aZ1mgzRMcbemPF-6smC4n8",
+  authDomain: "saveserve-f9fb5.firebaseapp.com",
+  projectId: "saveserve-f9fb5",
+  storageBucket: "saveserve-f9fb5.firebasestorage.app",
+  messagingSenderId: "220940003803",
+  appId: "1:220940003803:web:9d7a44660981023541dffe"
 };
 
 // Initialize Firebase in service worker
-const app = initializeApp(firebaseConfig);
-const messaging = getMessaging(app);
+firebase.initializeApp(firebaseConfig);
+
+// Initialize Firebase Cloud Messaging and get a reference to the service
+const messaging = firebase.messaging();
 
 // Handle background messages
-onBackgroundMessage(messaging, (payload) => {
+messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message:', payload);
   
   const notificationTitle = payload.notification?.title || 'New Food Available';

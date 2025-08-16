@@ -25,6 +25,7 @@ const isProtectedApiRoute = createRouteMatcher([
   "/api/listings(.*)",
   "/api/profile(.*)",
   "/api/admin(.*)",
+  "/api/notifications(.*)",
 ]);
 
 const isPublicApiRoute = createRouteMatcher([
