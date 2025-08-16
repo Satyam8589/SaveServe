@@ -25,6 +25,9 @@ export default async function RootLayout({ children }) {
       }}
     >
       <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/logo.svg"  />
+      </head>
         <body className={`${inter.className}`}>
           <ThemeProvider
             attribute="class"
