@@ -8,6 +8,7 @@ import { Toaster } from "sonner";
 import Header from "@/components/header";
 import Providers from "./providers";
 import { currentUser } from "@clerk/nextjs/server";
+import NotificationsInitializer from "@/components/NotificationsInitializer";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -33,6 +34,11 @@ export default async function RootLayout({ children }) {
             disableTransitionOnChange
           >
             <Providers>
+            
+            <NotificationsInitializer 
+              userRole="RECIPIENT" // or "provider" based on user
+              userArea="Downtown Mumbai" // user's location/area
+            />
         
             {/* Header Section */}
             <Header />

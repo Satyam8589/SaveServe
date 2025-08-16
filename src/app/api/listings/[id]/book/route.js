@@ -7,6 +7,7 @@ import Booking from "@/models/Booking";
 import UserProfile from "@/models/UserProfile";
 import mongoose from "mongoose";
 import { QRCodeService } from "@/lib/qrCodeService";
+import { sendNotificationToUser } from "@/lib/notificationService";
 
 export async function POST(request, { params }) {
   const { id } = await params; // This is the listing ID
@@ -95,6 +96,48 @@ export async function POST(request, { params }) {
     }
 
     await session.commitTransaction();
+
+    // 🔔 Send booking confirmation notification to recipient
+    try {
+      console.log('📢 Sending booking confirmation to recipient:', userId);
+      
+      const notificationResult = await sendNotificationToUser(
+        userId,
+        'Booking Confirmed! ✅',
+        `Your booking for "${foodListing.title}" has been confirmed. Show your QR code when collecting.`,
+        {
+          bookingId: booking._id.toString(),
+          listingId: id,
+          action: 'booking_confirmed',
+          collectionCode: collectionCode
+        }
+      );
+
+      console.log('📨 Recipient notification result:', notificationResult);
+    } catch (notificationError) {
+      console.error('❌ Failed to send booking confirmation notification:', notificationError);
+    }
+
+    // 🔔 Send booking notification to provider
+    try {
+      console.log('📢 Sending new booking notification to provider:', foodListing.providerId);
+      
+      const providerNotificationResult = await sendNotificationToUser(
+        foodListing.providerId,
+        'New Booking Received! 📋',
+        `${recipientName} has booked "${foodListing.title}" (${requestedQuantity} ${foodListing.unit || 'items'})`,
+        {
+          bookingId: booking._id.toString(),
+          listingId: id,
+          recipientId: userId,
+          action: 'new_booking'
+        }
+      );
+
+      console.log('📨 Provider notification result:', providerNotificationResult);
+    } catch (notificationError) {
+      console.error('❌ Failed to send provider notification:', notificationError);
+    }
 
     const bookingResponse = {
       ...booking.toObject(),

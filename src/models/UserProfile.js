@@ -102,6 +102,10 @@ const UserProfileSchema = new mongoose.Schema(
       // ⭐ CHANGE 1: The default value is now true.
       default: true,
     },
+    fcmToken: {
+      type: String,
+      default: null,
+    },
     isActive: {
       type: Boolean,
       default: true,
@@ -143,12 +147,17 @@ UserProfileSchema.pre("save", function (next) {
 
   // ⭐ CHANGE 2: The old logic has been completely replaced with this new, simpler rule.
   // The profile is considered complete by default for everyone.
-  this.isProfileComplete = true; 
-  
+  this.isProfileComplete = true;
+
   // The ONLY exception: if the subrole is NGO and the organization name is missing.
-  if (this.subrole === "NGO" && (!this.organizationName || this.organizationName.trim() === "")) {
+  if (
+    this.subrole === "NGO" &&
+    (!this.organizationName || this.organizationName.trim() === "")
+  ) {
     this.isProfileComplete = false;
-    console.log("❌ NGO subrole requires an organization name. Profile marked as incomplete.");
+    console.log(
+      "❌ NGO subrole requires an organization name. Profile marked as incomplete."
+    );
   }
 
   // Update other fields as before
@@ -159,7 +168,10 @@ UserProfileSchema.pre("save", function (next) {
   if (this.isActive === undefined) this.isActive = true;
   if (!this.profileVersion) this.profileVersion = 1;
 
-  console.log("✅ Pre-save completed. Final 'isProfileComplete' status:", this.isProfileComplete);
+  console.log(
+    "✅ Pre-save completed. Final 'isProfileComplete' status:",
+    this.isProfileComplete
+  );
   next();
 });
 

@@ -1,9 +1,10 @@
-// File: /app/api/listings/route.js
+// app/api/listings/route.js
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import FoodListing from '@/models/FoodListing';
+import { sendNotificationToArea } from '@/lib/notificationService';
 
-// GET - Fetch all active listings
+// GET - Fetch all active listings (unchanged)
 export async function GET(request) {
   try {
     await connectDB();
@@ -51,7 +52,7 @@ export async function GET(request) {
   }
 }
 
-// POST - Create new listing
+// POST - Create new listing with FCM notifications
 export async function POST(request) {
   try {
     await connectDB();
@@ -150,9 +151,42 @@ export async function POST(request) {
     console.log('🖼️ Saved imageUrl:', savedListing.imageUrl);
     console.log('📋 Full saved listing:', JSON.stringify(savedListing.toObject(), null, 2));
 
+    // 🔔 Send push notifications to recipients in the area
+    try {
+      console.log('📢 Sending notifications to area:', location);
+      
+      const notificationResult = await sendNotificationToArea(
+        location,
+        'New Food Available! 🍽️',
+        `${title} is available in ${location}. Grab it before it's gone!`,
+        {
+          listingId: savedListing._id.toString(),
+          providerId: savedListing.providerId,
+          location: savedListing.location,
+          category: savedListing.category || 'food',
+          action: 'new_listing'
+        }
+      );
+
+      console.log('📨 Notification result:', notificationResult);
+      
+      if (notificationResult.success) {
+        console.log(`✅ Sent ${notificationResult.sentCount} notifications to recipients in ${location}`);
+      } else {
+        console.warn('⚠️ Failed to send area notifications:', notificationResult.error);
+      }
+    } catch (notificationError) {
+      // Don't fail the entire request if notifications fail
+      console.error('❌ Notification sending failed:', notificationError);
+    }
+
     return NextResponse.json({
       success: true,
-      data: savedListing
+      data: savedListing,
+      notifications: {
+        sent: true,
+        area: location
+      }
     }, { status: 201 });
 
   } catch (error) {
