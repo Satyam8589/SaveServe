@@ -1,18 +1,18 @@
-
 // app/onboarding/page.jsx
 "use client";
 import React, { useState } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { User, CheckCircle } from "lucide-react";
 import RoleSelector from "./RoleSelector";
-// import ProfileForm from "./ProfileForm";
 
 const OnboardingPage = () => {
   const [step, setStep] = useState(1);
   const [userRoles, setUserRoles] = useState({ mainRole: "", subRole: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const { getToken, userId } = useAuth();
+  const { user } = useUser();
 
   if (!userId) {
     return (
@@ -53,63 +53,43 @@ const OnboardingPage = () => {
   };
 
   const handleRoleSelect = async (mainRole, subRole) => {
-  try {
-    await updateUserMetadata({
-      mainRole,
-      subRole,
-      hasOnboarded: true, // Mark onboarding complete
-    });
+    if (isSubmitting) return; // Prevent double submission
+    
+    setIsSubmitting(true);
+    console.log("Starting role selection process...", { mainRole, subRole });
 
-    setUserRoles({ mainRole, subRole });
+    try {
+      // Step 1: Update Clerk metadata
+      console.log("Updating Clerk metadata...");
+      const result = await updateUserMetadata({
+        mainRole,
+        subRole,
+        hasOnboarded: true,
+        hasCompleteProfile: false,
+      });
+      
+      console.log("Metadata update result:", result);
+      setUserRoles({ mainRole, subRole });
 
-    // Redirect based on main role
-    if (mainRole.toLowerCase() === "provider") {
-      router.push("/providerDashboard");
-    } else if (mainRole.toLowerCase() === "recipient") {
-      router.push("/recipientDashboard");
-    } else {
-      // Fallback - if role doesn't match, go to a default dashboard
-      router.push("/dashboard");
+      // Step 2: Force reload user data to refresh session
+      console.log("Reloading user session...");
+      await user?.reload();
+      
+      // Step 3: Small delay to ensure metadata propagation
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Step 4: Force redirect with window.location for immediate effect
+      console.log("Redirecting to profile...");
+      window.location.href = "/profile";
+      
+    } catch (error) {
+      console.error("Error during role selection:", error);
+      setIsSubmitting(false);
+      
+      // Show error to user (you might want to add a toast notification here)
+      alert(`Error: ${error.message}`);
     }
-  } catch (error) {
-    console.error("Error updating user roles:", error);
-  }
-};
-
-
-  // const handleProfileSubmit = async (profileData) => {
-  //   try {
-  //     // Call your API route instead of the server action directly
-  //     const token = await getToken();
-
-  //     const response = await fetch("/api/save-profile", {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //         Authorization: `Bearer ${token}`,
-  //       },
-  //       body: JSON.stringify(profileData),
-  //     });
-
-  //     if (!response.ok) {
-  //       const error = await response.json();
-  //       throw new Error(error.error || "Failed to save profile");
-  //     }
-
-  //     const result = await response.json();
-
-  //     // Also update Clerk metadata to mark onboarding as complete
-  //     await updateUserMetadata({
-  //       hasOnboarded: true,
-  //     });
-
-  //     // Redirect to dashboard
-  //     router.push("/dashboard");
-  //   } catch (error) {
-  //     console.error("Error saving profile:", error);
-  //     throw error;
-  //   }
-  // };
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-800 to-slate-900">
@@ -130,20 +110,6 @@ const OnboardingPage = () => {
             >
               <User className="w-5 h-5" />
             </div>
-            {/* <div
-              className={`h-1 w-24 transition-all ${
-                step >= 2 ? "bg-emerald-500" : "bg-gray-600"
-              }`}
-            /> */}
-            {/* <div
-              className={`flex items-center justify-center w-12 h-12 rounded-full border-2 transition-all ${
-                step >= 2
-                  ? "bg-emerald-500 border-emerald-500 text-white"
-                  : "border-gray-600 text-gray-400"
-              }`}
-            >
-              <CheckCircle className="w-5 h-5" />
-            </div> */}
           </div>
 
           <div className="flex justify-center gap-8 text-center">
@@ -155,28 +121,21 @@ const OnboardingPage = () => {
               <div className="font-semibold">Choose Role</div>
               <div className="text-sm">Select your community role</div>
             </div>
-            {/* <div
-              className={`transition-colors ${
-                step >= 2 ? "text-emerald-400" : "text-gray-500"
-              }`}
-            >
-              <div className="font-semibold">Complete Profile</div>
-              <div className="text-sm">Add your details</div>
-            </div> */}
           </div>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="relative z-10 pb-12">
-        <RoleSelector onRoleSelect={handleRoleSelect} />
-        {/* {step === 1 && <RoleSelector onRoleSelect={handleRoleSelect} />} */}
-        {/* {step === 2 && (
-          <ProfileForm
-            onProfileSubmit={handleProfileSubmit}
-            userRoles={userRoles}
-          />
-        )} */}
+        {isSubmitting ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="w-16 h-16 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin mb-4" />
+            <p className="text-white text-xl mb-2">Setting up your account...</p>
+            <p className="text-gray-400 text-sm">Please wait while we redirect you</p>
+          </div>
+        ) : (
+          <RoleSelector onRoleSelect={handleRoleSelect} />
+        )}
       </div>
     </div>
   );

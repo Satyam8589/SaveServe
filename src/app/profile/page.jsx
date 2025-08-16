@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 
 // Icon Components
@@ -533,6 +533,7 @@ const UserProfileForm = ({
 const ProfilePage = () => {
   const router = useRouter();
   const { isSignedIn, user, isLoaded } = useUser();
+  const { getToken } = useAuth();
   const [profileData, setProfileData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -620,16 +621,66 @@ const ProfilePage = () => {
     }
   }, [isLoaded, isSignedIn, userId]);
 
-  const handleProfileSaved = (savedProfileData) => {
+  // Fixed handleProfileSaved function
+  const handleProfileSaved = async (savedProfileData) => {
     console.log("Profile saved callback received:", savedProfileData);
-    if (savedProfileData) {
-      setProfileData(savedProfileData);
-    } else {
-      // Refetch profile if no data provided
-      fetchProfile();
+
+    try {
+      // Update Clerk metadata to mark profile as complete
+      const response = await fetch("/api/update-user-metadata", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          hasCompleteProfile: true,
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        console.error("Failed to update metadata:", result);
+        throw new Error(result.error || "Failed to update profile completion status");
+      }
+
+      console.log("Metadata updated successfully:", result);
+
+      // Update local state
+      if (savedProfileData) {
+        setProfileData(savedProfileData);
+      } else {
+        // Refetch profile if no data provided
+        await fetchProfile();
+      }
+
+      setShowModal(false);
+      setShowEditForm(false);
+
+      // Small delay to ensure metadata propagation
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Redirect to appropriate dashboard based on role
+      const userMainRole =
+        user?.publicMetadata?.mainRole || user?.unsafeMetadata?.mainRole;
+      const role = userMainRole?.toLowerCase();
+
+      if (role === "provider") {
+        router.push("/providerDashboard");
+      } else if (role === "recipient") {
+        router.push("/recipientDashboard");
+      } else {
+        router.push("/dashboard");
+      }
+    } catch (error) {
+      console.error("Error updating profile completion:", error);
+      // Still allow the profile to be saved locally even if metadata update fails
+      if (savedProfileData) {
+        setProfileData(savedProfileData);
+      }
+      setShowModal(false);
+      setShowEditForm(false);
     }
-    setShowModal(false);
-    setShowEditForm(false);
   };
 
   const handleRefresh = () => {
@@ -1057,7 +1108,7 @@ const ProfilePage = () => {
                         </svg>
                       ),
                       label: "Help & Support",
-                      onClick: () => router.push('/profile/help-support'),
+                      onClick: () => router.push("/profile/help-support"),
                     },
                   ].map((action, index) => (
                     <button
