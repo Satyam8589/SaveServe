@@ -30,12 +30,12 @@ export default function Header({ userData }) {
     switch (mainRole) {
       case "PROVIDER":
         return "/providerDashboard";
-      case "RECEIVER":
-        return "/receiverDashboard";
+      case "RECIPIENT":
+        return "/recipientDashboard";
       case "ADMIN":
         return "/adminDashboard";
       default:
-        return "/dashboard"; // fallback
+        return "/onboarding"; // fallback
     }
   };
 
@@ -55,7 +55,7 @@ export default function Header({ userData }) {
     }
 
     // Logged in as provider
-    if (mainRole === "provider") {
+    if (mainRole === "PROVIDER") {
       return [
         { href: getDashboardRoute(), label: "Dashboard" },
         { href: "/my-listings", label: "My Listings" },
@@ -66,7 +66,7 @@ export default function Header({ userData }) {
     }
 
     // Logged in as receiver
-    if (mainRole === "receiver") {
+    if (mainRole === "RECIPIENT") {
       return [
         { href: getDashboardRoute(), label: "Dashboard" },
         { href: "/browse", label: "Find Food" },
