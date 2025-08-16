@@ -93,10 +93,7 @@ export default function Header({ userData }) {
           {/* Logo / Brand */}
           <Link href="/" className="flex items-center gap-3 group">
             <div className="relative">
-              <span className="bg-gradient-to-r from-emerald-500 via-orange-500 to-amber-500 text-white rounded-xl p-2.5 font-bold text-lg shadow-lg group-hover:scale-110 transition-transform duration-300">
-                🍽
-              </span>
-              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 via-orange-500 to-amber-500 rounded-xl blur opacity-20 group-hover:opacity-40 transition duration-300"></div>
+              <img src="/logo (2).svg" alt="Logo" className="h-20 w-20" />
             </div>
             <div className="flex flex-col">
               <span className="text-xl font-bold bg-gradient-to-r from-emerald-400 via-orange-400 to-amber-400 bg-clip-text text-transparent">
