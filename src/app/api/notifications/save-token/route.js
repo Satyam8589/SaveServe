@@ -18,11 +18,10 @@ export async function POST(request) {
     await connectDB();
 
     const body = await request.json();
-    const { token, userId, role, area } = body;
+    const { token, userId, area } = body;
 
     console.log('🔔 Saving FCM token for user:', userId);
     console.log('📱 Token:', token);
-    console.log('👤 Role:', role);
     console.log('📍 Area:', area);
 
     // Validate required fields
@@ -48,25 +47,14 @@ export async function POST(request) {
       }, { status: 403 });
     }
 
-    // Validate role if provided
-    if (role && !['provider', 'recipient'].includes(role.toLowerCase())) {
-      return NextResponse.json({
-        success: false,
-        error: 'Invalid role. Must be either "provider" or "recipient"'
-      }, { status: 400 });
-    }
-
     // Update or create user profile with FCM token
     const updateData = {
       fcmToken: token,
       'stats.lastActivity': new Date()
     };
-
-    // Only update role and area if they are provided
-    if (role) {
-      updateData.role = role;
-    }
-    if (area) {
+    
+    // Only update area if it's provided (could be empty string for denied permission)
+    if (area !== undefined) {
       updateData.area = area;
     }
 
@@ -82,16 +70,14 @@ export async function POST(request) {
 
     console.log('✅ FCM token saved successfully for user:', user.userId);
     console.log('📱 Token saved:', user.fcmToken ? 'Yes' : 'No');
-    console.log('👤 User role:', user.role);
-    console.log('📍 User area:', user.area);
+    console.log('📍 User area:', user.area || 'No area (permission denied or not provided)');
 
     return NextResponse.json({
       success: true,
       message: 'FCM token saved successfully',
       data: {
         userId: user.userId,
-        role: user.role,
-        area: user.area,
+        area: user.area || '',
         tokenSaved: !!user.fcmToken
       }
     });

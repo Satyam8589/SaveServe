@@ -1,17 +1,24 @@
 // components/NotificationsInitializer.js
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { requestFCMToken, onMessageListener } from '@/lib/firebaseClient';
 import { useSaveFCMToken } from '@/hooks/useSaveFCMToken';
 
-const NotificationsInitializer = ({ userRole = 'recipient', userArea = '' }) => {
+const NotificationsInitializer = ({ userRole: propUserRole = 'recipient', userArea: propUserArea = '' }) => {
   const { user, isLoaded } = useUser();
   const saveFCMTokenMutation = useSaveFCMToken(() => setFcmTokenSaved(true));
   const [locationArea, setLocationArea] = useState('');
   const [fcmTokenSaved, setFcmTokenSaved] = useState(false);
   const [notificationStatus, setNotificationStatus] = useState('initializing');
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
+  
+  // Use ref to track if initialization has been attempted
+  const initializationAttempted = useRef(false);
+
+  // Get user role from Clerk metadata or fallback to prop, convert to uppercase
+  const userRole = (user?.publicMetadata?.mainrole || propUserRole).toUpperCase();
 
   useEffect(() => {
     // Get user's current location
@@ -20,28 +27,51 @@ const NotificationsInitializer = ({ userRole = 'recipient', userArea = '' }) => 
         (position) => {
           const location = `Lat: ${position.coords.latitude}, Lon: ${position.coords.longitude}`;
           setLocationArea(location);
+          setLocationPermissionDenied(false);
           console.log('Location obtained:', location);
         },
         (error) => {
           console.error('Geolocation error:', error);
-          setLocationArea(userArea || 'Unknown Location');
+          setLocationPermissionDenied(true);
+          
+          // If user denied permission, set area to empty string
+          if (error.code === error.PERMISSION_DENIED) {
+            console.log('Location permission denied by user');
+            setLocationArea(''); // Keep area blank when permission denied
+          } else {
+            // For other errors (timeout, unavailable), also use empty string
+            setLocationArea('');
+          }
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 } // 5 minute cache
       );
     } else {
       console.log('Geolocation is not supported by this browser.');
-      setLocationArea(userArea || 'Geolocation Not Supported');
+      setLocationArea('');
     }
-  }, [userArea]);
+  }, []);
 
   useEffect(() => {
-    // Only initialize if user is loaded, we have a user, and token hasn't been saved yet
-    if (!isLoaded || !user || fcmTokenSaved) return;
+    // Only initialize if:
+    // - User is loaded and exists
+    // - Token hasn't been saved yet
+    // - We haven't attempted initialization
+    // - Location check is complete (either we have location or permission was denied)
+    const locationCheckComplete = locationArea !== '' || locationPermissionDenied;
+    
+    if (!isLoaded || !user || fcmTokenSaved || initializationAttempted.current || !locationCheckComplete) {
+      return;
+    }
 
     const initializeNotifications = async () => {
       try {
         console.log('Initializing FCM notifications...');
+        console.log('Location area:', locationArea || 'No location (permission denied)');
+        
         setNotificationStatus('requesting_permission');
+        
+        // Mark that we've attempted initialization
+        initializationAttempted.current = true;
         
         // Check if service worker is supported
         if (!('serviceWorker' in navigator)) {
@@ -67,12 +97,11 @@ const NotificationsInitializer = ({ userRole = 'recipient', userArea = '' }) => 
           setNotificationStatus('token_received');
           console.log('FCM token received, saving to backend...');
           
-          // Save token to backend
+          // Save token to backend with just token and area
           saveFCMTokenMutation.mutate({
             token,
             userId: user.id,
-            role: userRole,
-            area: locationArea || userArea,
+            area: locationArea, // Will be empty string if permission denied
           });
           
           setNotificationStatus('completed');
@@ -86,11 +115,8 @@ const NotificationsInitializer = ({ userRole = 'recipient', userArea = '' }) => 
       }
     };
 
-    // Only initialize notifications once locationArea is determined
-    if (locationArea !== '' && !fcmTokenSaved) {
-      initializeNotifications();
-    }
-  }, [isLoaded, user, userRole, userArea, saveFCMTokenMutation, locationArea, fcmTokenSaved]);
+    initializeNotifications();
+  }, [isLoaded, user, locationArea, locationPermissionDenied, fcmTokenSaved]);
 
   useEffect(() => {
     // Set up foreground message listener
@@ -128,7 +154,8 @@ const NotificationsInitializer = ({ userRole = 'recipient', userArea = '' }) => 
   // Optional: Log status for debugging
   useEffect(() => {
     console.log('Notification status:', notificationStatus);
-  }, [notificationStatus]);
+    console.log('Location permission denied:', locationPermissionDenied);
+  }, [notificationStatus, locationPermissionDenied]);
 
   // This component doesn't render anything visible
   return null;

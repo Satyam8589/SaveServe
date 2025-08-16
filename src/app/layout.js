@@ -18,7 +18,11 @@ export const metadata = {
 };
 
 export default async function RootLayout({ children }) {
-  await currentUser();
+  const user = await currentUser();
+  
+  // Get user role from public metadata, default to 'recipient', convert to uppercase
+  const userRole = (user?.publicMetadata?.mainrole || 'recipient').toUpperCase();
+
   return (
     <ClerkProvider
       appearance={{
@@ -36,8 +40,8 @@ export default async function RootLayout({ children }) {
             <Providers>
             
             <NotificationsInitializer 
-              userRole="RECIPIENT" // or "provider" based on user
-              userArea="Downtown Mumbai" // user's location/area
+              userRole={userRole}
+              // Remove userArea prop - let component handle location permission internally
             />
         
             {/* Header Section */}

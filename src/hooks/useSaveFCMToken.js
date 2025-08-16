@@ -1,7 +1,8 @@
 // hooks/useSaveFCMToken.js
 import { useMutation } from '@tanstack/react-query';
+import { useCallback } from 'react';
 
-const saveFCMToken = async ({ token, userId, role, area }) => {
+const saveFCMToken = async ({ token, userId, area }) => {
   const response = await fetch('/api/notifications/save-token', {
     method: 'POST',
     headers: {
@@ -10,7 +11,6 @@ const saveFCMToken = async ({ token, userId, role, area }) => {
     body: JSON.stringify({
       token,
       userId,
-      role,
       area,
     }),
   });
@@ -24,12 +24,15 @@ const saveFCMToken = async ({ token, userId, role, area }) => {
 };
 
 export const useSaveFCMToken = (onSuccessCallback) => {
+  // Memoize the success callback to prevent unnecessary re-renders
+  const memoizedCallback = useCallback(onSuccessCallback, []);
+
   return useMutation({
     mutationFn: saveFCMToken,
     onSuccess: (data) => {
       console.log('FCM token saved successfully:', data);
-      if (onSuccessCallback) {
-        onSuccessCallback();
+      if (memoizedCallback) {
+        memoizedCallback();
       }
     },
     onError: (error) => {
