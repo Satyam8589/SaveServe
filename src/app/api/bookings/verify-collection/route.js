@@ -4,8 +4,9 @@ import { auth } from '@clerk/nextjs/server';
 import { connectDB } from '@/lib/db';
 import Booking from '@/models/Booking';
 import FoodListing from '@/models/FoodListing';
-import UserProfile from '@/models/UserProfile'; // CORRECT MODEL
+import UserProfile from '@/models/UserProfile';
 import { QRCodeService } from '@/lib/qrCodeService';
+import { sendNotificationToUser } from '@/lib/notificationService';
 import mongoose from 'mongoose';
 
 export async function POST(request) {
@@ -105,12 +106,75 @@ export async function POST(request) {
     await listing.save({ session });
 
     // Update stats (optional, but good to have in the transaction)
-    await UserProfile.findOneAndUpdate({ userId: providerClerkId }, { $inc: { 'stats.totalItemsShared': booking.approvedQuantity, 'stats.totalBookingsCompleted': 1 }, $set: { 'stats.lastActivity': collectionTime } }, { session, new: true });
-    await UserProfile.findOneAndUpdate({ userId: booking.recipientId }, { $inc: { 'stats.totalItemsClaimed': booking.approvedQuantity, 'stats.totalBookingsCompleted': 1 }, $set: { 'stats.lastActivity': collectionTime } }, { session, new: true });
+    await UserProfile.findOneAndUpdate(
+      { userId: providerClerkId }, 
+      { 
+        $inc: { 
+          'stats.totalItemsShared': booking.approvedQuantity, 
+          'stats.totalBookingsCompleted': 1 
+        }, 
+        $set: { 'stats.lastActivity': collectionTime } 
+      }, 
+      { session, new: true }
+    );
+    
+    await UserProfile.findOneAndUpdate(
+      { userId: booking.recipientId }, 
+      { 
+        $inc: { 
+          'stats.totalItemsClaimed': booking.approvedQuantity, 
+          'stats.totalBookingsCompleted': 1 
+        }, 
+        $set: { 'stats.lastActivity': collectionTime } 
+      }, 
+      { session, new: true }
+    );
 
     await session.commitTransaction();
 
     const recipient = await UserProfile.findOne({ userId: booking.recipientId }).lean();
+
+    // 🔔 Send collection confirmation notification to recipient
+    try {
+      console.log('📢 Sending collection confirmation to recipient:', booking.recipientId);
+      
+      const recipientNotificationResult = await sendNotificationToUser(
+        booking.recipientId,
+        'Food Collected Successfully! 🎉',
+        `You've successfully collected "${listing.title}". Enjoy your meal!`,
+        {
+          bookingId: booking._id.toString(),
+          listingId: listing._id.toString(),
+          action: 'collection_confirmed',
+          collectedAt: collectionTime.toISOString()
+        }
+      );
+
+      console.log('📨 Collection confirmation result:', recipientNotificationResult);
+    } catch (notificationError) {
+      console.error('❌ Failed to send collection confirmation:', notificationError);
+    }
+
+    // 🔔 Send collection notification to provider (confirmation)
+    try {
+      console.log('📢 Sending collection success confirmation to provider:', providerClerkId);
+      
+      const providerNotificationResult = await sendNotificationToUser(
+        providerClerkId,
+        'Food Collected Successfully! ✅',
+        `${recipient?.fullName || 'A recipient'} has collected "${listing.title}". Thanks for sharing food!`,
+        {
+          bookingId: booking._id.toString(),
+          listingId: listing._id.toString(),
+          recipientId: booking.recipientId,
+          action: 'collection_completed_confirmation'
+        }
+      );
+
+      console.log('📨 Provider collection confirmation result:', providerNotificationResult);
+    } catch (notificationError) {
+      console.error('❌ Failed to send provider collection confirmation:', notificationError);
+    }
 
     return NextResponse.json({
       success: true,

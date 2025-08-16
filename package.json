@@ -31,6 +31,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "crypto-browserify": "^3.12.1",
+    "firebase": "^12.1.0",
+    "firebase-admin": "^13.4.0",
     "framer-motion": "^12.23.12",
     "jsqr": "^1.4.0",
     "lucide-react": "^0.539.0",

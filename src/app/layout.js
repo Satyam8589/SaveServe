@@ -8,6 +8,7 @@ import { Toaster } from "sonner";
 import Header from "@/components/header";
 import Providers from "./providers";
 import { currentUser } from "@clerk/nextjs/server";
+import NotificationsInitializer from "@/components/NotificationsInitializer";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -17,7 +18,11 @@ export const metadata = {
 };
 
 export default async function RootLayout({ children }) {
-  await currentUser();
+  const user = await currentUser();
+  
+  // Get user role from public metadata, default to 'recipient', convert to uppercase
+  const userRole = (user?.publicMetadata?.mainrole || 'recipient').toUpperCase();
+
   return (
     <ClerkProvider
       appearance={{
@@ -36,6 +41,11 @@ export default async function RootLayout({ children }) {
             disableTransitionOnChange
           >
             <Providers>
+            
+            <NotificationsInitializer 
+              userRole={userRole}
+              // Remove userArea prop - let component handle location permission internally
+            />
         
             {/* Header Section */}
             <Header />
