@@ -4,168 +4,113 @@ import { auth } from '@clerk/nextjs/server';
 import { connectDB } from '@/lib/db';
 import Booking from '@/models/Booking';
 import FoodListing from '@/models/FoodListing';
-import User from '@/models/User';
+import UserProfile from '@/models/UserProfile'; // CORRECT MODEL
 import { QRCodeService } from '@/lib/qrCodeService';
+import mongoose from 'mongoose';
 
 export async function POST(request) {
-  const { userId } = auth();
+  const { userId: providerClerkId } = await auth(request);
 
-  if (!userId) {
-    return NextResponse.json(
-      { success: false, message: 'Unauthorized' },
-      { status: 401 }
-    );
+  if (!providerClerkId) {
+    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
   }
 
   await connectDB();
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
   try {
     const body = await request.json();
-    const { qrData, collectionCode, providerId, listingId } = body;
+    const { qrData, collectionCode, listingId } = body;
 
-    console.log('🔍 Verifying collection request:', {
-      hasQRData: !!qrData,
-      hasCollectionCode: !!collectionCode,
-      providerId,
-      listingId
-    });
-
-    // Verify provider authorization
-    const listing = await FoodListing.findById(listingId);
-    if (!listing) {
-      return NextResponse.json(
-        { success: false, message: 'Food listing not found' },
-        { status: 404 }
-      );
+    if (!listingId) {
+        throw new Error("Listing ID is required for verification.");
     }
 
-    if (listing.providerId !== providerId) {
-      return NextResponse.json(
-        { success: false, message: 'Not authorized to collect for this listing' },
-        { status: 403 }
-      );
+    const listing = await FoodListing.findById(listingId).session(session);
+    if (!listing) {
+      throw new Error('Food listing not found');
+    }
+
+    if (listing.providerId !== providerClerkId) {
+      throw new Error('Not authorized to verify collections for this listing');
     }
 
     let booking = null;
 
-    // Handle QR code verification
     if (qrData) {
       const qrVerification = QRCodeService.verifyQRData(qrData);
-      
       if (!qrVerification.isValid) {
-        return NextResponse.json(
-          { success: false, message: 'Invalid QR code format' },
-          { status: 400 }
-        );
+        throw new Error('Invalid QR code format');
       }
 
       const { bookingId, recipientId, listingId: qrListingId } = qrVerification.data;
 
-      // Verify QR data matches the request
       if (qrListingId !== listingId) {
-        return NextResponse.json(
-          { success: false, message: 'QR code does not match this listing' },
-          { status: 400 }
-        );
+        throw new Error('QR code does not match this listing');
       }
 
-      // Find the booking
-      booking = await Booking.findById(bookingId);
-      
+      booking = await Booking.findById(bookingId).session(session);
       if (!booking) {
-        return NextResponse.json(
-          { success: false, message: 'Booking not found' },
-          { status: 404 }
-        );
+        throw new Error('Booking not found from QR code');
       }
 
-      // Verify QR code belongs to this booking
-      if (booking.recipient !== recipientId) {
-        return NextResponse.json(
-          { success: false, message: 'QR code does not match booking recipient' },
-          { status: 400 }
-        );
+      if (booking.recipientId !== recipientId) {
+        throw new Error('QR code does not belong to the booking recipient');
       }
-    }
-    // Handle collection code verification
-    else if (collectionCode) {
+    } else if (collectionCode) {
       booking = await Booking.findOne({
+        listingId: listingId,
         collectionCode: collectionCode,
-        foodListing: listingId,
-        status: { $in: ['pending', 'approved'] }
-      });
+      }).session(session);
 
       if (!booking) {
-        return NextResponse.json(
-          { success: false, message: 'Invalid collection code or booking not found' },
-          { status: 400 }
-        );
+        throw new Error('Invalid collection code for this listing');
       }
     } else {
-      return NextResponse.json(
-        { success: false, message: 'Either QR data or collection code is required' },
-        { status: 400 }
-      );
+      throw new Error('Either QR data or collection code is required');
     }
 
-    // Check if booking is in a valid state for collection
-    if (!['pending', 'approved'].includes(booking.status)) {
-      return NextResponse.json(
-        { success: false, message: `Cannot collect booking with status: ${booking.status}` },
-        { status: 400 }
-      );
+    if (booking.status === 'collected') {
+        throw new Error('This booking has already been collected.');
     }
 
-    // Check if QR code is expired
-    if (QRCodeService.isQRExpired(booking.qrCodeExpiry)) {
-      return NextResponse.json(
-        { success: false, message: 'QR code has expired. Please request a new booking.' },
-        { status: 400 }
-      );
+    if (booking.status !== 'approved') {
+      throw new Error(`Cannot collect a booking with status: ${booking.status}`);
     }
 
-    // Get recipient details
-    const recipient = await User.findOne({ clerkId: booking.recipient });
+    if (booking.qrCodeExpiry && new Date(booking.qrCodeExpiry) < new Date()) {
+        booking.status = 'expired';
+        await booking.save({ session });
+        throw new Error('This booking has expired.');
+    }
 
-    // Update booking status to collected
     const collectionTime = new Date();
     booking.status = 'collected';
     booking.collectedAt = collectionTime;
-    booking.collectionVerifiedBy = userId; // Provider who verified the collection
-    await booking.save();
+    booking.collectionVerifiedBy = providerClerkId;
+    
+    // --- THE FIX ---
+    const embeddedBooking = listing.bookings.find(
+      b => b.bookingRefId && b.bookingRefId.toString() === booking._id.toString()
+    );
 
-    // Update listing status if this was the current booking
-    if (listing.currentBooking?.toString() === booking._id.toString()) {
-      listing.status = 'completed';
-      listing.completedAt = collectionTime;
-      await listing.save();
+    if (embeddedBooking) {
+      embeddedBooking.status = 'collected';
+    } else {
+      console.warn(`Could not find embedded booking ref ${booking._id} in listing ${listing._id}`);
     }
 
-    // Update provider's stats
-    const provider = await User.findOne({ clerkId: providerId });
-    if (provider) {
-      provider.stats = provider.stats || {};
-      provider.stats.totalItemsShared = (provider.stats.totalItemsShared || 0) + 1;
-      provider.stats.totalBookingsCompleted = (provider.stats.totalBookingsCompleted || 0) + 1;
-      provider.stats.lastActivity = collectionTime;
-      await provider.save();
-    }
+    await booking.save({ session });
+    await listing.save({ session });
 
-    // Update recipient's stats
-    if (recipient) {
-      recipient.stats = recipient.stats || {};
-      recipient.stats.totalItemsClaimed = (recipient.stats.totalItemsClaimed || 0) + 1;
-      recipient.stats.totalBookingsCompleted = (recipient.stats.totalBookingsCompleted || 0) + 1;
-      recipient.stats.reliabilityScore = calculateReliabilityScore(recipient);
-      recipient.stats.lastActivity = collectionTime;
-      await recipient.save();
-    }
+    // Update stats (optional, but good to have in the transaction)
+    await UserProfile.findOneAndUpdate({ userId: providerClerkId }, { $inc: { 'stats.totalItemsShared': booking.approvedQuantity, 'stats.totalBookingsCompleted': 1 }, $set: { 'stats.lastActivity': collectionTime } }, { session, new: true });
+    await UserProfile.findOneAndUpdate({ userId: booking.recipientId }, { $inc: { 'stats.totalItemsClaimed': booking.approvedQuantity, 'stats.totalBookingsCompleted': 1 }, $set: { 'stats.lastActivity': collectionTime } }, { session, new: true });
 
-    console.log('✅ Collection verified successfully:', {
-      bookingId: booking._id,
-      recipientName: recipient?.firstName || 'Unknown',
-      collectedAt: collectionTime
-    });
+    await session.commitTransaction();
+
+    const recipient = await UserProfile.findOne({ userId: booking.recipientId }).lean();
 
     return NextResponse.json({
       success: true,
@@ -175,48 +120,26 @@ export async function POST(request) {
           _id: booking._id,
           status: booking.status,
           collectedAt: booking.collectedAt,
-          recipientName: recipient ? `${recipient.firstName} ${recipient.lastName}` : 'Unknown',
-          recipientId: booking.recipient,
-          requestedQuantity: booking.requestedQuantity,
-          approvedQuantity: booking.approvedQuantity || booking.requestedQuantity
+          recipientName: recipient ? recipient.fullName : 'Unknown',
         },
         listing: {
           _id: listing._id,
           title: listing.title,
-          status: listing.status
-        },
-        collectionSummary: {
-          verifiedBy: userId,
-          verificationTime: collectionTime,
-          verificationMethod: qrData ? 'QR Code' : 'Collection Code'
         }
       }
     });
 
   } catch (error) {
+    await session.abortTransaction();
     console.error('❌ Collection verification error:', error);
     return NextResponse.json(
       { 
         success: false, 
-        message: 'Failed to verify collection',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        message: error.message || 'Failed to verify collection'
       },
-      { status: 500 }
+      { status: 400 } // Use 400 for client-side errors, 500 for true server errors
     );
+  } finally {
+    session.endSession();
   }
-}
-
-// Helper function to calculate reliability score
-function calculateReliabilityScore(user) {
-  const stats = user.stats || {};
-  const totalBookings = stats.totalBookingsCompleted || 0;
-  const cancelledBookings = stats.totalBookingsCancelled || 0;
-  const noShowBookings = stats.totalBookingsNoShow || 0;
-  
-  if (totalBookings === 0) return 100; // New users start with perfect score
-  
-  const successfulBookings = totalBookings - cancelledBookings - noShowBookings;
-  const reliabilityPercentage = (successfulBookings / totalBookings) * 100;
-  
-  return Math.max(0, Math.min(100, Math.round(reliabilityPercentage)));
 }

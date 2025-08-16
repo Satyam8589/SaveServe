@@ -9,8 +9,8 @@ import mongoose from "mongoose";
 import { QRCodeService } from "@/lib/qrCodeService";
 
 export async function POST(request, { params }) {
-  const { id } = await params; // This is the listing ID
-  const { userId } = await auth(request);
+  const { id } = params; // This is the listing ID
+  const { userId } = auth();
   const { requestedQuantity, recipientName, requestMessage } = await request.json();
 
   if (!userId) {
@@ -69,7 +69,6 @@ export async function POST(request, { params }) {
     const qrCodeImage = await QRCodeService.generateQRCode(finalQRData);
     
     booking.qrCode = finalQRData;
-    // booking.qrCodeImage = qrCodeImage; // Consider if you need to store this large string in the DB
 
     await booking.save({ session });
 
@@ -87,14 +86,13 @@ export async function POST(request, { params }) {
     foodListing.bookings.push(embeddedBookingRequest);
     await foodListing.save({ session });
 
-    const recipientUser = await UserProfile.findOne({ clerkId: userId }).session(session);
+    // --- THE FIX: Use { userId: userId } instead of { clerkId: userId } ---
+    const recipientUser = await UserProfile.findOne({ userId: userId }).session(session);
     if (recipientUser) {
       recipientUser.bookings.push(booking._id);
       await recipientUser.save({ session });
     } else {
-      // If the user profile doesn't exist, we might not want to fail the whole transaction.
-      // Depending on requirements, you could create one or just log a warning.
-      console.warn(`User profile with clerkId ${userId} not found. Continuing without adding booking to profile.`);
+      console.warn(`User profile with userId ${userId} not found. Continuing without adding booking to profile.`);
     }
 
     await session.commitTransaction();
