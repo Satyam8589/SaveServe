@@ -9,8 +9,8 @@ import mongoose from "mongoose";
 import { QRCodeService } from "@/lib/qrCodeService";
 
 export async function POST(request, { params }) {
-  const { id } = params; // This is the listing ID
-  const { userId } = auth();
+  const { id } = await params; // This is the listing ID
+  const { userId } = await auth(request);
   const { requestedQuantity, recipientName, requestMessage } = await request.json();
 
   if (!userId) {
@@ -89,7 +89,6 @@ export async function POST(request, { params }) {
     // --- THE FIX: Use { userId: userId } instead of { clerkId: userId } ---
     const recipientUser = await UserProfile.findOne({ userId: userId }).session(session);
     if (recipientUser) {
-      recipientUser.bookings.push(booking._id);
       await recipientUser.save({ session });
     } else {
       console.warn(`User profile with userId ${userId} not found. Continuing without adding booking to profile.`);
