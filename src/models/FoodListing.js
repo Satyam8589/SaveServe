@@ -121,6 +121,11 @@ const foodListingSchema = new mongoose.Schema({
     feedback: {
       type: String,
       maxlength: [300, 'Feedback cannot exceed 300 characters']
+    },
+    bookingRefId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Booking',
+      required: true
     }
   }],
   

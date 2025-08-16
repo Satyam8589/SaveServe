@@ -113,7 +113,7 @@ export default function BrowseFoodPage() {
 
     try {
       const bookingData = {
-        listingId: selectedFood._id,
+        listingId: selectedFood.id,
         providerId: selectedFood.providerId,
         providerName: selectedFood.providerName,
         recipientId: userId,
@@ -122,7 +122,7 @@ export default function BrowseFoodPage() {
         requestMessage: requestMessage,
       };
 
-      await bookFoodListingMutation.mutateAsync({ listingId: selectedFood._id, bookingData });
+      await bookFoodListingMutation.mutateAsync({ listingId: selectedFood.id, bookingData });
 
       alert("Food claimed successfully!");
       setIsClaimDialogOpen(false);
