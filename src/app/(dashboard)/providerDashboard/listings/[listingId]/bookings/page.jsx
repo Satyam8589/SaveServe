@@ -7,14 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@clerk/nextjs';
-import { 
-  Calendar, 
-  Clock, 
-  User, 
-  Package, 
-  MessageSquare, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Calendar,
+  Clock,
+  User,
+  Package,
+  MessageSquare,
+  CheckCircle,
+  XCircle,
   AlertCircle,
   ArrowLeft,
   Eye,
@@ -27,7 +27,10 @@ export default function ListingBookingsPage() {
   const { userId } = useAuth();
 
   const { data: listing, isLoading: isListingLoading, isError: isListingError, error: listingError } = useFoodListing(listingId);
-  const { data: bookings, isLoading: isBookingsLoading, isError: isBookingsError, error: bookingsError } = useFoodListingBookings(listingId, userId);
+  const { data: bookingData, isLoading: isBookingsLoading, isError: isBookingsError, error: bookingsError } = useFoodListingBookings(listingId, userId);
+
+  // **THE FIX:** Access the nested 'bookings' array from the returned data
+  const bookings = bookingData?.data?.bookings;
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -44,7 +47,7 @@ export default function ListingBookingsPage() {
 
   const getStatusBadge = (status) => {
     const baseClasses = "inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold";
-    
+
     switch (status) {
       case 'approved':
         return `${baseClasses} bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border border-green-500/30`;
@@ -68,7 +71,7 @@ export default function ListingBookingsPage() {
               <div className="h-4 bg-gray-700/50 rounded w-1/3"></div>
             </div>
           </div>
-          
+
           {/* Table Skeleton */}
           <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm border border-gray-700/50 rounded-2xl overflow-hidden">
             <div className="p-6 border-b border-gray-700/50">
@@ -144,8 +147,8 @@ export default function ListingBookingsPage() {
                 Listing ID: <span className="font-mono text-emerald-400">{listing._id}</span>
               </p>
             </div>
-            
-            <button 
+
+            <button
               onClick={() => window.history.back()}
               className="flex items-center px-4 py-2 bg-gray-700/50 hover:bg-gray-600/50 border border-gray-600/50 rounded-xl transition-all duration-200 text-gray-300"
             >
@@ -212,40 +215,40 @@ export default function ListingBookingsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-700/50">
-                  {bookings.map((booking, index) => (
+                  {bookings.map((booking) => (
                     <tr key={booking._id} className="hover:bg-gray-700/20 transition-colors duration-200">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="space-y-1">
-                          <div className="font-semibold text-gray-100">{booking.recipientName}</div>
-                          <div className="text-xs text-gray-400 font-mono">{booking.recipientId}</div>
+                          <div className="font-semibold text-gray-100">{booking.recipientName ?? 'N/A'}</div>
+                          <div className="text-xs text-gray-400 font-mono">{booking.recipientId ?? 'N/A'}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="space-y-1">
                           <div className="text-emerald-400 font-semibold">
-                            {booking.approvedQuantity || booking.requestedQuantity}
+                            {booking.approvedQuantity ?? booking.requestedQuantity ?? 'N/A'}
                           </div>
-                          {booking.approvedQuantity && booking.approvedQuantity !== booking.requestedQuantity && (
+                          {booking.approvedQuantity != null && booking.approvedQuantity !== booking.requestedQuantity && (
                             <div className="text-xs text-gray-400">
-                              Requested: {booking.requestedQuantity}
+                              Requested: {booking.requestedQuantity ?? 'N/A'}
                             </div>
                           )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center space-x-2">
-                          {getStatusIcon(booking.status)}
-                          <span className={getStatusBadge(booking.status)}>
-                            {booking.status.toUpperCase()}
+                          {getStatusIcon(booking.status ?? 'unknown')}
+                          <span className={getStatusBadge(booking.status ?? 'unknown')}>
+                            {(booking.status ?? 'UNKNOWN').toUpperCase()}
                           </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-gray-300 text-sm">
-                          {new Date(booking.requestedAt).toLocaleDateString()}
+                          {booking.requestedAt ? new Date(booking.requestedAt).toLocaleDateString() : 'N/A'}
                         </div>
                         <div className="text-gray-400 text-xs">
-                          {new Date(booking.requestedAt).toLocaleTimeString()}
+                          {booking.requestedAt ? new Date(booking.requestedAt).toLocaleTimeString() : 'N/A'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

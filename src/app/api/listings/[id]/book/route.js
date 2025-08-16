@@ -4,13 +4,14 @@ import { auth } from "@clerk/nextjs/server";
 import { connectDB } from "@/lib/db";
 import FoodListing from "@/models/FoodListing";
 import Booking from "@/models/Booking";
-import User from "@/models/User";
+import UserProfile from "@/models/UserProfile";
 import mongoose from "mongoose";
 import { QRCodeService } from "@/lib/qrCodeService";
 
 export async function POST(request, { params }) {
-  const { id } = params; // This is the listing ID
-  const { userId } = auth();
+  const { id } = await params; // This is the listing ID
+  const { userId } = await auth(request);
+  const { requestedQuantity, recipientName, requestMessage } = await request.json();
 
   if (!userId) {
     return new NextResponse("Unauthorized", { status: 401 });
@@ -32,7 +33,7 @@ export async function POST(request, { params }) {
     }
 
     // Check if the listing is still available
-    if (foodListing.status !== "available") {
+    if (foodListing.listingStatus !== "active" && foodListing.listingStatus !== "partially_booked") {
       return new NextResponse("Food listing is not available", { status: 400 });
     }
 
@@ -44,11 +45,18 @@ export async function POST(request, { params }) {
 
     // Create a new booking
     const booking = await Booking.create({
-      foodListing: foodListing._id,
-      recipient: userId, // Clerk user ID
-      status: "pending",
-      collectionCode,
+      listingId: id,
+      providerId: foodListing.providerId,
+      providerName: foodListing.providerName,
+      recipientId: userId,
+      recipientName: recipientName,
+      requestedQuantity: requestedQuantity,
       qrCodeExpiry,
+      collectionCode,
+      requestMessage: requestMessage,
+      status: "pending",
+      // qrCode is intentionally omitted here and will be set after booking creation
+      // to include the booking._id in the QR data.
     });
 
     // Update QR data with actual booking ID
@@ -59,14 +67,21 @@ export async function POST(request, { params }) {
     booking.qrCode = finalQRData;
     booking.qrCodeImage = qrCodeImage; // Store base64 image for easy retrieval
     await booking.save();
+    console.log('Booking saved successfully with QR code!', booking._id);
 
-    // Update food listing status
-    foodListing.status = "booked";
-    foodListing.currentBooking = booking._id;
-    await foodListing.save();
+    // Add booking request to food listing
+    const embeddedBookingRequest = {
+      recipientId: userId,
+      recipientName: recipientName,
+      requestedQuantity: requestedQuantity,
+      status: 'pending',
+      requestMessage: requestMessage,
+      bookingRefId: booking._id, // Reference to the actual Booking document
+    };
+    await foodListing.addBookingRequest(embeddedBookingRequest);
 
     // Add booking to recipient's bookings
-    const recipientUser = await User.findOne({ clerkId: userId });
+    const recipientUser = await UserProfile.findOne({ clerkId: userId });
     if (recipientUser) {
       recipientUser.bookings.push(booking._id);
       await recipientUser.save();
