@@ -1,5 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { useAuth, useUser } from "@clerk/nextjs";
+import { useBookFoodListing } from "@/hooks/useBookings";
 import {
   Utensils,
   Timer,
@@ -43,6 +45,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function BrowseFoodPage() {
+  const { userId } = useAuth();
+  const { user } = useUser();
+  const bookFoodListingMutation = useBookFoodListing();
+
   const [filterType, setFilterType] = useState("all");
   const [sortBy, setSortBy] = useState("time");
   const [selectedFood, setSelectedFood] = useState(null);
@@ -55,6 +61,8 @@ export default function BrowseFoodPage() {
     impactScore: 0,
     mealsSaved: 0,
   });
+  const [requestedQuantity, setRequestedQuantity] = useState(1);
+  const [requestMessage, setRequestMessage] = useState("");
 
   useEffect(() => {
     fetchFoodListings();
@@ -98,16 +106,34 @@ export default function BrowseFoodPage() {
   };
 
   const confirmClaim = async () => {
+    if (!selectedFood || !userId || !user?.fullName) {
+      alert("Missing required information for booking.");
+      return;
+    }
+
     try {
-      console.log("Claiming food:", selectedFood);
-      
+      const bookingData = {
+        listingId: selectedFood._id,
+        providerId: selectedFood.providerId,
+        providerName: selectedFood.providerName,
+        recipientId: userId,
+        recipientName: user.fullName,
+        requestedQuantity: requestedQuantity,
+        requestMessage: requestMessage,
+      };
+
+      await bookFoodListingMutation.mutateAsync({ listingId: selectedFood._id, bookingData });
+
+      alert("Food claimed successfully!");
       setIsClaimDialogOpen(false);
       setSelectedFood(null);
-      
-      fetchFoodListings();
-      
+      setRequestedQuantity(1); // Reset quantity
+      setRequestMessage(""); // Reset message
+      fetchFoodListings(); // Refresh listings
+
     } catch (error) {
       console.error('Error claiming food:', error);
+      alert('Failed to claim food: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -554,30 +580,29 @@ export default function BrowseFoodPage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-gray-300">Pickup Method</Label>
-                <Select defaultValue="self-pickup">
-                  <SelectTrigger className="bg-gray-700 border-gray-600 text-gray-100">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-gray-600">
-                    <SelectItem value="self-pickup">
-                      Self Pickup
-                    </SelectItem>
-                    <SelectItem value="friend-pickup">
-                      Friend/Representative
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="requestedQuantity" className="text-gray-300">Requested Quantity</Label>
+                <input
+                  id="requestedQuantity"
+                  type="number"
+                  min="1"
+                  max={selectedFood?.quantity || 1}
+                  value={requestedQuantity}
+                  onChange={(e) => setRequestedQuantity(parseInt(e.target.value) || 1)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-gray-300">
+                <Label htmlFor="requestMessage" className="text-gray-300">
                   Special Instructions (Optional)
                 </Label>
                 <Textarea
+                  id="requestMessage"
                   placeholder="Any special requirements or notes for the provider..."
                   className="bg-gray-700 border-gray-600 text-gray-100"
                   rows={2}
+                  value={requestMessage}
+                  onChange={(e) => setRequestMessage(e.target.value)}
                 />
               </div>
             </div>
