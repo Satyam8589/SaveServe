@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import FoodListing from '@/models/FoodListing';
-import { sendNotificationToArea } from '@/lib/notificationService';
+import { sendNotificationToUser, sendNotificationToRole } from '@/lib/notificationService';
 
 // GET - Fetch all active listings (unchanged)
 export async function GET(request) {
@@ -151,12 +151,12 @@ export async function POST(request) {
     console.log('🖼️ Saved imageUrl:', savedListing.imageUrl);
     console.log('📋 Full saved listing:', JSON.stringify(savedListing.toObject(), null, 2));
 
-    // 🔔 Send push notifications to recipients in the area
+    // 🔔 Send push notifications to all recipients
     try {
-      console.log('📢 Sending notifications to area:', location);
+      console.log('📢 Sending notifications to all recipients');
       
-      const notificationResult = await sendNotificationToArea(
-        location,
+      const notificationResult = await sendNotificationToRole(
+        'RECIPIENT',
         'New Food Available! 🍽️',
         `${title} is available in ${location}. Grab it before it's gone!`,
         {
@@ -168,16 +168,35 @@ export async function POST(request) {
         }
       );
 
-      console.log('📨 Notification result:', notificationResult);
+      console.log('📨 Recipients notification result:', notificationResult);
       
       if (notificationResult.success) {
-        console.log(`✅ Sent ${notificationResult.sentCount} notifications to recipients in ${location}`);
+        console.log(`✅ Sent ${notificationResult.sentCount} notifications to recipients`);
       } else {
-        console.warn('⚠️ Failed to send area notifications:', notificationResult.error);
+        console.warn('⚠️ Failed to send recipient notifications:', notificationResult.error);
       }
     } catch (notificationError) {
       // Don't fail the entire request if notifications fail
-      console.error('❌ Notification sending failed:', notificationError);
+      console.error('❌ Recipient notification sending failed:', notificationError);
+    }
+
+    // 🔔 Send confirmation notification to provider
+    try {
+      console.log('📢 Sending listing confirmation to provider:', providerId);
+      
+      const providerNotificationResult = await sendNotificationToUser(
+        providerId,
+        'Listing Created Successfully! ✅',
+        `Your food listing "${title}" has been posted and recipients have been notified.`,
+        {
+          listingId: savedListing._id.toString(),
+          action: 'listing_created_confirmation'
+        }
+      );
+
+      console.log('📨 Provider confirmation result:', providerNotificationResult);
+    } catch (notificationError) {
+      console.error('❌ Failed to send provider confirmation:', notificationError);
     }
 
     return NextResponse.json({
@@ -185,7 +204,8 @@ export async function POST(request) {
       data: savedListing,
       notifications: {
         sent: true,
-        area: location
+        recipientsNotified: true,
+        providerConfirmed: true
       }
     }, { status: 201 });
 

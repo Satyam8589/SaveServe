@@ -155,25 +155,25 @@ export async function POST(request) {
       console.error('❌ Failed to send collection confirmation:', notificationError);
     }
 
-    // 🔔 Send collection notification to provider
+    // 🔔 Send collection notification to provider (confirmation)
     try {
-      console.log('📢 Sending collection update to provider:', providerClerkId);
+      console.log('📢 Sending collection success confirmation to provider:', providerClerkId);
       
       const providerNotificationResult = await sendNotificationToUser(
         providerClerkId,
-        'Food Collected! ✅',
-        `${recipient?.fullName || 'A recipient'} has collected "${listing.title}". Thanks for sharing!`,
+        'Food Collected Successfully! ✅',
+        `${recipient?.fullName || 'A recipient'} has collected "${listing.title}". Thanks for sharing food!`,
         {
           bookingId: booking._id.toString(),
           listingId: listing._id.toString(),
           recipientId: booking.recipientId,
-          action: 'collection_completed'
+          action: 'collection_completed_confirmation'
         }
       );
 
-      console.log('📨 Provider collection notification result:', providerNotificationResult);
+      console.log('📨 Provider collection confirmation result:', providerNotificationResult);
     } catch (notificationError) {
-      console.error('❌ Failed to send provider collection notification:', notificationError);
+      console.error('❌ Failed to send provider collection confirmation:', notificationError);
     }
 
     return NextResponse.json({

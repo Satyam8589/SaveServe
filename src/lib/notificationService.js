@@ -75,31 +75,31 @@ export const sendNotificationToUser = async (userId, title, body, data = {}) => 
 };
 
 /**
- * Send notification to all recipients in a specific area
- * @param {string} area - Geographic area/location
+ * Send notification to all users with a specific role
+ * @param {string} role - User role ('provider' or 'recipient')
  * @param {string} title - Notification title
  * @param {string} body - Notification body
  * @param {Object} data - Optional additional data
  * @returns {Promise<Object>} Result object with success status and stats
  */
-export const sendNotificationToArea = async (area, title, body, data = {}) => {
+export const sendNotificationToRole = async (role, title, body, data = {}) => {
   try {
     await connectDB();
 
-    // Find all recipients in the area with FCM tokens
+    // Find all users with the specified role and FCM tokens
     const users = await UserProfile.find({
-      area: { $regex: area, $options: 'i' }, // Case-insensitive area matching
-      role: 'recipient',
-      fcmToken: { $exists: true, $ne: null, $ne: '' }
+      role: role,
+      fcmToken: { $exists: true, $ne: null, $ne: '' },
+      isActive: true
     }).lean();
 
     if (users.length === 0) {
-      console.warn(`No recipients with FCM tokens found in area: ${area}`);
+      console.warn(`No ${role}s with FCM tokens found`);
       return {
         success: true,
         sentCount: 0,
         totalFound: 0,
-        message: 'No recipients found in area'
+        message: `No ${role}s found with FCM tokens`
       };
     }
 
@@ -112,7 +112,7 @@ export const sendNotificationToArea = async (area, title, body, data = {}) => {
       },
       data: {
         ...data,
-        area,
+        role,
         timestamp: new Date().toISOString(),
       },
       tokens,
@@ -120,7 +120,7 @@ export const sendNotificationToArea = async (area, title, body, data = {}) => {
 
     const response = await admin.messaging().sendEachForMulticast(message);
     
-    console.log(`Successfully sent ${response.successCount} notifications to area ${area}`);
+    console.log(`Successfully sent ${response.successCount} notifications to ${role}s`);
     console.log(`Failed to send ${response.failureCount} notifications`);
 
     // Handle failed tokens (remove invalid ones)
@@ -148,14 +148,14 @@ export const sendNotificationToArea = async (area, title, body, data = {}) => {
       sentCount: response.successCount,
       failedCount: response.failureCount,
       totalFound: users.length,
-      area
+      role
     };
 
   } catch (error) {
-    console.error('Error sending notification to area:', error);
+    console.error(`Error sending notification to ${role}s:`, error);
     return {
       success: false,
-      error: error.message || 'Failed to send area notification'
+      error: error.message || `Failed to send ${role} notifications`
     };
   }
 };
