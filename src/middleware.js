@@ -58,6 +58,7 @@ export default clerkMiddleware(async (auth, req) => {
     "/providerDashboard/listings",
     "/providerDashboard/listings/68a040066424b4a7d2a62bfe/bookings",
     "/providerDashboard/listings/68a05fa42c8df369386bccdc/bookings",
+    "/providerDashboard/listings/68a0cff6c346951caf980b51/bookings",
     "/providerDashboard/overview",
     "/providerDashboard/analytics",
     "/providerDashboard/recipients",
