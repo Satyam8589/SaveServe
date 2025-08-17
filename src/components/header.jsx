@@ -17,30 +17,30 @@ export default function Header({ userData }) {
   const router = useRouter();
 
   // Redirect logic
-  useEffect(() => {
-    if (isLoaded && user) {
-      const hasOnboarded = user.publicMetadata?.hasOnboarded || false;
-      const mainRole = user.publicMetadata?.mainRole;
+  // useEffect(() => {
+  //   if (isLoaded && user) {
+  //     const hasOnboarded = user.publicMetadata?.hasOnboarded || false;
+  //     const mainRole = user.publicMetadata?.mainRole;
 
-      if (!hasOnboarded) {
-        router.replace("/onboarding");
-      } else {
-        switch (mainRole) {
-          case "PROVIDER":
-            router.replace("/providerDashboard");
-            break;
-          case "RECIPIENT":
-            router.replace("/recipientDashboard");
-            break;
-          case "ADMIN":
-            router.replace("/adminDashboard");
-            break;
-          default:
-            router.replace("/onboarding");
-        }
-      }
-    }
-  }, [isLoaded, user, router]);
+  //     if (!hasOnboarded) {
+  //       router.replace("/onboarding");
+  //     } else {
+  //       switch (mainRole) {
+  //         case "PROVIDER":
+  //           router.replace("/providerDashboard");
+  //           break;
+  //         case "RECIPIENT":
+  //           router.replace("/recipientDashboard");
+  //           break;
+  //         case "ADMIN":
+  //           router.replace("/adminDashboard");
+  //           break;
+  //         default:
+  //           router.replace("/onboarding");
+  //       }
+  //     }
+  //   }
+  // }, [isLoaded, user, router]);
 
   if (!isLoaded) {
     return (
@@ -62,16 +62,14 @@ export default function Header({ userData }) {
       return [
         { href: "/", label: "Home" },
         { href: "/about", label: "About" },
-        { href: "/analytics", label: "Impact" },
+        { href: "/analytics", label: "global Impact" },
       ];
     }
 
     if (mainRole === "PROVIDER") {
       return [
         { href: "/providerDashboard", label: "Dashboard" },
-        { href: "/my-listings", label: "My Listings" },
-        { href: "/add-listing", label: "Share Food" },
-        { href: "/analytics", label: "My Impact" },
+        { href: "/analytics", label: "global Impact" },
         { href: "/profile", label: "Profile" },
       ];
     }
@@ -79,9 +77,7 @@ export default function Header({ userData }) {
     if (mainRole === "RECIPIENT") {
       return [
         { href: "/recipientDashboard", label: "Dashboard" },
-        { href: "/browse", label: "Find Food" },
-        { href: "/my-requests", label: "My Requests" },
-        { href: "/notifications", label: "Alerts" },
+        { href: "/analytics", label: "global Impact" },
         { href: "/profile", label: "Profile" },
       ];
     }
