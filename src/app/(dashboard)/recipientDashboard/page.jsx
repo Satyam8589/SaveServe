@@ -20,10 +20,7 @@ import {
   Loader2,
   X,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -44,6 +41,34 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
+// --- Mock API functions for favorites (replace with your actual API calls) ---
+const fetchUserFavoritesAPI = async (userId) => {
+  // In a real app, this would fetch from your database
+  console.log(`Fetching favorites for user: ${userId}`);
+  const favorites = JSON.parse(localStorage.getItem("userFavorites") || "[]");
+  return { success: true, data: favorites };
+};
+
+const addToFavoritesAPI = async (userId, foodId) => {
+  console.log(`Adding food ${foodId} to favorites for user ${userId}`);
+  const favorites = JSON.parse(localStorage.getItem("userFavorites") || "[]");
+  if (!favorites.includes(foodId)) {
+    favorites.push(foodId);
+    localStorage.setItem("userFavorites", JSON.stringify(favorites));
+  }
+  return { success: true };
+};
+
+const removeFromFavoritesAPI = async (userId, foodId) => {
+  console.log(`Removing food ${foodId} from favorites for user ${userId}`);
+  let favorites = JSON.parse(localStorage.getItem("userFavorites") || "[]");
+  favorites = favorites.filter(id => id !== foodId);
+  localStorage.setItem("userFavorites", JSON.stringify(favorites));
+  return { success: true };
+};
+// --- End of Mock API ---
+
+
 export default function BrowseFoodPage() {
   const { userId } = useAuth();
   const { user } = useUser();
@@ -57,34 +82,76 @@ export default function BrowseFoodPage() {
   const [foodListings, setFoodListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [recipientStats, setRecipientStats] = useState({
-    impactScore: 0,
-    mealsSaved: 0,
-  });
+  const [recipientStats, setRecipientStats] = useState({ impactScore: 0, mealsSaved: 0 });
   const [requestedQuantity, setRequestedQuantity] = useState(1);
   const [requestMessage, setRequestMessage] = useState("");
+  
+  // --- New state for managing favorites ---
+  const [favorites, setFavorites] = useState(new Set());
+  const [isTogglingFavorite, setIsTogglingFavorite] = useState(null); // Tracks which item is being updated
 
   useEffect(() => {
     fetchFoodListings();
-  }, []);
+    fetchFavorites();
+  }, [userId]); // Re-fetch favorites if the user ID changes
 
   const fetchFoodListings = async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/food-listings');
       const data = await response.json();
-      
       if (data.success) {
         setFoodListings(data.data);
-        setError(null);
       } else {
-        setError(data.message || 'Failed to fetch food listings');
+        setError(data.message || 'Failed to fetch listings');
       }
     } catch (err) {
-      console.error('Error fetching food listings:', err);
       setError('Failed to connect to server');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // --- New function to fetch user's favorites ---
+  const fetchFavorites = async () => {
+    if (!userId) return;
+    try {
+      const response = await fetchUserFavoritesAPI(userId);
+      if (response.success) {
+        setFavorites(new Set(response.data));
+      }
+    } catch (err) {
+      console.error("Failed to fetch favorites:", err);
+    }
+  };
+  
+  // --- New function to handle adding/removing favorites ---
+  const handleToggleFavorite = async (foodId) => {
+    if (!userId) {
+      alert("You must be logged in to save favorites.");
+      return;
+    }
+
+    setIsTogglingFavorite(foodId);
+    const isFavorited = favorites.has(foodId);
+
+    try {
+      if (isFavorited) {
+        await removeFromFavoritesAPI(userId, foodId);
+        setFavorites(prev => {
+          const newFavorites = new Set(prev);
+          newFavorites.delete(foodId);
+          return newFavorites;
+        });
+      } else {
+        await addToFavoritesAPI(userId, foodId);
+        setFavorites(prev => new Set(prev).add(foodId));
+      }
+    } catch (err) {
+      console.error("Failed to update favorite status:", err);
+      alert("Could not update your favorites. Please try again.");
+    } finally {
+      setIsTogglingFavorite(null);
     }
   };
 
@@ -187,32 +254,28 @@ export default function BrowseFoodPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-center min-h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
-          <span className="ml-2 text-gray-300">Loading food listings...</span>
-        </div>
+      <div className="flex items-center justify-center min-h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
+        <span className="ml-2 text-gray-300">Loading food listings...</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="space-y-6">
-        <Card className="bg-red-900/20 border-red-500/20">
-          <CardContent className="p-6 text-center">
-            <AlertTriangle className="h-8 w-8 text-red-400 mx-auto mb-2" />
-            <p className="text-red-400 font-medium">Error Loading Food Listings</p>
-            <p className="text-gray-300 text-sm mt-1">{error}</p>
-            <Button 
-              onClick={fetchFoodListings}
-              className="mt-4 bg-emerald-600 hover:bg-emerald-700"
-            >
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="bg-red-900/20 border-red-500/20">
+        <CardContent className="p-6 text-center">
+          <AlertTriangle className="h-8 w-8 text-red-400 mx-auto mb-2" />
+          <p className="text-red-400 font-medium">Error Loading Food Listings</p>
+          <p className="text-gray-300 text-sm mt-1">{error}</p>
+          <Button 
+            onClick={fetchFoodListings}
+            className="mt-4 bg-emerald-600 hover:bg-emerald-700"
+          >
+            Try Again
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -339,111 +402,127 @@ export default function BrowseFoodPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {sortedFood.map((food) => (
-            <Card
-              key={food.id}
-              className="bg-gray-800 border-gray-700 hover:border-emerald-500 transition-colors flex flex-col"
-            >
-              <CardContent className="p-0 flex flex-col flex-grow">
-                <div className="h-48 bg-gray-700 rounded-t-lg flex items-center justify-center overflow-hidden">
-                  {food.imageUrl ? (
-                    <img 
-                      src={food.imageUrl} 
-                      alt={food.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <Utensils className="h-12 w-12 text-gray-500" />
-                  )}
-                </div>
-
-                <div className="p-4 flex flex-col flex-grow">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-semibold text-gray-100 text-lg">
-                      {food.title}
-                    </h3>
-                    <Badge className={getStatusColor(food.status)}>
-                      {getStatusIcon(food.status)}
-                      <span className="ml-1 capitalize">
-                        {food.status}
-                      </span>
-                    </Badge>
+          {sortedFood.map((food) => {
+            const isFavorited = favorites.has(food.id);
+            return (
+              <Card
+                key={food.id}
+                className="bg-gray-800 border-gray-700 hover:border-emerald-500 transition-colors flex flex-col"
+              >
+                <CardContent className="p-0 flex flex-col flex-grow">
+                  <div className="h-48 bg-gray-700 rounded-t-lg flex items-center justify-center overflow-hidden">
+                    {food.imageUrl ? (
+                      <img 
+                        src={food.imageUrl} 
+                        alt={food.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Utensils className="h-12 w-12 text-gray-500" />
+                    )}
                   </div>
 
-                  {food.description && (
-                    <p className="text-sm text-gray-400 mb-3 line-clamp-2">
-                      {food.description}
-                    </p>
-                  )}
+                  <div className="p-4 flex flex-col flex-grow">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-semibold text-gray-100 text-lg">
+                        {food.title}
+                      </h3>
+                      <Badge className={getStatusColor(food.status)}>
+                        {getStatusIcon(food.status)}
+                        <span className="ml-1 capitalize">
+                          {food.status}
+                        </span>
+                      </Badge>
+                    </div>
 
-                  <div className="space-y-2 text-sm text-gray-400">
-                    <div className="flex items-center space-x-2">
-                      <Package className="h-4 w-4" />
-                      <span>{food.quantity}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <MapPin className="h-4 w-4" />
-                      <span>{food.location}</span>
-                      <span className="text-emerald-400">
-                        ({food.distance})
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Clock className="h-4 w-4" />
-                      <span
-                        className={
-                          food.status === "urgent"
-                            ? "text-red-400"
-                            : ""
-                        }
-                      >
-                        {food.timeLeft} left
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <AlertTriangle className="h-4 w-4" />
-                      <span>{food.freshness}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
+                    {food.description && (
+                      <p className="text-sm text-gray-400 mb-3 line-clamp-2">
+                        {food.description}
+                      </p>
+                    )}
+
+                    <div className="space-y-2 text-sm text-gray-400">
                       <div className="flex items-center space-x-2">
-                        <Star className="h-4 w-4 text-yellow-400" />
-                        <span>{food.rating}</span>
-                        <span>({food.claims} claims)</span>
+                        <Package className="h-4 w-4" />
+                        <span>{food.quantity}</span>
                       </div>
-                      <span className="text-xs text-gray-500">
-                        {food.posted}
-                      </span>
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="h-4 w-4" />
+                        <span>{food.location}</span>
+                        <span className="text-emerald-400">
+                          ({food.distance})
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-4 w-4" />
+                        <span
+                          className={
+                            food.status === "urgent"
+                              ? "text-red-400"
+                              : ""
+                          }
+                        >
+                          {food.timeLeft} left
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span>{food.freshness}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Star className="h-4 w-4 text-yellow-400" />
+                          <span>{food.rating}</span>
+                          <span>({food.claims} claims)</span>
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {food.posted}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-auto pt-4 flex space-x-2">
+                      <Button
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        onClick={() => handleClaimFood(food)}
+                      >
+                        <ShoppingCart className="h-4 w-4 mr-2" />
+                        Claim Food
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="border-gray-600"
+                        onClick={() => handleViewFood(food)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="border-gray-600"
+                        onClick={() => handleToggleFavorite(food.id)}
+                        disabled={isTogglingFavorite === food.id}
+                      >
+                        {isTogglingFavorite === food.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <Bookmark
+                                className={`h-4 w-4 transition-colors ${
+                                    isFavorited
+                                    ? "text-yellow-400"
+                                    : "text-gray-300"
+                                }`}
+                                fill={isFavorited ? "currentColor" : "none"}
+                            />
+                        )}
+                      </Button>
                     </div>
                   </div>
-
-                  <div className="mt-auto pt-4 flex space-x-2">
-                    <Button
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                      onClick={() => handleClaimFood(food)}
-                    >
-                      <ShoppingCart className="h-4 w-4 mr-2" />
-                      Claim Food
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-gray-600"
-                      onClick={() => handleViewFood(food)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-gray-600"
-                    >
-                      <Bookmark className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -466,7 +545,7 @@ export default function BrowseFoodPage() {
                     </div>
                   )}
                 </div>
-                 <Button 
+                  <Button 
                     size="icon"
                     variant="ghost"
                     className="absolute top-2 right-2 bg-black/50 hover:bg-black/75 rounded-full"
@@ -479,13 +558,13 @@ export default function BrowseFoodPage() {
               <div className="p-6">
                 <DialogHeader className="mb-4">
                   <div className="flex justify-between items-center">
-                     <DialogTitle className="text-2xl font-bold text-gray-100">
+                      <DialogTitle className="text-2xl font-bold text-gray-100">
                         {selectedFood.title}
-                     </DialogTitle>
-                     <Badge className={getStatusColor(selectedFood.status) + " px-3 py-1 text-sm"}>
+                      </DialogTitle>
+                      <Badge className={getStatusColor(selectedFood.status) + " px-3 py-1 text-sm"}>
                         {getStatusIcon(selectedFood.status)}
                         <span className="ml-1.5 capitalize">{selectedFood.status}</span>
-                     </Badge>
+                      </Badge>
                   </div>
                 </DialogHeader>
                 

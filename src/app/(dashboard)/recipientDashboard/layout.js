@@ -28,6 +28,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Footer from "@/components/Footer";
+import { useClerk } from "@clerk/nextjs";
 
 const sidebarItems = [
   {
@@ -72,6 +73,7 @@ export default function RecipientLayout({ children }) {
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState("");
   const [isSidebarOpen, setSidebarOpen] = useState(true);
+  const { signOut } = useClerk(); // Clerk signOut function
 
   const getPageTitle = () => {
     const currentItem = sidebarItems.find((item) => item.href === pathname);
@@ -104,11 +106,11 @@ export default function RecipientLayout({ children }) {
                       passHref
                       onClick={(e) => {
                         if (window.innerWidth < 768) {
-                          e.preventDefault(); // Stop instant navigation
-                          setSidebarOpen(false); // Close sidebar first
+                          e.preventDefault(); 
+                          setSidebarOpen(false); 
                           setTimeout(() => {
-                            window.location.href = item.href; // Navigate after closing
-                          }, 150); // Small delay for smooth UX
+                            window.location.href = item.href; 
+                          }, 150); 
                         }
                       }}
                     >
@@ -134,7 +136,11 @@ export default function RecipientLayout({ children }) {
                   <Settings className="h-4 w-4" />
                   <span>Settings</span>
                 </SidebarMenuButton>
-                <SidebarMenuButton className="text-red-400 hover:text-red-300 hover:bg-gray-700">
+
+                <SidebarMenuButton
+                  className="text-red-400 hover:text-red-300 hover:bg-gray-700 cursor-pointer"
+                  onClick={() => signOut()} // Sign out on click
+                >
                   <LogOut className="h-4 w-4" />
                   <span>Sign Out</span>
                 </SidebarMenuButton>
