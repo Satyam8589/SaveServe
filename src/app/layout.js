@@ -10,6 +10,7 @@ import Providers from "./providers";
 import { currentUser } from "@clerk/nextjs/server";
 import NotificationsInitializer from "@/components/NotificationsInitializer";
 import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -54,6 +55,7 @@ export default async function RootLayout({ children }) {
 
               <main className="min-h-screen">
                 {children}
+                <SpeedInsights />
                 <Analytics />
               </main>
               <Toaster richColors />
