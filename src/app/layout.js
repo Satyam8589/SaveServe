@@ -9,6 +9,7 @@ import Header from "@/components/header";
 import Providers from "./providers";
 import { currentUser } from "@clerk/nextjs/server";
 import NotificationsInitializer from "@/components/NotificationsInitializer";
+import { Analytics } from '@vercel/analytics/next';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,9 +20,11 @@ export const metadata = {
 
 export default async function RootLayout({ children }) {
   const user = await currentUser();
-  
+
   // Get user role from public metadata, default to 'recipient', convert to uppercase
-  const userRole = (user?.publicMetadata?.mainrole || 'recipient').toUpperCase();
+  const userRole = (
+    user?.publicMetadata?.mainrole || "recipient"
+  ).toUpperCase();
 
   return (
     <ClerkProvider
@@ -30,9 +33,9 @@ export default async function RootLayout({ children }) {
       }}
     >
       <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="icon" href="/logo.svg"  />
-      </head>
+        <head>
+          <link rel="icon" href="/logo.svg" />
+        </head>
         <body className={`${inter.className}`}>
           <ThemeProvider
             attribute="class"
@@ -41,18 +44,19 @@ export default async function RootLayout({ children }) {
             disableTransitionOnChange
           >
             <Providers>
-            
-            <NotificationsInitializer 
-              userRole={userRole}
-              // Remove userArea prop - let component handle location permission internally
-            />
-        
-            {/* Header Section */}
-            <Header />
+              <NotificationsInitializer
+                userRole={userRole}
+                // Remove userArea prop - let component handle location permission internally
+              />
 
-            <main className="min-h-screen">{children}</main>
-            <Toaster richColors />
+              {/* Header Section */}
+              <Header />
 
+              <main className="min-h-screen">
+                {children}
+                <Analytics />
+              </main>
+              <Toaster richColors />
             </Providers>
           </ThemeProvider>
         </body>
