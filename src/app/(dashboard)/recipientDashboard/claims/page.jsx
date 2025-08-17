@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import {
   Package,
@@ -49,6 +49,7 @@ const IntegratedClaimsPage = () => {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState("");
+  const [currentTime, setCurrentTime] = useState(new Date());
   const router = useRouter();
 
   const {
@@ -61,16 +62,115 @@ const IntegratedClaimsPage = () => {
   const rateBookingMutation = useRateBooking();
   const cancelBookingMutation = useCancelBooking();
 
+  // Update current time every minute to refresh time displays
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(timer);
+  }, []);
+
   const allClaims = bookingsData?.data || [];
 
   // Filter claims to only show 'approved' status
   const claimsToShow = allClaims.filter(claim => claim.status === 'approved');
 
+  // Get actual expiry time from multiple possible sources
+  const getExpiryTime = (claim) => {
+    // Priority order for finding expiry time
+    return claim.listingId?.expiryTime || 
+           claim.expiryTime || 
+           claim.listingId?.availabilityWindow?.end ||
+           claim.scheduledPickupTime ||
+           null;
+  };
+
+  // Calculate actual time remaining
+  const getActualTimeRemaining = (claim) => {
+    const expiryTime = getExpiryTime(claim);
+    
+    if (!expiryTime) {
+      // Fallback: calculate 6 hours from claim creation
+      const createdAt = new Date(claim.createdAt || claim.requestedAt || Date.now());
+      const fallbackExpiry = new Date(createdAt.getTime() + (6 * 60 * 60 * 1000));
+      return calculateTimeLeft(fallbackExpiry);
+    }
+    
+    return calculateTimeLeft(expiryTime);
+  };
+
+  // Helper function to calculate time left
+  const calculateTimeLeft = (expiryTime) => {
+    const now = currentTime;
+    const expiry = new Date(expiryTime);
+    const diff = expiry.getTime() - now.getTime();
+    
+    if (diff <= 0) return "Expired";
+    
+    const totalMinutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    
+    if (totalMinutes < 60) {
+      return `${minutes}m left`;
+    } else if (hours < 24) {
+      return `${hours}h ${minutes}m left`;
+    } else {
+      const days = Math.floor(hours / 24);
+      const remainingHours = hours % 24;
+      return `${days}d ${remainingHours}h left`;
+    }
+  };
+
+  // Get urgency-based badge color
+  const getUrgencyBadgeColor = (claim) => {
+    const expiryTime = getExpiryTime(claim);
+    
+    if (!expiryTime) {
+      // Fallback calculation
+      const createdAt = new Date(claim.createdAt || claim.requestedAt || Date.now());
+      const fallbackExpiry = new Date(createdAt.getTime() + (6 * 60 * 60 * 1000));
+      return getBadgeColorByTime(fallbackExpiry);
+    }
+    
+    return getBadgeColorByTime(expiryTime);
+  };
+
+  // Helper to get badge color based on time remaining
+  const getBadgeColorByTime = (expiryTime) => {
+    const now = currentTime;
+    const expiry = new Date(expiryTime);
+    const diff = expiry.getTime() - now.getTime();
+    
+    if (diff <= 0) return "bg-red-600"; // Expired
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    
+    if (hours <= 1) return "bg-red-600";     // Critical - 1 hour or less
+    if (hours <= 3) return "bg-orange-600";  // Warning - 3 hours or less  
+    if (hours <= 6) return "bg-yellow-600";  // Caution - 6 hours or less
+    if (hours <= 12) return "bg-blue-600";   // Normal - 12 hours or less
+    return "bg-green-600";                   // Good - more than 12 hours
+  };
+
+  // Check if item is expired
+  const isExpired = (claim) => {
+    const expiryTime = getExpiryTime(claim);
+    
+    if (!expiryTime) {
+      const createdAt = new Date(claim.createdAt || claim.requestedAt || Date.now());
+      const fallbackExpiry = new Date(createdAt.getTime() + (6 * 60 * 60 * 1000));
+      return currentTime > fallbackExpiry;
+    }
+    
+    return currentTime > new Date(expiryTime);
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case "approved":
         return "bg-emerald-600 text-white";
-      // Other cases remain for potential future use or different views
       case "collected":
         return "bg-gray-500 text-white";
       case "pending":
@@ -90,7 +190,7 @@ const IntegratedClaimsPage = () => {
   };
 
   const getStatusText = (status) => {
-    return "Ready for Pickup"; // Only showing approved claims
+    return "Ready for Pickup";
   };
 
   const formatTime = (date) => {
@@ -104,21 +204,7 @@ const IntegratedClaimsPage = () => {
   };
 
   const isQRExpired = (expiryDate) => {
-    return new Date() > new Date(expiryDate);
-  };
-
-  const getTimeRemaining = (expiryDate) => {
-    const now = new Date();
-    const expiry = new Date(expiryDate);
-    const diff = expiry.getTime() - now.getTime();
-    
-    if (diff <= 0) return "Expired";
-    
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (hours < 1) return `${minutes}m left`;
-    return `${hours}h ${minutes}m left`;
+    return currentTime > new Date(expiryDate);
   };
 
   const handleViewQRCode = (claim) => {
@@ -131,8 +217,6 @@ const IntegratedClaimsPage = () => {
     setSelectedBooking(null);
   };
 
-  // Note: handleRateBooking would now be triggered from a different page 
-  // (e.g., a "Claim History" page), as "collected" items are no longer shown here.
   const handleRateBooking = (booking) => {
     setSelectedBooking(booking);
     setShowRatingModal(true);
@@ -194,6 +278,7 @@ const IntegratedClaimsPage = () => {
 
   const handleRefresh = () => {
     refetch();
+    setCurrentTime(new Date()); // Also update current time
   };
 
   const goToDashboard = () => {
@@ -201,11 +286,11 @@ const IntegratedClaimsPage = () => {
   };
 
   if (!isLoaded || isLoading) {
-    return <div>Loading...</div>; // Simplified loading state
+    return <div>Loading...</div>;
   }
 
   if (error) {
-    return <div>Error loading claims. Please try again.</div>; // Simplified error state
+    return <div>Error loading claims. Please try again.</div>;
   }
 
   return (
@@ -255,11 +340,11 @@ const IntegratedClaimsPage = () => {
                   </div>
                 </div>
                 <div className="flex flex-row sm:flex-col items-start sm:items-end gap-2">
-                  {claim.qrCodeExpiry && (
-                    <Badge className={isQRExpired(claim.qrCodeExpiry) ? "bg-red-600" : "bg-blue-600"}>
-                      {getTimeRemaining(claim.qrCodeExpiry)}
-                    </Badge>
-                  )}
+                  {/* Show actual time remaining from database */}
+                  <Badge className={`${getUrgencyBadgeColor(claim)} text-white`}>
+                    {getActualTimeRemaining(claim)}
+                  </Badge>
+                  
                   <Badge className={`${getStatusColor(claim.status)} whitespace-nowrap`}>
                     {getStatusIcon(claim.status)}
                     <span className="ml-1">{getStatusText(claim.status)}</span>
@@ -325,6 +410,20 @@ const IntegratedClaimsPage = () => {
                   Cancel
                 </Button>
               </div>
+              
+              {/* Show expiry warning for food items */}
+              {isExpired(claim) && (
+                <div className="mt-3 p-3 bg-red-900/20 border border-red-500/20 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <AlertTriangle className="h-4 w-4 text-red-400" />
+                    <span className="text-red-400 text-sm font-medium">
+                      This food item has expired. Please contact the provider.
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              {/* Show QR expiry warning separately */}
               {claim.qrCodeExpiry && isQRExpired(claim.qrCodeExpiry) && (
                 <div className="mt-3 p-3 bg-red-900/20 border border-red-500/20 rounded-lg">
                   <div className="flex items-center space-x-2">
@@ -364,7 +463,6 @@ const IntegratedClaimsPage = () => {
         />
       )}
       
-      {/* The rating modal is kept for potential use but won't be triggered from this page */}
       {showRatingModal && <div />} 
     </div>
   );
