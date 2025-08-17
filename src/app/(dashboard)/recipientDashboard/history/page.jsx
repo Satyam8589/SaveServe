@@ -16,8 +16,8 @@ import {
   Filter,
   TrendingUp,
   Award,
-  ImageIcon,
-  Utensils
+  Utensils,
+  Archive
 } from "lucide-react";
 import {
   Card,
@@ -30,11 +30,11 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useUserBookings } from "@/hooks/useBookings";
 
-// Configuration for auto-cancellation (in minutes for scanning, hours for others)
-const AUTO_CANCEL_CONFIG = {
-  approved: 24,    // Cancel after 24 hours if not collected
-  pending: 72,     // Cancel after 72 hours if not approved
-  scanning: 15     // Cancel after 15 minutes if QR code not scanned
+// Configuration for time calculations (for display only)
+const TIME_CONFIG = {
+  approved: 24,    // 24 hours for pickup display
+  pending: 72,     // 72 hours for approval display
+  scanning: 15     // 15 minutes for scanning display
 };
 
 export default function HistoryPage() {
@@ -42,7 +42,6 @@ export default function HistoryPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [imageErrors, setImageErrors] = useState(new Set());
-  const [processedClaims, setProcessedClaims] = useState([]);
 
   const {
     data: bookingsData,
@@ -53,141 +52,11 @@ export default function HistoryPage() {
 
   const claims = bookingsData?.data || [];
 
-  // Function to check if a booking should be auto-cancelled
-  const shouldAutoCancelBooking = (claim) => {
-    const now = new Date();
-    const statusDate = new Date(claim.updatedAt || claim.createdAt);
-    const hoursDifference = (now - statusDate) / (1000 * 60 * 60);
-    const minutesDifference = (now - statusDate) / (1000 * 60);
-
-    // Check for scanning timeout (if user is in scanning phase)
-    if (claim.status === 'scanning' && minutesDifference > AUTO_CANCEL_CONFIG.scanning) {
-      return { shouldCancel: true, reason: 'scanning_timeout' };
-    }
-
-    // Check for pickup timeout (approved items not collected)
-    if (claim.status === 'approved' && hoursDifference > AUTO_CANCEL_CONFIG.approved) {
-      return { shouldCancel: true, reason: 'pickup_timeout' };
-    }
-    
-    // Check for approval timeout (pending items not approved)
-    if (claim.status === 'pending' && hoursDifference > AUTO_CANCEL_CONFIG.pending) {
-      return { shouldCancel: true, reason: 'approval_timeout' };
-    }
-
-    return { shouldCancel: false, reason: null };
-  };
-
-  // Function to update booking status (you'll need to implement the API call)
-  const updateBookingStatus = async (claimId, newStatus, reason = null) => {
-    try {
-      const response = await fetch(`/api/bookings/${claimId}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          status: newStatus, 
-          cancelReason: reason,
-          autoCancel: true,
-          cancelledAt: new Date().toISOString()
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update booking status');
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Error updating booking status:', error);
-      return null;
-    }
-  };
-
-  // Process claims for auto-cancellation
-  useEffect(() => {
-    let isMounted = true;
-    
-    const processClaimsForCancellation = async () => {
-      if (!claims.length) {
-        if (isMounted) {
-          setProcessedClaims([]);
-        }
-        return;
-      }
-
-      // Check if any claims need processing to avoid unnecessary updates
-      const needsProcessing = claims.some(claim => {
-        if (['collected', 'cancelled', 'rejected', 'expired'].includes(claim.status)) {
-          return false;
-        }
-        const { shouldCancel } = shouldAutoCancelBooking(claim);
-        return shouldCancel;
-      });
-
-      if (!needsProcessing) {
-        if (isMounted) {
-          setProcessedClaims(claims);
-        }
-        return;
-      }
-
-      const updatedClaims = await Promise.all(
-        claims.map(async (claim) => {
-          // Skip if already in final states
-          if (['collected', 'cancelled', 'rejected', 'expired'].includes(claim.status)) {
-            return claim;
-          }
-
-          const { shouldCancel, reason } = shouldAutoCancelBooking(claim);
-          
-          if (shouldCancel) {
-            try {
-              // Update the booking status in the backend
-              const updateResult = await updateBookingStatus(claim._id, 'cancelled', reason);
-              
-              if (updateResult && isMounted) {
-                // Return updated claim with cancelled status
-                return {
-                  ...claim,
-                  status: 'cancelled',
-                  cancelReason: reason,
-                  autoCancel: true,
-                  cancelledAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString()
-                };
-              }
-            } catch (error) {
-              console.error('Failed to update booking status:', error);
-            }
-          }
-          
-          return claim;
-        })
-      );
-
-      if (isMounted) {
-        setProcessedClaims(updatedClaims);
-      }
-    };
-
-    processClaimsForCancellation();
-
-    // Cleanup function
-    return () => {
-      isMounted = false;
-    };
-  }, [claims.length, claims.map(c => `${c._id}-${c.status}-${c.updatedAt}`).join(',')]);
-
-  // Use processed claims instead of raw claims, with fallback
-  const displayClaims = processedClaims.length > 0 ? processedClaims : claims;
-
   const handleImageError = (claimId) => {
     setImageErrors(prev => new Set([...prev, claimId]));
   };
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status, claim = null) => {
     switch (status) {
       case "approved":
         return "bg-emerald-600 text-white";
@@ -202,13 +71,16 @@ export default function HistoryPage() {
       case "expired":
         return "bg-orange-600 text-white";
       case "cancelled":
+        if (claim?.autoCancel) {
+          return "bg-purple-600 text-white";
+        }
         return "bg-gray-600 text-white";
       default:
         return "bg-gray-500 text-white";
     }
   };
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status, claim = null) => {
     switch (status) {
       case "approved":
         return <Check className="h-3 w-3" />;
@@ -223,6 +95,9 @@ export default function HistoryPage() {
       case "expired":
         return <AlertTriangle className="h-3 w-3" />;
       case "cancelled":
+        if (claim?.autoCancel) {
+          return <Archive className="h-3 w-3" />;
+        }
         return <X className="h-3 w-3" />;
       default:
         return <Clock className="h-3 w-3" />;
@@ -234,15 +109,15 @@ export default function HistoryPage() {
       case "approved":
         return "Ready for Pickup";
       case "collected":
-        return "Completed";
+        return "Successfully Completed";
       case "pending":
         return "Awaiting Approval";
       case "scanning":
         return "Scan QR Code";
       case "rejected":
-        return "Rejected";
+        return "Request Rejected";
       case "expired":
-        return "Expired";
+        return "Listing Expired";
       case "cancelled":
         if (claim?.autoCancel) {
           switch (claim.cancelReason) {
@@ -256,7 +131,7 @@ export default function HistoryPage() {
               return "Auto-cancelled";
           }
         }
-        return "Cancelled";
+        return "Manually Cancelled";
       default:
         return status;
     }
@@ -274,8 +149,8 @@ export default function HistoryPage() {
     });
   };
 
-  // Function to get time remaining before auto-cancellation
-  const getTimeUntilCancellation = (claim) => {
+  // Function to get time information for active items (display only)
+  const getTimeInfo = (claim) => {
     if (['collected', 'cancelled', 'rejected', 'expired'].includes(claim.status)) {
       return null;
     }
@@ -286,18 +161,15 @@ export default function HistoryPage() {
     let timeLimit, timeDifference, isMinutes = false;
     
     if (claim.status === 'scanning') {
-      // For scanning status, use minutes
       timeDifference = (now - statusDate) / (1000 * 60);
-      timeLimit = AUTO_CANCEL_CONFIG.scanning;
+      timeLimit = TIME_CONFIG.scanning;
       isMinutes = true;
     } else if (claim.status === 'approved') {
-      // For approved status, use hours
       timeDifference = (now - statusDate) / (1000 * 60 * 60);
-      timeLimit = AUTO_CANCEL_CONFIG.approved;
+      timeLimit = TIME_CONFIG.approved;
     } else if (claim.status === 'pending') {
-      // For pending status, use hours
       timeDifference = (now - statusDate) / (1000 * 60 * 60);
-      timeLimit = AUTO_CANCEL_CONFIG.pending;
+      timeLimit = TIME_CONFIG.pending;
     } else {
       return null;
     }
@@ -305,33 +177,31 @@ export default function HistoryPage() {
     const remainingTime = timeLimit - timeDifference;
     
     if (remainingTime <= 0) {
-      return { expired: true, text: "Expires soon" };
+      return { expired: true, text: "Time elapsed" };
     }
 
     if (isMinutes) {
-      // For scanning timeout, show minutes
       const remainingMinutes = Math.floor(remainingTime);
       const remainingSeconds = Math.floor((remainingTime - remainingMinutes) * 60);
       
       if (remainingMinutes < 1) {
-        return { expired: false, text: `${remainingSeconds}s remaining`, urgent: true };
+        return { expired: false, text: `${remainingSeconds}s left`, urgent: true };
       } else if (remainingMinutes < 5) {
-        return { expired: false, text: `${remainingMinutes}m ${remainingSeconds}s remaining`, urgent: true };
+        return { expired: false, text: `${remainingMinutes}m ${remainingSeconds}s left`, urgent: true };
       } else {
-        return { expired: false, text: `${remainingMinutes}m remaining` };
+        return { expired: false, text: `${remainingMinutes}m left` };
       }
     } else {
-      // For other timeouts, show hours
       if (remainingTime < 1) {
         const remainingMinutes = Math.floor(remainingTime * 60);
-        return { expired: false, text: `${remainingMinutes}m remaining`, urgent: true };
+        return { expired: false, text: `${remainingMinutes}m left`, urgent: true };
       }
       const hours = Math.floor(remainingTime);
-      return { expired: false, text: `${hours}h remaining` };
+      return { expired: false, text: `${hours}h left` };
     }
   };
 
-  const filteredClaims = displayClaims.filter(claim => {
+  const filteredClaims = claims.filter(claim => {
     if (statusFilter === 'all') return true;
     return claim.status === statusFilter;
   });
@@ -351,43 +221,62 @@ export default function HistoryPage() {
     }
   });
 
+  // Calculate stats
   const stats = {
-    total: displayClaims.length,
-    completed: displayClaims.filter(c => c.status === 'collected').length,
-    pending: displayClaims.filter(c => c.status === 'pending').length,
-    approved: displayClaims.filter(c => c.status === 'approved').length,
-    scanning: displayClaims.filter(c => c.status === 'scanning').length,
-    cancelled: displayClaims.filter(c => ['cancelled', 'rejected', 'expired'].includes(c.status)).length,
-    itemsSaved: displayClaims
+    total: claims.length,
+    completed: claims.filter(c => c.status === 'collected').length,
+    pending: claims.filter(c => c.status === 'pending').length,
+    approved: claims.filter(c => c.status === 'approved').length,
+    scanning: claims.filter(c => c.status === 'scanning').length,
+    cancelled: claims.filter(c => ['cancelled', 'rejected', 'expired'].includes(c.status)).length,
+    autoCancelled: claims.filter(c => c.status === 'cancelled' && c.autoCancel).length,
+    manualCancelled: claims.filter(c => c.status === 'cancelled' && !c.autoCancel).length,
+    itemsSaved: claims
       .filter(c => c.status === 'collected')
       .reduce((sum, c) => sum + (c.approvedQuantity || 0), 0),
-    averageRating: displayClaims.filter(c => c.rating).reduce((sum, c, _, arr) => 
+    averageRating: claims.filter(c => c.rating).reduce((sum, c, _, arr) => 
       sum + c.rating / arr.length, 0) || 0
   };
 
   const statusOptions = [
-    { value: 'all', label: 'All', count: stats.total },
+    { value: 'all', label: 'All Items', count: stats.total },
     { value: 'collected', label: 'Completed', count: stats.completed },
     { value: 'approved', label: 'Ready', count: stats.approved },
     { value: 'scanning', label: 'Scanning', count: stats.scanning },
     { value: 'pending', label: 'Pending', count: stats.pending },
     { value: 'cancelled', label: 'Cancelled', count: stats.cancelled },
+    { value: 'rejected', label: 'Rejected', count: claims.filter(c => c.status === 'rejected').length },
+    { value: 'expired', label: 'Expired', count: claims.filter(c => c.status === 'expired').length },
   ];
 
   if (!isLoaded || isLoading) {
-    return <div className="p-4 text-white">Loading history...</div>
+    return (
+      <div className="p-8 text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+        <p className="text-gray-300">Loading your food history...</p>
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="p-4 text-red-400">Error loading history. Please try again.</div>
+    return (
+      <div className="p-8 text-center">
+        <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+        <p className="text-red-400 mb-4">Error loading history. Please try again.</p>
+        <Button onClick={refetch} className="bg-emerald-600 hover:bg-emerald-700">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Retry
+        </Button>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-100">Claim History</h2>
+          <h2 className="text-2xl font-bold text-gray-100">Food History</h2>
           <p className="text-gray-400">Your complete food claiming journey</p>
         </div>
         <Button
@@ -410,6 +299,7 @@ export default function HistoryPage() {
               <div>
                 <p className="text-emerald-200 text-sm font-medium">Total Claims</p>
                 <p className="text-2xl font-bold text-white">{stats.total}</p>
+                <p className="text-emerald-300 text-xs">All time</p>
               </div>
               <TrendingUp className="h-8 w-8 text-emerald-300" />
             </div>
@@ -422,6 +312,7 @@ export default function HistoryPage() {
               <div>
                 <p className="text-green-200 text-sm font-medium">Completed</p>
                 <p className="text-2xl font-bold text-white">{stats.completed}</p>
+                <p className="text-green-300 text-xs">{stats.itemsSaved} items saved</p>
               </div>
               <Check className="h-8 w-8 text-green-300" />
             </div>
@@ -432,10 +323,13 @@ export default function HistoryPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-200 text-sm font-medium">Items Saved</p>
-                <p className="text-2xl font-bold text-white">{stats.itemsSaved}</p>
+                <p className="text-blue-200 text-sm font-medium">Active</p>
+                <p className="text-2xl font-bold text-white">
+                  {stats.pending + stats.approved + stats.scanning}
+                </p>
+                <p className="text-blue-300 text-xs">Pending processing</p>
               </div>
-              <Package className="h-8 w-8 text-blue-300" />
+              <Clock className="h-8 w-8 text-blue-300" />
             </div>
           </CardContent>
         </Card>
@@ -448,6 +342,7 @@ export default function HistoryPage() {
                 <p className="text-2xl font-bold text-white">
                   {stats.averageRating > 0 ? stats.averageRating.toFixed(1) : 'N/A'}
                 </p>
+                <p className="text-yellow-300 text-xs">User satisfaction</p>
               </div>
               <Award className="h-8 w-8 text-yellow-300" />
             </div>
@@ -460,7 +355,7 @@ export default function HistoryPage() {
         <CardHeader className="pb-4">
           <CardTitle className="text-gray-100 flex items-center">
             <Filter className="h-5 w-5 mr-2" />
-            Filters & Sort
+            Filter History
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -495,7 +390,7 @@ export default function HistoryPage() {
                   : "border-gray-600 text-gray-300 hover:bg-gray-700"
                 }`}
               >
-                Newest
+                Newest First
               </Button>
               <Button
                 size="sm"
@@ -506,7 +401,7 @@ export default function HistoryPage() {
                   : "border-gray-600 text-gray-300 hover:bg-gray-700"
                 }`}
               >
-                Oldest
+                Oldest First
               </Button>
               <Button
                 size="sm"
@@ -517,7 +412,7 @@ export default function HistoryPage() {
                   : "border-gray-600 text-gray-300 hover:bg-gray-700"
                 }`}
               >
-                Rating
+                By Rating
               </Button>
             </div>
           </div>
@@ -528,10 +423,11 @@ export default function HistoryPage() {
       <div className="space-y-4">
         {sortedClaims.length > 0 ? (
           sortedClaims.map((claim) => {
-            const timeInfo = getTimeUntilCancellation(claim);
+            const timeInfo = getTimeInfo(claim);
+            const isCompleted = ['collected', 'cancelled', 'rejected', 'expired'].includes(claim.status);
             
             return (
-              <Card key={claim._id} className="bg-gray-800 border-gray-700 hover:border-gray-600 transition-colors">
+              <Card key={claim._id} className={`${isCompleted ? 'bg-gray-800/70' : 'bg-gray-800'} border-gray-700 hover:border-gray-600 transition-colors`}>
                 <CardContent className="p-4">
                   <div className="flex flex-col sm:flex-row gap-4">
                     <div className="flex-shrink-0 mx-auto sm:mx-0">
@@ -555,8 +451,8 @@ export default function HistoryPage() {
                           {claim.listingId?.title || claim.title || "Food Item"}
                         </CardTitle>
                         <div className="flex flex-col items-start sm:items-end gap-1">
-                          <Badge className={`${getStatusColor(claim.status)} self-start sm:self-end`}>
-                            {getStatusIcon(claim.status)}
+                          <Badge className={`${getStatusColor(claim.status, claim)} self-start sm:self-end`}>
+                            {getStatusIcon(claim.status, claim)}
                             <span className="ml-1">{getStatusText(claim.status, claim)}</span>
                           </Badge>
                           {timeInfo && (
@@ -564,7 +460,7 @@ export default function HistoryPage() {
                               timeInfo.expired 
                                 ? 'bg-red-900 text-red-200' 
                                 : timeInfo.urgent
-                                ? 'bg-red-800 text-red-200 animate-pulse'
+                                ? 'bg-red-800 text-red-200'
                                 : 'bg-yellow-900 text-yellow-200'
                             }`}>
                               {timeInfo.text}
@@ -578,8 +474,8 @@ export default function HistoryPage() {
                           <Package className="h-4 w-4 flex-shrink-0" />
                           <span>
                             {claim.approvedQuantity > 0 
-                              ? `${claim.approvedQuantity} items`
-                              : `${claim.requestedQuantity} requested`
+                              ? `${claim.approvedQuantity} items approved`
+                              : `${claim.requestedQuantity || 1} requested`
                             }
                           </span>
                         </div>
@@ -589,7 +485,7 @@ export default function HistoryPage() {
                         </div>
                         <div className="flex items-center space-x-2">
                           <Clock className="h-4 w-4 flex-shrink-0" />
-                          <span>Claimed {formatTime(claim.requestedAt || claim.createdAt)}</span>
+                          <span>Claimed: {formatTime(claim.requestedAt || claim.createdAt)}</span>
                         </div>
                         {claim.collectedAt && (
                           <div className="flex items-center space-x-2 text-green-400">
@@ -600,7 +496,21 @@ export default function HistoryPage() {
                         {claim.cancelledAt && (
                           <div className="flex items-center space-x-2 text-red-400">
                             <X className="h-4 w-4" />
-                            <span>Cancelled: {formatTime(claim.cancelledAt)}</span>
+                            <span>
+                              {claim.autoCancel ? 'Auto-Cancelled' : 'Cancelled'}: {formatTime(claim.cancelledAt)}
+                            </span>
+                          </div>
+                        )}
+                        {claim.rejectedAt && (
+                          <div className="flex items-center space-x-2 text-red-400">
+                            <X className="h-4 w-4" />
+                            <span>Rejected: {formatTime(claim.rejectedAt)}</span>
+                          </div>
+                        )}
+                        {claim.expiredAt && (
+                          <div className="flex items-center space-x-2 text-orange-400">
+                            <AlertTriangle className="h-4 w-4" />
+                            <span>Expired: {formatTime(claim.expiredAt)}</span>
                           </div>
                         )}
                       </div>
@@ -624,12 +534,12 @@ export default function HistoryPage() {
             <CardContent className="p-12 text-center">
               <History className="h-16 w-16 text-gray-500 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-300 mb-2">
-                {statusFilter === 'all' ? 'No Claims Yet' : `No ${statusFilter} claims`}
+                {statusFilter === 'all' ? 'No Food History Yet' : `No ${statusFilter} items found`}
               </h3>
               <p className="text-gray-400 mb-4">
                 {statusFilter === 'all' 
-                  ? 'Start claiming food items to see your history here' 
-                  : `No claims found with the status: ${statusFilter}`
+                  ? 'Start claiming food items to build your history' 
+                  : `No items found with the status: ${statusFilter}`
                 }
               </p>
               {statusFilter !== 'all' && (
@@ -637,7 +547,7 @@ export default function HistoryPage() {
                   onClick={() => setStatusFilter('all')} 
                   className="bg-emerald-600 hover:bg-emerald-700"
                 >
-                  View All Claims
+                  View All Items
                 </Button>
               )}
             </CardContent>
