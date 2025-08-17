@@ -62,16 +62,14 @@ export default function Header({ userData }) {
       return [
         { href: "/", label: "Home" },
         { href: "/about", label: "About" },
-        { href: "/analytics", label: "Impact" },
+        { href: "/analytics", label: "global Impact" },
       ];
     }
 
     if (mainRole === "PROVIDER") {
       return [
         { href: "/providerDashboard", label: "Dashboard" },
-        { href: "/my-listings", label: "My Listings" },
-        { href: "/add-listing", label: "Share Food" },
-        { href: "/analytics", label: "My Impact" },
+        { href: "/analytics", label: "global Impact" },
         { href: "/profile", label: "Profile" },
       ];
     }
@@ -79,9 +77,7 @@ export default function Header({ userData }) {
     if (mainRole === "RECIPIENT") {
       return [
         { href: "/recipientDashboard", label: "Dashboard" },
-        { href: "/browse", label: "Find Food" },
-        { href: "/my-requests", label: "My Requests" },
-        { href: "/notifications", label: "Alerts" },
+        { href: "/analytics", label: "global Impact" },
         { href: "/profile", label: "Profile" },
       ];
     }
