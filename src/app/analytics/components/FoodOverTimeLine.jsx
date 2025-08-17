@@ -13,12 +13,12 @@ export default function FoodOverTimeLine({
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="bg-white p-3 shadow-lg rounded-lg border">
-          <p className="font-medium">{data.periodLabel}</p>
-          <p className="text-sm text-blue-600">Weight: {data.totalWeight} kg</p>
-          <p className="text-sm text-gray-600">Bookings: {data.totalBookings}</p>
+        <div className="bg-gray-800 p-3 shadow-xl rounded-lg border border-gray-700">
+          <p className="font-medium text-white">{data.periodLabel}</p>
+          <p className="text-sm text-emerald-400">Weight: {data.totalWeight} kg</p>
+          <p className="text-sm text-gray-300">Bookings: {data.totalBookings}</p>
           {showCumulative && (
-            <p className="text-sm text-green-600">Cumulative: {data.cumulativeWeight} kg</p>
+            <p className="text-sm text-amber-400">Cumulative: {data.cumulativeWeight} kg</p>
           )}
         </div>
       );
@@ -28,9 +28,9 @@ export default function FoodOverTimeLine({
 
   if (!data || data.length === 0) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <h3 className="text-lg font-semibold mb-4">{title}</h3>
-        <div className="flex items-center justify-center h-64 text-gray-500">
+      <div className="bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-700">
+        <h3 className="text-lg font-semibold mb-4 text-white">{title}</h3>
+        <div className="flex items-center justify-center h-64 text-gray-400">
           No data available
         </div>
       </div>
@@ -38,10 +38,10 @@ export default function FoodOverTimeLine({
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border">
+    <div className="bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-700">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold">{title}</h3>
-        <div className="text-sm text-gray-600 capitalize">
+        <h3 className="text-lg font-semibold text-white">{title}</h3>
+        <div className="text-sm text-gray-400 capitalize">
           Grouped by {timeframe}
         </div>
       </div>
@@ -51,48 +51,51 @@ export default function FoodOverTimeLine({
           {showCumulative ? (
             <AreaChart data={data}>
               <defs>
-                <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.1}/>
+                <linearGradient id="colorWeightDark" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="#10B981" stopOpacity={0.1}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
               <XAxis 
                 dataKey="periodLabel" 
                 angle={-45}
                 textAnchor="end"
                 height={80}
                 interval={0}
+                tick={{ fill: '#9CA3AF', fontSize: 12 }}
               />
-              <YAxis />
+              <YAxis tick={{ fill: '#9CA3AF', fontSize: 12 }} />
               <Tooltip content={<CustomTooltip />} />
               <Area 
                 type="monotone" 
                 dataKey="cumulativeWeight" 
-                stroke="#3B82F6" 
+                stroke="#10B981" 
                 fillOpacity={1}
-                fill="url(#colorWeight)" 
+                fill="url(#colorWeightDark)" 
+                strokeWidth={2}
               />
             </AreaChart>
           ) : (
             <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
               <XAxis 
                 dataKey="periodLabel" 
                 angle={-45}
                 textAnchor="end"
                 height={80}
                 interval={0}
+                tick={{ fill: '#9CA3AF', fontSize: 12 }}
               />
-              <YAxis />
+              <YAxis tick={{ fill: '#9CA3AF', fontSize: 12 }} />
               <Tooltip content={<CustomTooltip />} />
               <Line 
                 type="monotone" 
                 dataKey="totalWeight" 
-                stroke="#3B82F6" 
+                stroke="#10B981" 
                 strokeWidth={3}
-                dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4 }}
-                activeDot={{ r: 6 }}
+                dot={{ fill: '#10B981', strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6, fill: '#34D399' }}
               />
             </LineChart>
           )}

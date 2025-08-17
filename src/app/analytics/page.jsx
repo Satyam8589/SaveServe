@@ -47,11 +47,11 @@ export default function GlobalAnalyticsPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className="min-h-screen bg-slate-900 p-6">
         <div className="max-w-7xl mx-auto">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-            <h2 className="text-xl font-semibold text-red-800 mb-2">Error Loading Analytics</h2>
-            <p className="text-red-600 mb-4">
+          <div className="bg-red-900/50 border border-red-500/30 rounded-lg p-6 text-center">
+            <h2 className="text-xl font-semibold text-red-400 mb-2">Error Loading Analytics</h2>
+            <p className="text-red-300 mb-4">
               {error?.message || 'Failed to load analytics data'}
             </p>
             <button
@@ -67,24 +67,24 @@ export default function GlobalAnalyticsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-900">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Global Analytics</h1>
-              <p className="text-gray-600 mt-1">Platform-wide food redistribution impact</p>
+              <h1 className="text-3xl font-bold text-white">Global Analytics</h1>
+              <p className="text-gray-400 mt-1">Platform-wide food redistribution impact</p>
             </div>
             
             <div className="mt-4 md:mt-0 flex items-center space-x-4">
               {/* Timeframe selector */}
               <div className="flex items-center space-x-2">
-                <Calendar className="w-4 h-4 text-gray-500" />
+                <Calendar className="w-4 h-4 text-gray-400" />
                 <select
                   value={timeframe}
                   onChange={(e) => handleTimeframeChange(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   disabled={isLoading}
                 >
                   <option value="week">Weekly</option>
@@ -98,17 +98,17 @@ export default function GlobalAnalyticsPage() {
                   type="checkbox"
                   checked={showCumulative}
                   onChange={(e) => setShowCumulative(e.target.checked)}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="rounded border-gray-600 bg-gray-700 text-emerald-600 focus:ring-emerald-500 focus:ring-offset-gray-800"
                   disabled={isLoading}
                 />
-                <span>Cumulative</span>
+                <span className="text-gray-300">Cumulative</span>
               </label>
 
               {/* Refresh button */}
               <button
                 onClick={handleRefresh}
                 disabled={isLoading}
-                className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center space-x-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
                 <span>Refresh</span>
@@ -121,10 +121,10 @@ export default function GlobalAnalyticsPage() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-6">
         {isLoading && (
-          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="mb-6 bg-emerald-900/20 border border-emerald-500/30 rounded-lg p-4">
             <div className="flex items-center space-x-2">
-              <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
-              <span className="text-blue-800">Loading analytics data...</span>
+              <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
+              <span className="text-emerald-300">Loading analytics data...</span>
             </div>
           </div>
         )}
@@ -137,7 +137,7 @@ export default function GlobalAnalyticsPage() {
             unit={kpis.data?.data?.totalFoodSaved?.unit || 'kg'}
             description={kpis.data?.data?.totalFoodSaved?.description}
             icon={Utensils}
-            color="blue"
+            color="emerald"
           />
           
           <KpiCard
@@ -146,7 +146,7 @@ export default function GlobalAnalyticsPage() {
             unit={kpis.data?.data?.totalMealsServed?.unit || 'meals'}
             description={kpis.data?.data?.totalMealsServed?.description}
             icon={Users}
-            color="green"
+            color="orange"
           />
           
           <KpiCard
@@ -155,7 +155,7 @@ export default function GlobalAnalyticsPage() {
             unit={kpis.data?.data?.co2Saved?.unit || 'kg CO₂'}
             description={kpis.data?.data?.co2Saved?.description}
             icon={Leaf}
-            color="teal"
+            color="green"
           />
           
           <KpiCard
@@ -176,7 +176,7 @@ export default function GlobalAnalyticsPage() {
             unit={kpis.data?.data?.totalListings?.unit || 'listings'}
             description={kpis.data?.data?.totalListings?.description}
             icon={TrendingUp}
-            color="orange"
+            color="amber"
           />
           
           <KpiCard
@@ -185,7 +185,7 @@ export default function GlobalAnalyticsPage() {
             unit={kpis.data?.data?.activeUsers?.unit || 'users'}
             description={kpis.data?.data?.activeUsers?.description}
             icon={Users}
-            color="purple"
+            color="blue"
           />
           
           <KpiCard
@@ -235,27 +235,27 @@ export default function GlobalAnalyticsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Food Over Time Trends */}
           {foodOverTime.data?.data?.trends && (
-            <div className="bg-white p-6 rounded-lg shadow-sm border">
-              <h3 className="font-semibold mb-4">Trends</h3>
+            <div className="bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-700">
+              <h3 className="font-semibold mb-4 text-white">Trends</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Avg per {timeframe}:</span>
-                  <span className="font-medium">
+                  <span className="text-gray-400">Avg per {timeframe}:</span>
+                  <span className="font-medium text-emerald-400">
                     {foodOverTime.data.data.trends.averageWeightPerPeriod} kg
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Recent avg:</span>
-                  <span className="font-medium">
+                  <span className="text-gray-400">Recent avg:</span>
+                  <span className="font-medium text-emerald-400">
                     {foodOverTime.data.data.trends.recentAverageWeight} kg
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Direction:</span>
+                  <span className="text-gray-400">Direction:</span>
                   <span className={`font-medium capitalize ${
-                    foodOverTime.data.data.trends.trend === 'up' ? 'text-green-600' : 
-                    foodOverTime.data.data.trends.trend === 'down' ? 'text-red-600' : 
-                    'text-gray-600'
+                    foodOverTime.data.data.trends.trend === 'up' ? 'text-emerald-400' : 
+                    foodOverTime.data.data.trends.trend === 'down' ? 'text-red-400' : 
+                    'text-gray-400'
                   }`}>
                     {foodOverTime.data.data.trends.trend}
                   </span>
@@ -266,24 +266,24 @@ export default function GlobalAnalyticsPage() {
 
           {/* Category Summary */}
           {foodByCategory.data?.data?.totals && (
-            <div className="bg-white p-6 rounded-lg shadow-sm border">
-              <h3 className="font-semibold mb-4">Category Summary</h3>
+            <div className="bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-700">
+              <h3 className="font-semibold mb-4 text-white">Category Summary</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Total weight:</span>
-                  <span className="font-medium">
+                  <span className="text-gray-400">Total weight:</span>
+                  <span className="font-medium text-amber-400">
                     {foodByCategory.data.data.totals.totalWeight} kg
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Total quantity:</span>
-                  <span className="font-medium">
+                  <span className="text-gray-400">Total quantity:</span>
+                  <span className="font-medium text-white">
                     {foodByCategory.data.data.totals.totalQuantity}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Listings:</span>
-                  <span className="font-medium">
+                  <span className="text-gray-400">Listings:</span>
+                  <span className="font-medium text-white">
                     {foodByCategory.data.data.totals.totalListings}
                   </span>
                 </div>
@@ -293,24 +293,24 @@ export default function GlobalAnalyticsPage() {
 
           {/* Provider Statistics */}
           {topProviders.data?.data?.stats && (
-            <div className="bg-white p-6 rounded-lg shadow-sm border">
-              <h3 className="font-semibold mb-4">Provider Stats</h3>
+            <div className="bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-700">
+              <h3 className="font-semibold mb-4 text-white">Provider Stats</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Active providers:</span>
-                  <span className="font-medium">
+                  <span className="text-gray-400">Active providers:</span>
+                  <span className="font-medium text-orange-400">
                     {topProviders.data.data.stats.totalProviders}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Avg bookings:</span>
-                  <span className="font-medium">
+                  <span className="text-gray-400">Avg bookings:</span>
+                  <span className="font-medium text-white">
                     {topProviders.data.data.stats.avgBookingsPerProvider}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Total bookings:</span>
-                  <span className="font-medium">
+                  <span className="text-gray-400">Total bookings:</span>
+                  <span className="font-medium text-white">
                     {topProviders.data.data.stats.totalBookings}
                   </span>
                 </div>
@@ -320,24 +320,24 @@ export default function GlobalAnalyticsPage() {
 
           {/* Activity Summary */}
           {activityTimeline.data?.data?.metrics && (
-            <div className="bg-white p-6 rounded-lg shadow-sm border">
-              <h3 className="font-semibold mb-4">Activity Metrics</h3>
+            <div className="bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-700">
+              <h3 className="font-semibold mb-4 text-white">Activity Metrics</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Collection rate:</span>
-                  <span className="font-medium">
+                  <span className="text-gray-400">Collection rate:</span>
+                  <span className="font-medium text-blue-400">
                     {activityTimeline.data.data.metrics.collectionRate}%
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Total bookings:</span>
-                  <span className="font-medium">
+                  <span className="text-gray-400">Total bookings:</span>
+                  <span className="font-medium text-white">
                     {activityTimeline.data.data.metrics.totalBookings}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Collections:</span>
-                  <span className="font-medium">
+                  <span className="text-gray-400">Collections:</span>
+                  <span className="font-medium text-white">
                     {activityTimeline.data.data.metrics.totalCollections}
                   </span>
                 </div>
@@ -348,18 +348,18 @@ export default function GlobalAnalyticsPage() {
 
         {/* Peak Activity Times */}
         {activityTimeline.data?.data?.peakTimes && (
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
-            <h3 className="text-lg font-semibold mb-4">Peak Activity Times</h3>
+          <div className="bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-700">
+            <h3 className="text-lg font-semibold mb-4 text-white">Peak Activity Times</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               {activityTimeline.data.data.peakTimes.map((peak, index) => (
-                <div key={index} className="bg-blue-50 p-3 rounded-lg">
-                  <div className="font-medium text-blue-900">
+                <div key={index} className="bg-emerald-900/30 border border-emerald-500/30 p-3 rounded-lg">
+                  <div className="font-medium text-emerald-400">
                     {peak.day} {peak.hourLabel}
                   </div>
-                  <div className="text-sm text-blue-700">
+                  <div className="text-sm text-emerald-300">
                     {peak.totalActivity} activities
                   </div>
-                  <div className="text-xs text-blue-600 mt-1">
+                  <div className="text-xs text-gray-400 mt-1">
                     B:{peak.breakdown.bookings} L:{peak.breakdown.listings} C:{peak.breakdown.collections}
                   </div>
                 </div>
