@@ -1,6 +1,7 @@
 "use client"
 import React, { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
+import axios from 'axios';
 import {
   History,
   Package,
@@ -17,7 +18,9 @@ import {
   TrendingUp,
   Award,
   Utensils,
-  Archive
+  Archive,
+  MessageCircle,
+  Send
 } from "lucide-react";
 import {
   Card,
@@ -29,12 +32,118 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useUserBookings } from "@/hooks/useBookings";
+import { useTimeCalculations } from "@/hooks/useTimeCalculations";
 
-// Configuration for time calculations (for display only)
-const TIME_CONFIG = {
-  approved: 24,    // 24 hours for pickup display
-  pending: 72,     // 72 hours for approval display
-  scanning: 15     // 15 minutes for scanning display
+// Rating Modal Component
+const RatingModal = ({ claim, isOpen, onClose, onSubmit, isSubmitting }) => {
+  const [rating, setRating] = useState(0);
+  const [feedback, setFeedback] = useState('');
+  const [hoveredRating, setHoveredRating] = useState(0);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (rating === 0) return;
+    
+    await onSubmit(claim._id, rating, feedback);
+    setRating(0);
+    setFeedback('');
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md bg-gray-800 border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-gray-100 flex items-center">
+            <Star className="mr-2 h-5 w-5" />
+            Rate Your Experience
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <h4 className="text-gray-200 font-medium mb-2">
+                {claim.listingId?.title || claim.title || "Food Item"}
+              </h4>
+              <p className="text-gray-400 text-sm mb-4">
+                From: {claim.providerName || "Provider"}
+              </p>
+            </div>
+
+            <div>
+              <label className="text-gray-300 text-sm mb-2 block">Rating *</label>
+              <div className="flex space-x-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setRating(star)}
+                    onMouseEnter={() => setHoveredRating(star)}
+                    onMouseLeave={() => setHoveredRating(0)}
+                    className="focus:outline-none"
+                  >
+                    <Star
+                      className={`h-6 w-6 ${
+                        star <= (hoveredRating || rating)
+                          ? 'text-yellow-400 fill-current'
+                          : 'text-gray-500'
+                      } hover:text-yellow-400 transition-colors`}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-gray-300 text-sm mb-2 block">
+                Feedback (Optional)
+              </label>
+              <textarea
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+                placeholder="Share your experience..."
+                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 placeholder-gray-400 resize-none"
+                rows={3}
+                maxLength={500}
+              />
+              <p className="text-gray-500 text-xs mt-1">{feedback.length}/500</p>
+            </div>
+
+            <div className="flex space-x-3 pt-4">
+              <Button
+                type="button"
+                onClick={onClose}
+                variant="outline"
+                className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                disabled={rating === 0 || isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Submit Rating
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
 };
 
 export default function HistoryPage() {
@@ -42,6 +151,14 @@ export default function HistoryPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [imageErrors, setImageErrors] = useState(new Set());
+  
+  // API synchronization states
+  const [enrichedClaims, setEnrichedClaims] = useState([]);
+  const [isEnrichingData, setIsEnrichingData] = useState(false);
+  
+  // Rating modal states
+  const [ratingModal, setRatingModal] = useState({ isOpen: false, claim: null });
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
 
   const {
     data: bookingsData,
@@ -50,7 +167,109 @@ export default function HistoryPage() {
     refetch
   } = useUserBookings(user?.id);
 
-  const claims = bookingsData?.data || [];
+  // Use the unified time calculations hook
+  const { 
+    getTimeRemaining, 
+    getBadgeColor, 
+    isExpired: checkExpired, 
+    formatExpiryTime,
+    getExpiryTime
+  } = useTimeCalculations();
+
+  // Function to enrich claims with fresh API data (same as main claims page)
+  const enrichClaimsWithAPIData = async (claims) => {
+    if (!claims || claims.length === 0) return [];
+
+    try {
+      setIsEnrichingData(true);
+      console.log('🔄 [History] Enriching claims with fresh API data...');
+
+      // Fetch fresh food listings data
+      const response = await fetch('/api/food-listings');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch food listings');
+      }
+
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error('API returned error');
+      }
+
+      const apiListings = data.data;
+      console.log('📊 [History] Fetched API listings:', apiListings.length);
+
+      // Enrich each claim with fresh API data
+      const enriched = claims.map(claim => {
+        const listingId = claim.listingId?._id || claim.listingId || claim.foodListing?._id || claim.listing?._id;
+        
+        if (!listingId) {
+          console.warn('⚠️ [History] No listing ID found for claim:', claim._id);
+          return claim;
+        }
+
+        // Find matching listing in API data
+        const freshListing = apiListings.find(listing => listing.id === listingId.toString());
+        
+        if (freshListing) {
+          console.log('✅ [History] Found fresh data for claim:', claim._id);
+          
+          // Create enriched claim with fresh API data
+          const enrichedClaim = {
+            ...claim,
+            // Update the listingId object with fresh data
+            listingId: {
+              ...claim.listingId,
+              expiryTime: freshListing.expiryTime,
+              freshnessHours: freshListing.freshnessHours,
+              freshnessStatus: freshListing.freshnessStatus,
+              availabilityWindow: freshListing.availabilityWindow,
+              title: freshListing.title,
+              location: freshListing.location
+            },
+            // Also update direct properties for consistency
+            expiryTime: freshListing.expiryTime,
+            freshnessHours: freshListing.freshnessHours,
+            freshnessStatus: freshListing.freshnessStatus
+          };
+
+          console.log('🔍 [History] Enriched claim data:', {
+            claimId: claim._id,
+            originalExpiry: claim.expiryTime,
+            freshExpiry: freshListing.expiryTime,
+            enrichedExpiry: enrichedClaim.expiryTime
+          });
+
+          return enrichedClaim;
+        } else {
+          console.warn('⚠️ [History] No fresh data found for listing:', listingId);
+          return claim;
+        }
+      });
+
+      console.log('✅ [History] Claims enrichment completed');
+      return enriched;
+
+    } catch (error) {
+      console.error('❌ [History] Error enriching claims with API data:', error);
+      return claims; // Return original claims if enrichment fails
+    } finally {
+      setIsEnrichingData(false);
+    }
+  };
+
+  // Enrich claims when bookings data changes
+  useEffect(() => {
+    const processClaims = async () => {
+      if (bookingsData?.data) {
+        const enriched = await enrichClaimsWithAPIData(bookingsData.data);
+        setEnrichedClaims(enriched);
+      }
+    };
+
+    processClaims();
+  }, [bookingsData]);
 
   const handleImageError = (claimId) => {
     setImageErrors(prev => new Set([...prev, claimId]));
@@ -149,57 +368,39 @@ export default function HistoryPage() {
     });
   };
 
-  // Function to get time information for active items (display only)
-  const getTimeInfo = (claim) => {
-    if (['collected', 'cancelled', 'rejected', 'expired'].includes(claim.status)) {
-      return null;
-    }
-
-    const now = new Date();
-    const statusDate = new Date(claim.updatedAt || claim.createdAt);
-    
-    let timeLimit, timeDifference, isMinutes = false;
-    
-    if (claim.status === 'scanning') {
-      timeDifference = (now - statusDate) / (1000 * 60);
-      timeLimit = TIME_CONFIG.scanning;
-      isMinutes = true;
-    } else if (claim.status === 'approved') {
-      timeDifference = (now - statusDate) / (1000 * 60 * 60);
-      timeLimit = TIME_CONFIG.approved;
-    } else if (claim.status === 'pending') {
-      timeDifference = (now - statusDate) / (1000 * 60 * 60);
-      timeLimit = TIME_CONFIG.pending;
-    } else {
-      return null;
-    }
-
-    const remainingTime = timeLimit - timeDifference;
-    
-    if (remainingTime <= 0) {
-      return { expired: true, text: "Time elapsed" };
-    }
-
-    if (isMinutes) {
-      const remainingMinutes = Math.floor(remainingTime);
-      const remainingSeconds = Math.floor((remainingTime - remainingMinutes) * 60);
+  // Rating submission handler
+  const handleRatingSubmit = async (claimId, rating, feedback) => {
+    try {
+      setIsSubmittingRating(true);
       
-      if (remainingMinutes < 1) {
-        return { expired: false, text: `${remainingSeconds}s left`, urgent: true };
-      } else if (remainingMinutes < 5) {
-        return { expired: false, text: `${remainingMinutes}m ${remainingSeconds}s left`, urgent: true };
-      } else {
-        return { expired: false, text: `${remainingMinutes}m left` };
+      const response = await axios.patch(`/api/bookings/${claimId}/rate`, {
+        rating,
+        feedback
+      });
+
+      if (response.data.success) {
+        // Update the enriched claims with the new rating
+        setEnrichedClaims(prev => prev.map(claim => 
+          claim._id === claimId 
+            ? { ...claim, rating, feedback }
+            : claim
+        ));
+        
+        // Also refetch to ensure consistency
+        await refetch();
+        
+        console.log('✅ Rating submitted successfully');
       }
-    } else {
-      if (remainingTime < 1) {
-        const remainingMinutes = Math.floor(remainingTime * 60);
-        return { expired: false, text: `${remainingMinutes}m left`, urgent: true };
-      }
-      const hours = Math.floor(remainingTime);
-      return { expired: false, text: `${hours}h left` };
+    } catch (error) {
+      console.error('❌ Error submitting rating:', error);
+      alert('Failed to submit rating. Please try again.');
+    } finally {
+      setIsSubmittingRating(false);
     }
   };
+
+  // Use enriched claims for display
+  const claims = enrichedClaims;
 
   const filteredClaims = claims.filter(claim => {
     if (statusFilter === 'all') return true;
@@ -249,6 +450,15 @@ export default function HistoryPage() {
     { value: 'expired', label: 'Expired', count: claims.filter(c => c.status === 'expired').length },
   ];
 
+  const handleRefresh = async () => { 
+    await refetch();
+    // Re-enrich data after refresh
+    if (bookingsData?.data) {
+      const enriched = await enrichClaimsWithAPIData(bookingsData.data);
+      setEnrichedClaims(enriched);
+    }
+  };
+
   if (!isLoaded || isLoading) {
     return (
       <div className="p-8 text-center">
@@ -280,16 +490,24 @@ export default function HistoryPage() {
           <p className="text-gray-400">Your complete food claiming journey</p>
         </div>
         <Button
-          onClick={refetch}
+          onClick={handleRefresh}
           variant="outline"
           size="sm"
           className="border-gray-600 text-gray-300 self-start sm:self-auto"
-          disabled={isLoading}
+          disabled={isLoading || isEnrichingData}
         >
-          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-          Refresh
+          <RefreshCw className={`h-4 w-4 mr-2 ${(isLoading || isEnrichingData) ? 'animate-spin' : ''}`} />
+          {isEnrichingData ? 'Syncing...' : 'Refresh'}
         </Button>
       </div>
+
+      {/* API Sync Indicator */}
+      {isEnrichingData && (
+        <div className="flex items-center justify-center p-4 bg-blue-900/20 border border-blue-500/20 rounded-lg">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-400 border-t-transparent mr-2" />
+          <span className="text-blue-400 text-sm">Synchronizing with latest data...</span>
+        </div>
+      )}
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -423,8 +641,29 @@ export default function HistoryPage() {
       <div className="space-y-4">
         {sortedClaims.length > 0 ? (
           sortedClaims.map((claim) => {
-            const timeInfo = getTimeInfo(claim);
             const isCompleted = ['collected', 'cancelled', 'rejected', 'expired'].includes(claim.status);
+            const isActive = ['pending', 'approved', 'scanning'].includes(claim.status);
+            
+            // Use unified time calculations for active claims with API-synced data
+            let timeInfo = null;
+            if (isActive) {
+              const timeRemaining = getTimeRemaining(claim);
+              const expired = checkExpired(claim);
+              
+              timeInfo = {
+                expired,
+                text: timeRemaining.text,
+                urgent: timeRemaining.totalMinutes < 60 || expired
+              };
+              
+              console.log('⏰ [History] Time calculation for claim:', {
+                claimId: claim._id,
+                status: claim.status,
+                timeRemainingText: timeRemaining.text,
+                isExpired: expired,
+                expiryTime: getExpiryTime(claim).toISOString()
+              });
+            }
             
             return (
               <Card key={claim._id} className={`${isCompleted ? 'bg-gray-800/70' : 'bg-gray-800'} border-gray-700 hover:border-gray-600 transition-colors`}>
@@ -514,13 +753,51 @@ export default function HistoryPage() {
                           </div>
                         )}
                       </div>
-                      
-                      {claim.rating && (
-                        <div className="flex items-center space-x-1">
-                          {[...Array(5)].map((_, i) => (
-                            <Star key={i} className={`h-4 w-4 ${i < claim.rating ? 'text-yellow-400 fill-current' : 'text-gray-500'}`} />
-                          ))}
-                          <span className="text-sm text-gray-400">({claim.rating}/5)</span>
+
+                      {/* Rating display and action button */}
+                      <div className="flex items-center justify-between">
+                        {claim.rating && (
+                          <div className="flex items-center space-x-1">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`h-4 w-4 ${
+                                  i < claim.rating
+                                    ? "text-yellow-400 fill-current"
+                                    : "text-gray-500"
+                                }`}
+                              />
+                            ))}
+                            <span className="text-sm text-gray-400 ml-2">
+                              ({claim.rating}/5)
+                            </span>
+                            {claim.feedback && (
+                              <MessageCircle className="h-4 w-4 text-gray-400 ml-1" />
+                            )}
+                          </div>
+                        )}
+
+                        {/* Rate button for completed items without rating */}
+                        {claim.status === 'collected' && !claim.rating && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setRatingModal({ isOpen: true, claim })}
+                            className="border-yellow-600 text-yellow-300 hover:bg-yellow-600/10"
+                          >
+                            <Star className="h-4 w-4 mr-1" />
+                            Rate Experience
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Show feedback if exists */}
+                      {claim.feedback && claim.rating && (
+                        <div className="mt-3 p-3 bg-gray-700/50 rounded-lg border border-gray-600">
+                          <p className="text-sm text-gray-300">
+                            <MessageCircle className="h-4 w-4 inline mr-1" />
+                            "{claim.feedback}"
+                          </p>
                         </div>
                       )}
                     </div>
@@ -534,17 +811,18 @@ export default function HistoryPage() {
             <CardContent className="p-12 text-center">
               <History className="h-16 w-16 text-gray-500 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-300 mb-2">
-                {statusFilter === 'all' ? 'No Food History Yet' : `No ${statusFilter} items found`}
+                {statusFilter === "all"
+                  ? "No Food History Yet"
+                  : `No ${statusFilter} items found`}
               </h3>
               <p className="text-gray-400 mb-4">
-                {statusFilter === 'all' 
-                  ? 'Start claiming food items to build your history' 
-                  : `No items found with the status: ${statusFilter}`
-                }
+                {statusFilter === "all"
+                  ? "Start claiming food items to build your history"
+                  : `No items found with the status: ${statusFilter}`}
               </p>
-              {statusFilter !== 'all' && (
-                <Button 
-                  onClick={() => setStatusFilter('all')} 
+              {statusFilter !== "all" && (
+                <Button
+                  onClick={() => setStatusFilter("all")}
                   className="bg-emerald-600 hover:bg-emerald-700"
                 >
                   View All Items
@@ -554,6 +832,15 @@ export default function HistoryPage() {
           </Card>
         )}
       </div>
+
+      {/* Rating Modal */}
+      <RatingModal
+        claim={ratingModal.claim}
+        isOpen={ratingModal.isOpen}
+        onClose={() => setRatingModal({ isOpen: false, claim: null })}
+        onSubmit={handleRatingSubmit}
+        isSubmitting={isSubmittingRating}
+      />
     </div>
   );
 }
