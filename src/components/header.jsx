@@ -17,30 +17,30 @@ export default function Header({ userData }) {
   const router = useRouter();
 
   // Redirect logic
-  useEffect(() => {
-    if (isLoaded && user) {
-      const hasOnboarded = user.publicMetadata?.hasOnboarded || false;
-      const mainRole = user.publicMetadata?.mainRole;
+  // useEffect(() => {
+  //   if (isLoaded && user) {
+  //     const hasOnboarded = user.publicMetadata?.hasOnboarded || false;
+  //     const mainRole = user.publicMetadata?.mainRole;
 
-      if (!hasOnboarded) {
-        router.replace("/onboarding");
-      } else {
-        switch (mainRole) {
-          case "PROVIDER":
-            router.replace("/providerDashboard");
-            break;
-          case "RECIPIENT":
-            router.replace("/recipientDashboard");
-            break;
-          case "ADMIN":
-            router.replace("/adminDashboard");
-            break;
-          default:
-            router.replace("/onboarding");
-        }
-      }
-    }
-  }, [isLoaded, user, router]);
+  //     if (!hasOnboarded) {
+  //       router.replace("/onboarding");
+  //     } else {
+  //       switch (mainRole) {
+  //         case "PROVIDER":
+  //           router.replace("/providerDashboard");
+  //           break;
+  //         case "RECIPIENT":
+  //           router.replace("/recipientDashboard");
+  //           break;
+  //         case "ADMIN":
+  //           router.replace("/adminDashboard");
+  //           break;
+  //         default:
+  //           router.replace("/onboarding");
+  //       }
+  //     }
+  //   }
+  // }, [isLoaded, user, router]);
 
   if (!isLoaded) {
     return (

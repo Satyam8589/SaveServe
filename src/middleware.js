@@ -1,12 +1,15 @@
 // middleware.js
-import { clerkMiddleware, createRouteMatcher, clerkClient } from "@clerk/nextjs/server";
+import {
+  clerkMiddleware,
+  createRouteMatcher,
+  clerkClient,
+} from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 // Define route matchers
 const isProtectedRoute = createRouteMatcher([
   "/create-listing(.*)",
   "/pickups(.*)",
-  "/analytics(.*)",
   "/listings(.*)",
   "/events(.*)",
   "/admin(.*)",
@@ -34,6 +37,7 @@ const isProtectedApiRoute = createRouteMatcher([
 const isPublicApiRoute = createRouteMatcher([
   "/api/public(.*)",
   "/api/health(.*)",
+  "/api/analytics(.*)",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
@@ -50,15 +54,22 @@ export default clerkMiddleware(async (auth, req) => {
   }
 
   // Public pages (only sign-in/sign-up and home)
-  const publicPages = [
+  const isPublicRoute = createRouteMatcher([
     "/",
-    "/about", 
+    "/about",
+    "/about/(.*)",
     "/contact",
-    "/sign-in",
-    "/sign-up",
-  ];
+    "/contact/(.*)",
+    "/analytics",
+    "/analytics/(.*)",
+    "/sign-in(.*)",
+    "/sign-up(.*)",
+  ]);
 
-  if (publicPages.includes(currentPath) || currentPath.startsWith("/sign-")) {
+  console.log("Current path in middleware:", currentPath);
+
+  if (isPublicRoute(req)) {
+    console.log("Matched as public route:", currentPath);
     return NextResponse.next();
   }
 
@@ -75,10 +86,13 @@ export default clerkMiddleware(async (auth, req) => {
       // Fetch fresh user data from Clerk instead of relying on session claims
       const client = await clerkClient();
       const user = await client.users.getUser(userId);
-      
+
       metadata = user.publicMetadata || {};
-      hasOnboarded = metadata.hasOnboarded === true || metadata.hasOnboarded === "true";
-      hasCompleteProfile = metadata.hasCompleteProfile === true || metadata.hasCompleteProfile === "true";
+      hasOnboarded =
+        metadata.hasOnboarded === true || metadata.hasOnboarded === "true";
+      hasCompleteProfile =
+        metadata.hasCompleteProfile === true ||
+        metadata.hasCompleteProfile === "true";
       mainRole = metadata.mainRole;
 
       // Debug logging
@@ -89,15 +103,18 @@ export default clerkMiddleware(async (auth, req) => {
         hasCompleteProfile,
         mainRole,
         metadata,
-        sessionMetadata: sessionClaims?.publicMetadata // Compare with session
+        sessionMetadata: sessionClaims?.publicMetadata, // Compare with session
       });
-
     } catch (error) {
       console.error("Error fetching fresh user data:", error);
-      
+
       // Fallback to session claims if API call fails
-      hasOnboarded = sessionClaims?.publicMetadata?.hasOnboarded === true || sessionClaims?.publicMetadata?.hasOnboarded === "true";
-      hasCompleteProfile = sessionClaims?.publicMetadata?.hasCompleteProfile === true || sessionClaims?.publicMetadata?.hasCompleteProfile === "true";
+      hasOnboarded =
+        sessionClaims?.publicMetadata?.hasOnboarded === true ||
+        sessionClaims?.publicMetadata?.hasOnboarded === "true";
+      hasCompleteProfile =
+        sessionClaims?.publicMetadata?.hasCompleteProfile === true ||
+        sessionClaims?.publicMetadata?.hasCompleteProfile === "true";
       mainRole = sessionClaims?.publicMetadata?.mainRole;
       metadata = sessionClaims?.publicMetadata;
 
@@ -107,7 +124,7 @@ export default clerkMiddleware(async (auth, req) => {
         hasOnboarded,
         hasCompleteProfile,
         mainRole,
-        metadata
+        metadata,
       });
     }
 
@@ -124,7 +141,9 @@ export default clerkMiddleware(async (auth, req) => {
 
     // Step 2: User has onboarded, check profile completion
     if (hasOnboarded && !hasCompleteProfile) {
-      console.log("User onboarded but needs profile completion, redirecting to profile...");
+      console.log(
+        "User onboarded but needs profile completion, redirecting to profile..."
+      );
       // Force to profile completion if not already there
       if (!isProfileRoute(req)) {
         return NextResponse.redirect(new URL("/profile", req.url));
@@ -139,14 +158,20 @@ export default clerkMiddleware(async (auth, req) => {
       // Block access to onboarding once completed
       if (isOnboardingRoute(req)) {
         const roleBasedRedirect = getRoleBasedDashboard(mainRole);
-        console.log("Blocking onboarding access, redirecting to:", roleBasedRedirect);
+        console.log(
+          "Blocking onboarding access, redirecting to:",
+          roleBasedRedirect
+        );
         return NextResponse.redirect(new URL(roleBasedRedirect, req.url));
       }
 
       // Redirect from profile to dashboard if profile is complete (optional)
       if (currentPath === "/profile" && !currentPath.includes("/profile/")) {
         const roleBasedRedirect = getRoleBasedDashboard(mainRole);
-        console.log("Redirecting from profile to dashboard:", roleBasedRedirect);
+        console.log(
+          "Redirecting from profile to dashboard:",
+          roleBasedRedirect
+        );
         return NextResponse.redirect(new URL(roleBasedRedirect, req.url));
       }
     }
@@ -167,8 +192,5 @@ function getRoleBasedDashboard(mainRole) {
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next|.*\\..*).*)",
-    "/(api|trpc)(.*)",
-  ],
+  matcher: ["/((?!_next|.*\\..*).*)", "/(api|trpc)(.*)"],
 };
