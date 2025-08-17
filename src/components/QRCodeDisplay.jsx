@@ -4,173 +4,37 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { useTimeCalculations } from '@/hooks/useTimeCalculations';
 
 const QRCodeDisplay = ({ booking, onClose }) => {
   const [showBackupCode, setShowBackupCode] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [actualExpiryTime, setActualExpiryTime] = useState(null);
-  const [actualFreshnessHours, setActualFreshnessHours] = useState(null);
-  const [isLoadingExpiry, setIsLoadingExpiry] = useState(true);
 
-  // Update current time every minute to keep countdown accurate
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000); // Update every minute
+  // Use the unified time calculations hook
+  // Both main page and QR modal now use the same API-enriched data
+  const { 
+    getTimeRemaining, 
+    getBadgeColor,
+    getExpiryTime,
+    formatExpiryTime,
+    isExpired: checkExpired
+  } = useTimeCalculations();
 
-    return () => clearInterval(timer);
-  }, []);
+  // Use the enriched booking data passed from the main page
+  const timeRemaining = getTimeRemaining(booking);
+  const isExpired = checkExpired(booking);
+  const expiryTime = getExpiryTime(booking);
+  const badgeColor = getBadgeColor(booking);
 
-  // Fetch actual expiry time and freshness hours from database
-  useEffect(() => {
-    const fetchActualData = async () => {
-      try {
-        setIsLoadingExpiry(true);
-        console.log('🔍 Fetching actual data for booking:', booking._id);
-        
-        // Get the listing ID from booking
-        const listingId = booking.listingId?._id || booking.listingId || booking.foodListing?._id || booking.listing?._id;
-        
-        if (!listingId) {
-          console.error('❌ No listing ID found in booking');
-          setActualExpiryTime(calculateFallbackExpiryTime());
-          setActualFreshnessHours(getFallbackFreshnessHours());
-          setIsLoadingExpiry(false);
-          return;
-        }
-
-        console.log('📋 Found listing ID:', listingId);
-
-        // Fetch the listing data from the API
-        const response = await fetch('/api/food-listings');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch food listings');
-        }
-
-        const data = await response.json();
-        
-        if (!data.success) {
-          throw new Error('API returned error');
-        }
-
-        // Find the specific listing
-        const specificListing = data.data.find(listing => listing.id === listingId.toString());
-        
-        if (specificListing) {
-          console.log('✅ Found listing data from DB:', specificListing);
-          
-          if (specificListing.expiryTime) {
-            setActualExpiryTime(new Date(specificListing.expiryTime));
-          } else {
-            setActualExpiryTime(calculateFallbackExpiryTime());
-          }
-          
-          // Set the actual freshness hours from DB
-          if (specificListing.freshnessHours) {
-            setActualFreshnessHours(specificListing.freshnessHours);
-          } else {
-            setActualFreshnessHours(getFallbackFreshnessHours());
-          }
-        } else {
-          console.warn('⚠️ Listing not found in API response, using fallback calculation');
-          setActualExpiryTime(calculateFallbackExpiryTime());
-          setActualFreshnessHours(getFallbackFreshnessHours());
-        }
-
-      } catch (error) {
-        console.error('❌ Error fetching data from DB:', error);
-        setActualExpiryTime(calculateFallbackExpiryTime());
-        setActualFreshnessHours(getFallbackFreshnessHours());
-      } finally {
-        setIsLoadingExpiry(false);
-      }
-    };
-
-    fetchActualData();
-  }, [booking._id]);
-
-  // Fallback calculation method (as backup)
-  const calculateFallbackExpiryTime = () => {
-    console.log('🔄 Using fallback expiry calculation');
-    
-    const foodData = booking.listingId || booking.foodListing || booking.listing || {};
-    
-    // Try direct expiry time first
-    if (foodData.expiryTime) {
-      console.log('✅ Using direct expiryTime from booking data');
-      return new Date(foodData.expiryTime);
-    }
-
-    // Calculate from start time + freshness hours
-    if (foodData.availabilityWindow?.startTime && foodData.freshnessHours) {
-      console.log('🧮 Calculating from startTime + freshnessHours');
-      const startTime = new Date(foodData.availabilityWindow.startTime);
-      const expiryTime = new Date(startTime.getTime() + (foodData.freshnessHours * 60 * 60 * 1000));
-      return expiryTime;
-    }
-
-    // Parse freshness status
-    if (foodData.availabilityWindow?.startTime && foodData.freshnessStatus) {
-      const freshnessHoursMap = {
-        "Fresh": 24,
-        "Safe to Eat for 12 hours": 12,
-        "Safe to Eat for 8 hours": 8,
-        "Safe to Eat for 6 hours": 6,
-        "Safe to Eat for 4 hours": 4,
-        "Safe to Eat for 2 hours": 2
-      };
-      
-      const hours = freshnessHoursMap[foodData.freshnessStatus] || 24;
-      const startTime = new Date(foodData.availabilityWindow.startTime);
-      return new Date(startTime.getTime() + (hours * 60 * 60 * 1000));
-    }
-
-    // Final fallback
-    console.warn('⚠️ Using final fallback: 24 hours from now');
-    return new Date(Date.now() + (24 * 60 * 60 * 1000));
-  };
-
-  // Get fallback freshness hours
-  const getFallbackFreshnessHours = () => {
-    const foodData = booking.listingId || booking.foodListing || booking.listing || {};
-    
-    // Try direct freshness hours first
-    if (foodData.freshnessHours) {
-      return foodData.freshnessHours;
-    }
-
-    // Parse from freshness status
-    if (foodData.freshnessStatus) {
-      const freshnessHoursMap = {
-        "Fresh": 24,
-        "Safe to Eat for 12 hours": 12,
-        "Safe to Eat for 8 hours": 8,
-        "Safe to Eat for 6 hours": 6,
-        "Safe to Eat for 4 hours": 4,
-        "Safe to Eat for 2 hours": 2
-      };
-      
-      return freshnessHoursMap[foodData.freshnessStatus] || 24;
-    }
-
-    // Default fallback
-    return 24;
-  };
-
-  // Use actual expiry time and freshness hours from DB or fallback
-  const foodExpiryTime = actualExpiryTime || calculateFallbackExpiryTime();
-  const freshnessHours = actualFreshnessHours || getFallbackFreshnessHours();
-  const isExpired = currentTime > foodExpiryTime;
-  const timeUntilExpiry = Math.max(0, foodExpiryTime.getTime() - currentTime.getTime());
-
-  // Calculate time remaining
-  const totalMinutesLeft = Math.floor(timeUntilExpiry / (1000 * 60));
-  const hoursLeft = Math.floor(totalMinutesLeft / 60);
-  const minutesLeft = totalMinutesLeft % 60;
-  const daysLeft = Math.floor(hoursLeft / 24);
-  const remainingHours = hoursLeft % 24;
+  console.log('🔍 QR Modal - Using API-enriched data from main page:', {
+    bookingId: booking._id,
+    directExpiryTime: booking.expiryTime,
+    listingExpiryTime: booking.listingId?.expiryTime,
+    calculatedExpiryTime: expiryTime.toISOString(),
+    timeRemainingText: timeRemaining.text,
+    isExpired,
+    enrichedBookingData: booking
+  });
 
   const copyBackupCode = async () => {
     try {
@@ -189,33 +53,22 @@ const QRCodeDisplay = ({ booking, onClose }) => {
     link.click();
   };
 
-  const formatExpiryTime = () => {
-    if (isExpired) return "Expired";
-    
-    if (daysLeft > 0) {
-      return `${daysLeft}d ${remainingHours}h remaining`;
-    } else if (hoursLeft < 1) {
-      return `${minutesLeft}m remaining`;
-    } else {
-      return `${hoursLeft}h ${minutesLeft}m remaining`;
-    }
-  };
-
-  const getExpiryStatus = () => {
+  // Use the same time display format as the main page
+  const getStatusColor = () => {
     if (isExpired) {
-      return { color: 'red', urgent: true };
-    } else if (hoursLeft < 1) {
-      return { color: 'red', urgent: true };
-    } else if (hoursLeft < 2) {
-      return { color: 'amber', urgent: true };
-    } else if (hoursLeft < 6) {
-      return { color: 'yellow', urgent: false };
+      return 'bg-red-900/20 border-red-500/20 text-red-400';
+    } else if (timeRemaining.totalMinutes < 60) {
+      return 'bg-red-900/20 border-red-500/20 text-red-400';
+    } else if (timeRemaining.totalMinutes < 120) {
+      return 'bg-amber-900/20 border-amber-500/20 text-amber-400';
+    } else if (timeRemaining.totalMinutes < 360) {
+      return 'bg-yellow-900/20 border-yellow-500/20 text-yellow-400';
     } else {
-      return { color: 'green', urgent: false };
+      return 'bg-green-900/20 border-green-500/20 text-green-400';
     }
   };
 
-  const expiryStatus = getExpiryStatus();
+  const shouldAnimate = isExpired || timeRemaining.totalMinutes < 60;
 
   // Get food listing data for display
   const foodData = booking.listingId || booking.foodListing || booking.listing || {};
@@ -242,43 +95,23 @@ const QRCodeDisplay = ({ booking, onClose }) => {
         </CardHeader>
         
         <CardContent className="space-y-6">
-          {/* Enhanced Expiry Warning with Real-time DB Data */}
-          <div className={`p-3 rounded-lg border flex items-center space-x-2 ${
-            expiryStatus.color === 'red' ? 'bg-red-900/20 border-red-500/20' : 
-            expiryStatus.color === 'amber' ? 'bg-amber-900/20 border-amber-500/20' :
-            expiryStatus.color === 'yellow' ? 'bg-yellow-900/20 border-yellow-500/20' :
-            'bg-green-900/20 border-green-500/20'
-          } ${expiryStatus.urgent ? 'animate-pulse' : ''}`}>
-            {isLoadingExpiry ? (
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-400 border-t-transparent flex-shrink-0" />
-            ) : isExpired ? (
-              <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0" />
+          {/* Consistent Expiry Warning - Using same logic as main page */}
+          <div className={`p-3 rounded-lg border flex items-center space-x-2 ${getStatusColor()} ${shouldAnimate ? 'animate-pulse' : ''}`}>
+            {isExpired ? (
+              <AlertTriangle className="h-4 w-4 flex-shrink-0" />
             ) : (
-              <Clock className="h-4 w-4 text-green-400 flex-shrink-0" />
+              <Clock className="h-4 w-4 flex-shrink-0" />
             )}
             <div className="flex-1">
-              {isLoadingExpiry ? (
-                <>
-                  <p className="text-sm font-medium text-blue-400">Loading actual expiry time...</p>
-                  <p className="text-xs text-gray-400">Fetching from database</p>
-                </>
-              ) : (
-                <>
-                  <p className={`text-sm font-medium ${
-                    expiryStatus.color === 'red' ? 'text-red-400' : 
-                    expiryStatus.color === 'amber' ? 'text-amber-400' :
-                    expiryStatus.color === 'yellow' ? 'text-yellow-400' : 'text-green-400'
-                  }`}>
-                    Food {formatExpiryTime()}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {isExpired ? 'Food has expired - not safe to consume' : 'Collect before food expires'}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Expires: {foodExpiryTime.toLocaleString()}
-                  </p>
-                </>
-              )}
+              <p className="text-sm font-medium">
+                Food {timeRemaining.text}
+              </p>
+              <p className="text-xs opacity-80">
+                {isExpired ? 'Food has expired - not safe to consume' : 'Collect before food expires'}
+              </p>
+              <p className="text-xs opacity-60 mt-1">
+                Expires: {formatExpiryTime(booking)}
+              </p>
             </div>
           </div>
 
@@ -365,11 +198,11 @@ const QRCodeDisplay = ({ booking, onClose }) => {
             <div className="space-y-2 text-sm">
               <div className="flex items-center space-x-2 text-gray-300">
                 <Package className="h-4 w-4 text-emerald-400" />
-                <span>{foodData.title || 'Food Item'}</span>
+                <span>{foodData.title || booking.title || 'Food Item'}</span>
               </div>
               <div className="flex items-center space-x-2 text-gray-300">
                 <MapPin className="h-4 w-4 text-emerald-400" />
-                <span>{foodData.location || 'Pickup Location'}</span>
+                <span>{foodData.location || booking.pickupLocation || 'Pickup Location'}</span>
               </div>
               {booking.scheduledPickupTime && (
                 <div className="flex items-center space-x-2 text-gray-300">
@@ -380,7 +213,7 @@ const QRCodeDisplay = ({ booking, onClose }) => {
                 </div>
               )}
               
-              {/* Enhanced Food Freshness Info - Now using actual DB data */}
+              {/* Food Freshness Info - Using same data as main page */}
               <div className="bg-gray-700/50 p-3 rounded text-xs space-y-1">
                 <div className="flex justify-between">
                   <span className="text-gray-400"><strong>Freshness:</strong></span>
@@ -389,14 +222,7 @@ const QRCodeDisplay = ({ booking, onClose }) => {
                 <div className="flex justify-between">
                   <span className="text-gray-400"><strong>Safe Duration:</strong></span>
                   <span className="text-gray-300">
-                    {isLoadingExpiry ? (
-                      <span className="inline-flex items-center">
-                        <div className="h-3 w-3 animate-spin rounded-full border border-gray-400 border-t-transparent mr-1" />
-                        Loading...
-                      </span>
-                    ) : (
-                      `${freshnessHours} hours`
-                    )}
+                    {foodData.freshnessHours || booking.listingId?.freshnessHours || 24} hours
                   </span>
                 </div>
                 {foodData.availabilityWindow?.startTime && (
@@ -410,7 +236,13 @@ const QRCodeDisplay = ({ booking, onClose }) => {
                 <div className="flex justify-between">
                   <span className="text-gray-400"><strong>Expires:</strong></span>
                   <span className={`font-medium ${isExpired ? 'text-red-400' : 'text-green-400'}`}>
-                    {isLoadingExpiry ? 'Loading...' : foodExpiryTime.toLocaleString()}
+                    {expiryTime.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400"><strong>Time Remaining:</strong></span>
+                  <span className={`font-medium ${isExpired ? 'text-red-400' : 'text-green-400'}`}>
+                    {timeRemaining.text}
                   </span>
                 </div>
               </div>
@@ -457,7 +289,7 @@ const QRCodeDisplay = ({ booking, onClose }) => {
                     </li>
                     <li className="flex items-start">
                       <span className="text-blue-400 mr-2">4.</span>
-                      Collect your food before it expires at {isLoadingExpiry ? 'Loading...' : foodExpiryTime.toLocaleTimeString()}!
+                      Collect your food before it expires at {expiryTime.toLocaleTimeString()}!
                     </li>
                   </>
                 )}
