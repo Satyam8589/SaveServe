@@ -31,6 +31,7 @@ export async function GET(request) {
         timeLeft: timeLeftDisplay,
         status: status,
         freshness: listing.freshnessStatus,
+        freshnessHours: listing.freshnessHours, // Added this line
         type: "Main Course",
         distance: "0.5 km",
         posted: getTimeAgo(listing.createdAt),
@@ -64,7 +65,7 @@ export async function GET(request) {
   }
 }
 
-// Helper
+// Helper function
 function getTimeAgo(date) {
   const now = new Date();
   const diffInMinutes = Math.floor((now - date) / (1000 * 60));
