@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
@@ -73,12 +73,39 @@ export default function RecipientLayout({ children }) {
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState("");
   const [isSidebarOpen, setSidebarOpen] = useState(true);
-  const { signOut } = useClerk(); // Clerk signOut function
+  const [isClient, setIsClient] = useState(false);
+  const { signOut } = useClerk();
+
+  // Fix hydration mismatch by ensuring client-side rendering
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const getPageTitle = () => {
     const currentItem = sidebarItems.find((item) => item.href === pathname);
     return currentItem ? currentItem.label : "Browse Food";
   };
+
+  const handleNavClick = (e, href) => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      e.preventDefault();
+      setSidebarOpen(false);
+      setTimeout(() => {
+        window.location.href = href;
+      }, 150);
+    }
+  };
+
+  // Prevent hydration mismatch by not rendering until client-side
+  if (!isClient) {
+    return (
+      <div className="bg-slate-900 min-h-screen">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-emerald-500"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-slate-900 min-h-screen">
@@ -104,15 +131,7 @@ export default function RecipientLayout({ children }) {
                     <Link
                       href={item.href}
                       passHref
-                      onClick={(e) => {
-                        if (window.innerWidth < 768) {
-                          e.preventDefault(); 
-                          setSidebarOpen(false); 
-                          setTimeout(() => {
-                            window.location.href = item.href; 
-                          }, 150); 
-                        }
-                      }}
+                      onClick={(e) => handleNavClick(e, item.href)}
                     >
                       <SidebarMenuButton
                         className={`text-gray-300 hover:text-gray-100 hover:bg-gray-700 cursor-pointer ${
@@ -120,6 +139,7 @@ export default function RecipientLayout({ children }) {
                             ? "bg-emerald-600 text-white"
                             : ""
                         }`}
+                        suppressHydrationWarning
                       >
                         <item.icon className="h-4 w-4" />
                         <span>{item.label}</span>
@@ -132,14 +152,18 @@ export default function RecipientLayout({ children }) {
 
             <SidebarFooter className="p-4 mb-75 border-t border-gray-700">
               <div className="space-y-2">
-                <SidebarMenuButton className="text-gray-300 hover:text-gray-100 hover:bg-gray-700">
+                <SidebarMenuButton 
+                  className="text-gray-300 hover:text-gray-100 hover:bg-gray-700"
+                  suppressHydrationWarning
+                >
                   <Settings className="h-4 w-4" />
                   <span>Settings</span>
                 </SidebarMenuButton>
 
                 <SidebarMenuButton
                   className="text-red-400 hover:text-red-300 hover:bg-gray-700 cursor-pointer"
-                  onClick={() => signOut()} // Sign out on click
+                  onClick={() => signOut()}
+                  suppressHydrationWarning
                 >
                   <LogOut className="h-4 w-4" />
                   <span>Sign Out</span>
@@ -151,7 +175,10 @@ export default function RecipientLayout({ children }) {
           <SidebarInset className="flex-1 h-full flex flex-col bg-gray-900">
             <header className="h-16 border-b border-gray-700 bg-gray-800 flex items-center px-6">
               <div className="flex items-center gap-4">
-                <SidebarTrigger className="text-gray-300" />
+                <SidebarTrigger 
+                  className="text-gray-300" 
+                  suppressHydrationWarning 
+                />
                 <div>
                   <h1 className="text-xl font-semibold text-gray-100">
                     {getPageTitle()}
@@ -167,6 +194,9 @@ export default function RecipientLayout({ children }) {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10 bg-gray-700 border-gray-600 text-gray-100 w-40"
+                    suppressHydrationWarning
+                    autoComplete="off"
+                    data-form-type="other"
                   />
                 </div>
                 <Button
@@ -174,6 +204,7 @@ export default function RecipientLayout({ children }) {
                   size="sm"
                   className="text-gray-300 relative"
                   asChild
+                  suppressHydrationWarning
                 >
                   <Link href="/recipient/notifications">
                     <Bell className="h-4 w-4" />
