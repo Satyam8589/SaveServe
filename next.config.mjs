@@ -1,5 +1,4 @@
-// next.config.js
-import withTM from "next-transpile-modules";
+
 
 
 /** @type {import('next').NextConfig} */
