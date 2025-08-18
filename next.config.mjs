@@ -1,10 +1,6 @@
 // next.config.js
 import withTM from "next-transpile-modules";
 
-// Tell Next.js to transpile CJS packages like leaflet-routing-machine
-const withTranspile = withTM([
-  "leaflet-routing-machine",
-]);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
