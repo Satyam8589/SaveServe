@@ -35,6 +35,14 @@ export default async function RootLayout({ children }) {
       <html lang="en" suppressHydrationWarning>
         <head>
           <link rel="icon" href="/logo.svg" />
+          <link
+          rel="stylesheet"
+          href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css"
+        />
+        <script
+          src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"
+          defer
+        ></script>
         </head>
         <body className={`${inter.className}`}>
           <ThemeProvider

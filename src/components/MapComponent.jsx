@@ -3,8 +3,10 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+
 
 // Fix for default markers in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -127,65 +129,51 @@ const RoutingComponent = ({ providers, recipients }) => {
 
   useEffect(() => {
     if (!providers.length || !recipients.length) return;
+    if (!map) return;
 
-    // Dynamic import for leaflet-routing-machine (client-side only)
-    const loadRoutingMachine = async () => {
-      try {
-        const L = await import('leaflet');
-        await import('leaflet-routing-machine/dist/leaflet-routing-machine.css');
-        const routing = await import('leaflet-routing-machine');
+    const loadRouting = async () => {
+      // Dynamically import plugin (client-side only)
+      await import("leaflet-routing-machine");
+      await import("leaflet-routing-machine/dist/leaflet-routing-machine.css");
 
-        // Remove existing routing control
-        if (routingControlRef.current) {
-          map.removeControl(routingControlRef.current);
-        }
-
-        // Get first provider and first recipient
-        const firstProvider = providers[0];
-        const firstRecipient = recipients[0];
-
-        console.log('🚗 Creating route between:', firstProvider.fullName, '→', firstRecipient.fullName);
-
-        // Create routing control
-        routingControlRef.current = routing.default.control({
-          waypoints: [
-            L.default.latLng(firstProvider.latitude, firstProvider.longitude),
-            L.default.latLng(firstRecipient.latitude, firstRecipient.longitude)
-          ],
-          routeWhileDragging: false,
-          addWaypoints: false,
-          createMarker: () => null, // Don't create default markers
-          lineOptions: {
-            styles: [
-              {
-                color: '#3b82f6', // blue-500
-                weight: 4,
-                opacity: 0.8,
-                dashArray: '10, 10'
-              }
-            ]
-          },
-          show: false, // Hide the instruction panel
-          collapsible: false,
-          fitSelectedRoutes: false,
-        }).addTo(map);
-
-        // Hide the routing instructions container
-        setTimeout(() => {
-          const routingContainer = document.querySelector('.leaflet-routing-container');
-          if (routingContainer) {
-            routingContainer.style.display = 'none';
-          }
-        }, 100);
-
-      } catch (error) {
-        console.error('❌ Error loading routing machine:', error);
+      if (!L.Routing) {
+        console.error("❌ L.Routing not available");
+        return;
       }
+
+      // Remove old route
+      if (routingControlRef.current) {
+        map.removeControl(routingControlRef.current);
+      }
+
+      const firstProvider = providers[0];
+      const firstRecipient = recipients[0];
+
+      routingControlRef.current = L.Routing.control({
+        waypoints: [
+          L.latLng(firstProvider.latitude, firstProvider.longitude),
+          L.latLng(firstRecipient.latitude, firstRecipient.longitude),
+        ],
+        addWaypoints: false,
+        routeWhileDragging: false,
+        createMarker: () => null,
+        lineOptions: {
+          styles: [{ color: "#3b82f6", weight: 4, opacity: 0.8, dashArray: "10, 10" }],
+        },
+        show: false,
+        collapsible: false,
+        fitSelectedRoutes: true,
+      }).addTo(map);
+
+      // Hide instruction panel
+      setTimeout(() => {
+        const routingContainer = document.querySelector(".leaflet-routing-container");
+        if (routingContainer) routingContainer.style.display = "none";
+      }, 100);
     };
 
-    loadRoutingMachine();
+    loadRouting();
 
-    // Cleanup function
     return () => {
       if (routingControlRef.current) {
         map.removeControl(routingControlRef.current);
@@ -196,6 +184,9 @@ const RoutingComponent = ({ providers, recipients }) => {
 
   return null;
 };
+
+
+
 
 const MapWithRouting = ({ provider: singleProvider, recipient: singleRecipient }) => {
   const [users, setUsers] = useState([]);
