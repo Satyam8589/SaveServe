@@ -15,7 +15,7 @@ const foodListingSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['Cooked Food', 'fruits', 'snacks', 'Raw Ingredients', 'Packaged Food', 'Beverages'],
+    enum: ['rice_based', 'fruits', 'snacks', 'curry_gravy', 'bread_roti', 'sweets','beverages','combo_meals','other'],
     required: [true, 'Category is required']
   },
   quantity: {
