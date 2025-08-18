@@ -168,6 +168,7 @@ export default function FoodListingTable({ providerId }) {
                       <Image
                         src={listing.imageUrl} 
                         alt={listing.title} 
+                        fill
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
                       />
                     ) : (
