@@ -1,14 +1,16 @@
 // lib/firestoreNotificationService.js (Fixed FieldValue import)
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { initializeApp, getApps, cert } from "firebase-admin/app";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
 // Initialize Firebase Admin if not already initialized
 if (!getApps().length) {
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+
   initializeApp({
     credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      projectId: serviceAccount.project_id,
+      clientEmail: serviceAccount.client_email,
+      privateKey: serviceAccount.private_key.replace(/\\n/g, "\n"),
     }),
   });
 }
@@ -17,12 +19,12 @@ const db = getFirestore();
 
 // Notification types
 export const NOTIFICATION_TYPES = {
-  NEW_LISTING: 'new_listing',
-  LISTING_CREATED_CONFIRMATION: 'listing_created_confirmation',
-  BOOKING_CONFIRMED: 'booking_confirmed',
-  NEW_BOOKING: 'new_booking',
-  COLLECTION_CONFIRMED: 'collection_confirmed',
-  COLLECTION_COMPLETED_CONFIRMATION: 'collection_completed_confirmation'
+  NEW_LISTING: "new_listing",
+  LISTING_CREATED_CONFIRMATION: "listing_created_confirmation",
+  BOOKING_CONFIRMED: "booking_confirmed",
+  NEW_BOOKING: "new_booking",
+  COLLECTION_CONFIRMED: "collection_confirmed",
+  COLLECTION_COMPLETED_CONFIRMATION: "collection_completed_confirmation",
 };
 
 /**
@@ -33,12 +35,22 @@ export const NOTIFICATION_TYPES = {
  * @param {string} type - Notification type
  * @param {object} metadata - Additional metadata
  */
-export async function createFirestoreNotification(userId, title, body, type, metadata = {}) {
+export async function createFirestoreNotification(
+  userId,
+  title,
+  body,
+  type,
+  metadata = {}
+) {
   try {
     console.log(`📝 Creating Firestore notification for user ${userId}`);
-    
-    const notificationRef = db.collection('notifications').doc(userId).collection('notifications').doc();
-    
+
+    const notificationRef = db
+      .collection("notifications")
+      .doc(userId)
+      .collection("notifications")
+      .doc();
+
     const notificationData = {
       title,
       body,
@@ -46,23 +58,23 @@ export async function createFirestoreNotification(userId, title, body, type, met
       ...metadata, // listingId, bookingId, providerId, etc.
       createdAt: FieldValue.serverTimestamp(), // ✅ Fixed: Use FieldValue directly
       read: false,
-      readAt: null
+      readAt: null,
     };
 
     await notificationRef.set(notificationData);
-    
+
     console.log(`✅ Firestore notification created: ${notificationRef.id}`);
-    
+
     return {
       success: true,
       notificationId: notificationRef.id,
-      data: notificationData
+      data: notificationData,
     };
   } catch (error) {
-    console.error('❌ Firestore notification failed:', error);
+    console.error("❌ Firestore notification failed:", error);
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 }
@@ -75,16 +87,28 @@ export async function createFirestoreNotification(userId, title, body, type, met
  * @param {string} type - Notification type
  * @param {object} metadata - Additional metadata
  */
-export async function createFirestoreNotificationForMultipleUsers(userIds, title, body, type, metadata = {}) {
+export async function createFirestoreNotificationForMultipleUsers(
+  userIds,
+  title,
+  body,
+  type,
+  metadata = {}
+) {
   try {
-    console.log(`📝 Creating Firestore notifications for ${userIds.length} users`);
-    
+    console.log(
+      `📝 Creating Firestore notifications for ${userIds.length} users`
+    );
+
     const batch = db.batch();
     const results = [];
 
     for (const userId of userIds) {
-      const notificationRef = db.collection('notifications').doc(userId).collection('notifications').doc();
-      
+      const notificationRef = db
+        .collection("notifications")
+        .doc(userId)
+        .collection("notifications")
+        .doc();
+
       const notificationData = {
         title,
         body,
@@ -92,31 +116,31 @@ export async function createFirestoreNotificationForMultipleUsers(userIds, title
         ...metadata,
         createdAt: FieldValue.serverTimestamp(), // ✅ Fixed: Use FieldValue directly
         read: false,
-        readAt: null
+        readAt: null,
       };
 
       batch.set(notificationRef, notificationData);
       results.push({
         userId,
-        notificationId: notificationRef.id
+        notificationId: notificationRef.id,
       });
     }
 
     await batch.commit();
-    
+
     console.log(`✅ Created ${results.length} Firestore notifications`);
-    
+
     return {
       success: true,
       results,
-      count: results.length
+      count: results.length,
     };
   } catch (error) {
-    console.error('❌ Error creating multiple Firestore notifications:', error);
+    console.error("❌ Error creating multiple Firestore notifications:", error);
     return {
       success: false,
       error: error.message,
-      count: 0
+      count: 0,
     };
   }
 }
@@ -128,24 +152,27 @@ export async function createFirestoreNotificationForMultipleUsers(userIds, title
  */
 export async function markNotificationAsRead(userId, notificationId) {
   try {
-    const notificationRef = db.collection('notifications')
+    const notificationRef = db
+      .collection("notifications")
       .doc(userId)
-      .collection('notifications')
+      .collection("notifications")
       .doc(notificationId);
 
     await notificationRef.update({
       read: true,
-      readAt: FieldValue.serverTimestamp() // ✅ Fixed: Use FieldValue directly
+      readAt: FieldValue.serverTimestamp(), // ✅ Fixed: Use FieldValue directly
     });
 
-    console.log(`✅ Notification ${notificationId} marked as read for user ${userId}`);
-    
+    console.log(
+      `✅ Notification ${notificationId} marked as read for user ${userId}`
+    );
+
     return { success: true };
   } catch (error) {
-    console.error('❌ Error marking notification as read:', error);
+    console.error("❌ Error marking notification as read:", error);
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 }
@@ -156,39 +183,42 @@ export async function markNotificationAsRead(userId, notificationId) {
  */
 export async function markAllNotificationsAsRead(userId) {
   try {
-    const notificationsRef = db.collection('notifications')
+    const notificationsRef = db
+      .collection("notifications")
       .doc(userId)
-      .collection('notifications')
-      .where('read', '==', false);
+      .collection("notifications")
+      .where("read", "==", false);
 
     const unreadNotifications = await notificationsRef.get();
-    
+
     if (unreadNotifications.empty) {
       return { success: true, count: 0 };
     }
 
     const batch = db.batch();
-    
+
     unreadNotifications.forEach((doc) => {
       batch.update(doc.ref, {
         read: true,
-        readAt: FieldValue.serverTimestamp() // ✅ Fixed: Use FieldValue directly
+        readAt: FieldValue.serverTimestamp(), // ✅ Fixed: Use FieldValue directly
       });
     });
 
     await batch.commit();
-    
-    console.log(`✅ Marked ${unreadNotifications.size} notifications as read for user ${userId}`);
-    
-    return { 
-      success: true, 
-      count: unreadNotifications.size 
+
+    console.log(
+      `✅ Marked ${unreadNotifications.size} notifications as read for user ${userId}`
+    );
+
+    return {
+      success: true,
+      count: unreadNotifications.size,
     };
   } catch (error) {
-    console.error('❌ Error marking all notifications as read:', error);
+    console.error("❌ Error marking all notifications as read:", error);
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 }
@@ -197,44 +227,50 @@ export async function markAllNotificationsAsRead(userId) {
  * Enhanced notification service that combines FCM and Firestore
  * This integrates with your existing notificationService.js
  */
-export async function sendCompleteNotification(userId, title, body, fcmData = {}, firestoreMetadata = {}) {
+export async function sendCompleteNotification(
+  userId,
+  title,
+  body,
+  fcmData = {},
+  firestoreMetadata = {}
+) {
   const results = {
     fcm: { success: false },
-    firestore: { success: false }
+    firestore: { success: false },
   };
 
   // Send FCM notification using your existing service
   try {
-    const { sendNotificationToUser } = await import('./notificationService');
+    const { sendNotificationToUser } = await import("./notificationService");
     results.fcm = await sendNotificationToUser(userId, title, body, fcmData);
-    console.log('📱 FCM notification result:', results.fcm);
+    console.log("📱 FCM notification result:", results.fcm);
   } catch (error) {
-    console.error('❌ FCM notification failed:', error);
+    console.error("❌ FCM notification failed:", error);
     results.fcm = { success: false, error: error.message };
   }
 
   // Create Firestore notification
   try {
     results.firestore = await createFirestoreNotification(
-      userId, 
-      title, 
-      body, 
-      fcmData.action || 'general',
+      userId,
+      title,
+      body,
+      fcmData.action || "general",
       {
         ...firestoreMetadata,
-        ...fcmData // Include FCM data as metadata
+        ...fcmData, // Include FCM data as metadata
       }
     );
-    console.log('🔔 Firestore notification result:', results.firestore);
+    console.log("🔔 Firestore notification result:", results.firestore);
   } catch (error) {
-    console.error('❌ Firestore notification failed:', error);
+    console.error("❌ Firestore notification failed:", error);
     results.firestore = { success: false, error: error.message };
   }
 
   return {
     success: results.fcm.success || results.firestore.success, // Success if either works
     fcm: results.fcm,
-    firestore: results.firestore
+    firestore: results.firestore,
   };
 }
 
@@ -242,30 +278,36 @@ export async function sendCompleteNotification(userId, title, body, fcmData = {}
  * Enhanced notification service for role-based notifications
  * For role notifications, we only use FCM (since we'd need to get all user IDs for Firestore)
  */
-export async function sendCompleteNotificationToRole(role, title, body, fcmData = {}) {
+export async function sendCompleteNotificationToRole(
+  role,
+  title,
+  body,
+  fcmData = {}
+) {
   try {
-    const { sendNotificationToRole } = await import('./notificationService');
+    const { sendNotificationToRole } = await import("./notificationService");
     const fcmResult = await sendNotificationToRole(role, title, body, fcmData);
-    
-    console.log('📱 FCM role notification result:', fcmResult);
-    
+
+    console.log("📱 FCM role notification result:", fcmResult);
+
     // For role-based notifications, we primarily use FCM
     // Individual notifications (booking confirmations, etc.) will use both FCM + Firestore
-    
+
     return {
       success: fcmResult.success,
       fcm: fcmResult,
-      firestore: { 
-        success: true, 
-        message: 'Role notifications use FCM only. Individual notifications will use both FCM and Firestore.' 
-      }
+      firestore: {
+        success: true,
+        message:
+          "Role notifications use FCM only. Individual notifications will use both FCM and Firestore.",
+      },
     };
   } catch (error) {
-    console.error('❌ Role notification failed:', error);
+    console.error("❌ Role notification failed:", error);
     return {
       success: false,
       fcm: { success: false, error: error.message },
-      firestore: { success: false, error: 'Skipped for role notifications' }
+      firestore: { success: false, error: "Skipped for role notifications" },
     };
   }
-};
+}
