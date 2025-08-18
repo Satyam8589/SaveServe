@@ -1,4 +1,4 @@
-// app/api/bookings/verify-collection/route.js
+// app/api/bookings/verify-collection/route.js (Updated with Firestore notifications)
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { connectDB } from '@/lib/db';
@@ -6,7 +6,7 @@ import Booking from '@/models/Booking';
 import FoodListing from '@/models/FoodListing';
 import UserProfile from '@/models/UserProfile';
 import { QRCodeService } from '@/lib/qrCodeService';
-import { sendNotificationToUser } from '@/lib/notificationService';
+import { sendCompleteNotification, NOTIFICATION_TYPES } from '@/lib/firestoreNotificationService';
 import mongoose from 'mongoose';
 
 export async function POST(request) {
@@ -134,11 +134,11 @@ export async function POST(request) {
 
     const recipient = await UserProfile.findOne({ userId: booking.recipientId }).lean();
 
-    // 🔔 Send collection confirmation notification to recipient
+    // 🔔 Send collection confirmation notification to recipient (FCM + Firestore)
     try {
       console.log('📢 Sending collection confirmation to recipient:', booking.recipientId);
       
-      const recipientNotificationResult = await sendNotificationToUser(
+      const recipientNotificationResult = await sendCompleteNotification(
         booking.recipientId,
         'Food Collected Successfully! 🎉',
         `You've successfully collected "${listing.title}". Enjoy your meal!`,
@@ -146,6 +146,16 @@ export async function POST(request) {
           bookingId: booking._id.toString(),
           listingId: listing._id.toString(),
           action: 'collection_confirmed',
+          collectedAt: collectionTime.toISOString()
+        },
+        {
+          type: NOTIFICATION_TYPES.COLLECTION_CONFIRMED,
+          bookingId: booking._id.toString(),
+          listingId: listing._id.toString(),
+          listingTitle: listing.title,
+          providerName: listing.providerName,
+          quantity: booking.approvedQuantity,
+          unit: listing.unit || 'items',
           collectedAt: collectionTime.toISOString()
         }
       );
@@ -155,11 +165,11 @@ export async function POST(request) {
       console.error('❌ Failed to send collection confirmation:', notificationError);
     }
 
-    // 🔔 Send collection notification to provider (confirmation)
+    // 🔔 Send collection notification to provider (FCM + Firestore) 
     try {
       console.log('📢 Sending collection success confirmation to provider:', providerClerkId);
       
-      const providerNotificationResult = await sendNotificationToUser(
+      const providerNotificationResult = await sendCompleteNotification(
         providerClerkId,
         'Food Collected Successfully! ✅',
         `${recipient?.fullName || 'A recipient'} has collected "${listing.title}". Thanks for sharing food!`,
@@ -168,6 +178,17 @@ export async function POST(request) {
           listingId: listing._id.toString(),
           recipientId: booking.recipientId,
           action: 'collection_completed_confirmation'
+        },
+        {
+          type: NOTIFICATION_TYPES.COLLECTION_COMPLETED_CONFIRMATION,
+          bookingId: booking._id.toString(),
+          listingId: listing._id.toString(),
+          listingTitle: listing.title,
+          recipientId: booking.recipientId,
+          recipientName: recipient?.fullName || 'A recipient',
+          quantity: booking.approvedQuantity,
+          unit: listing.unit || 'items',
+          collectedAt: collectionTime.toISOString()
         }
       );
 

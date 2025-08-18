@@ -1,4 +1,4 @@
-// app/api/listings/[id]/book/route.js
+// app/api/listings/[id]/book/route.js (Updated with Firestore notifications)
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { connectDB } from "@/lib/db";
@@ -7,7 +7,7 @@ import Booking from "@/models/Booking";
 import UserProfile from "@/models/UserProfile";
 import mongoose from "mongoose";
 import { QRCodeService } from "@/lib/qrCodeService";
-import { sendNotificationToUser } from "@/lib/notificationService";
+import { sendCompleteNotification, NOTIFICATION_TYPES } from "@/lib/firestoreNotificationService";
 
 export async function POST(request, { params }) {
   const { id } = await params; // This is the listing ID
@@ -97,11 +97,11 @@ export async function POST(request, { params }) {
 
     await session.commitTransaction();
 
-    // 🔔 Send booking confirmation notification to recipient
+    // 🔔 Send booking confirmation notification to recipient (FCM + Firestore)
     try {
       console.log('📢 Sending booking confirmation to recipient:', userId);
       
-      const notificationResult = await sendNotificationToUser(
+      const recipientNotificationResult = await sendCompleteNotification(
         userId,
         'Booking Confirmed! ✅',
         `Your booking for "${foodListing.title}" has been confirmed. Show your QR code when collecting.`,
@@ -110,19 +110,29 @@ export async function POST(request, { params }) {
           listingId: id,
           action: 'booking_confirmed',
           collectionCode: collectionCode
+        },
+        {
+          type: NOTIFICATION_TYPES.BOOKING_CONFIRMED,
+          bookingId: booking._id.toString(),
+          listingId: id,
+          listingTitle: foodListing.title,
+          providerName: foodListing.providerName,
+          quantity: requestedQuantity,
+          unit: foodListing.unit || 'items',
+          collectionCode: collectionCode
         }
       );
 
-      console.log('📨 Recipient notification result:', notificationResult);
+      console.log('📨 Recipient notification result:', recipientNotificationResult);
     } catch (notificationError) {
       console.error('❌ Failed to send booking confirmation notification:', notificationError);
     }
 
-    // 🔔 Send booking notification to provider
+    // 🔔 Send booking notification to provider (FCM + Firestore)
     try {
       console.log('📢 Sending new booking notification to provider:', foodListing.providerId);
       
-      const providerNotificationResult = await sendNotificationToUser(
+      const providerNotificationResult = await sendCompleteNotification(
         foodListing.providerId,
         'New Booking Received! 📋',
         `${recipientName} has booked "${foodListing.title}" (${requestedQuantity} ${foodListing.unit || 'items'})`,
@@ -131,6 +141,17 @@ export async function POST(request, { params }) {
           listingId: id,
           recipientId: userId,
           action: 'new_booking'
+        },
+        {
+          type: NOTIFICATION_TYPES.NEW_BOOKING,
+          bookingId: booking._id.toString(),
+          listingId: id,
+          listingTitle: foodListing.title,
+          recipientId: userId,
+          recipientName: recipientName,
+          quantity: requestedQuantity,
+          unit: foodListing.unit || 'items',
+          requestMessage: requestMessage
         }
       );
 

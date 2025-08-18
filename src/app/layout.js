@@ -5,10 +5,9 @@ import Footer from "@/components/Footer";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { Toaster } from "sonner";
-import Header from "@/components/header";
-import Providers from "./providers";
+import Header from "@/components/Header"; // Make sure this matches your actual filename case
+import { Providers } from "./providers";
 import { currentUser } from "@clerk/nextjs/server";
-import NotificationsInitializer from "@/components/NotificationsInitializer";
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
@@ -45,11 +44,6 @@ export default async function RootLayout({ children }) {
             disableTransitionOnChange
           >
             <Providers>
-              <NotificationsInitializer
-                userRole={userRole}
-                // Remove userArea prop - let component handle location permission internally
-              />
-
               {/* Header Section */}
               <Header />
 
@@ -58,6 +52,8 @@ export default async function RootLayout({ children }) {
                 <SpeedInsights />
                 <Analytics />
               </main>
+              
+              <Footer />
               <Toaster richColors />
             </Providers>
           </ThemeProvider>
