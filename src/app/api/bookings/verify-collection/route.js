@@ -28,6 +28,7 @@ export async function POST(request) {
         throw new Error("Listing ID is required for verification.");
     }
 
+    
     const listing = await FoodListing.findById(listingId).session(session);
     if (!listing) {
       throw new Error('Food listing not found');

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useListings } from '@/hooks/useListings';
 import { MapPin, Clock, User, Search, Filter, ChevronDown, Eye, Package, Calendar, Star } from 'lucide-react';
+import Image from 'next/image';
 
 export default function FoodListingTable({ providerId }) {
   const router = useRouter();
@@ -164,7 +165,7 @@ export default function FoodListingTable({ providerId }) {
                   {/* Image Section */}
                   <div className="relative h-40 sm:h-56 overflow-hidden rounded-t-2xl">
                     {listing.imageUrl ? (
-                      <img 
+                      <Image
                         src={listing.imageUrl} 
                         alt={listing.title} 
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
