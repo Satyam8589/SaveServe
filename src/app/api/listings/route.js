@@ -1,58 +1,16 @@
-// app/api/listings/route.js
+// app/api/listings/route.js (Updated POST section only)
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import FoodListing from '@/models/FoodListing';
 import { sendNotificationToUser, sendNotificationToRole } from '@/lib/notificationService';
+import { 
+  createFirestoreNotification, 
+  sendCompleteNotification,
+  sendCompleteNotificationToRole,
+  NOTIFICATION_TYPES 
+} from '@/lib/firestoreNotificationService';
 
-// GET - Fetch all active listings (unchanged)
-export async function GET(request) {
-  try {
-    await connectDB();
-
-    const { searchParams } = new URL(request.url);
-    const location = searchParams.get('location');
-    const limit = parseInt(searchParams.get('limit')) || 20;
-    const page = parseInt(searchParams.get('page')) || 1;
-    const skip = (page - 1) * limit;
-
-    let query = {
-      isActive: true,
-      expiryTime: { $gte: new Date() }
-    };
-
-    if (location) {
-      query.location = { $regex: location, $options: 'i' };
-    }
-
-    const listings = await FoodListing.find(query)
-      .select('title description quantity freshnessStatus availabilityWindow location expiryTime isActive providerId providerName imageUrl createdAt')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
-
-    const total = await FoodListing.countDocuments(query);
-
-    return NextResponse.json({
-      success: true,
-      data: listings,
-      pagination: {
-        current: page,
-        pages: Math.ceil(total / limit),
-        total
-      }
-    });
-
-  } catch (error) {
-    console.error('GET /api/listings error:', error);
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to fetch listings'
-    }, { status: 500 });
-  }
-}
-
-// POST - Create new listing with FCM notifications
+// POST - Create new listing with FCM + Firestore notifications
 export async function POST(request) {
   try {
     await connectDB();
@@ -62,8 +20,6 @@ export async function POST(request) {
     console.log('🔍 POST /api/listings - Received body:');
     console.log('📋 Full request body:', JSON.stringify(body, null, 2));
     console.log('🖼️ imageUrl in request:', body.imageUrl);
-    console.log('📊 imageUrl type:', typeof body.imageUrl);
-    console.log('📏 imageUrl length:', body.imageUrl?.length || 0);
     
     // Validate required fields
     const {
@@ -149,52 +105,58 @@ export async function POST(request) {
     console.log('✅ Listing saved successfully:');
     console.log('🆔 Saved listing ID:', savedListing._id);
     console.log('🖼️ Saved imageUrl:', savedListing.imageUrl);
-    console.log('📋 Full saved listing:', JSON.stringify(savedListing.toObject(), null, 2));
 
-    // 🔔 Send push notifications to all recipients
+    // 🔔 Send notifications to all recipients (FCM + Firestore)
     try {
       console.log('📢 Sending notifications to all recipients');
       
-      const notificationResult = await sendNotificationToRole(
+      const notificationData = {
+        listingId: savedListing._id.toString(),
+        providerId: savedListing.providerId,
+        location: savedListing.location,
+        category: savedListing.category || 'food',
+        action: 'new_listing'
+      };
+
+      // Send to all recipients via role (FCM only for now)
+      const roleNotificationResult = await sendNotificationToRole(
         'RECIPIENT',
         'New Food Available! 🍽️',
         `${title} is available in ${location}. Grab it before it's gone!`,
-        {
-          listingId: savedListing._id.toString(),
-          providerId: savedListing.providerId,
-          location: savedListing.location,
-          category: savedListing.category || 'food',
-          action: 'new_listing'
-        }
+        notificationData
       );
 
-      console.log('📨 Recipients notification result:', notificationResult);
+      console.log('📨 Recipients FCM notification result:', roleNotificationResult);
+
+      // For Firestore notifications to recipients, you'd need to implement 
+      // a way to get all recipient user IDs. For now, we'll focus on 
+      // individual notifications (provider confirmation and booking notifications)
       
-      if (notificationResult.success) {
-        console.log(`✅ Sent ${notificationResult.sentCount} notifications to recipients`);
-      } else {
-        console.warn('⚠️ Failed to send recipient notifications:', notificationResult.error);
-      }
     } catch (notificationError) {
-      // Don't fail the entire request if notifications fail
-      console.error('❌ Recipient notification sending failed:', notificationError);
+      console.error('❌ Recipients notification sending failed:', notificationError);
     }
 
-    // 🔔 Send confirmation notification to provider
+    // 🔔 Send confirmation notification to provider (FCM + Firestore)
     try {
       console.log('📢 Sending listing confirmation to provider:', providerId);
       
-      const providerNotificationResult = await sendNotificationToUser(
+      const providerNotificationResult = await sendCompleteNotification(
         providerId,
         'Listing Created Successfully! ✅',
         `Your food listing "${title}" has been posted and recipients have been notified.`,
         {
           listingId: savedListing._id.toString(),
           action: 'listing_created_confirmation'
+        },
+        {
+          type: NOTIFICATION_TYPES.LISTING_CREATED_CONFIRMATION,
+          listingId: savedListing._id.toString(),
+          listingTitle: title,
+          location: location
         }
       );
 
-      console.log('📨 Provider confirmation result:', providerNotificationResult);
+      console.log('📨 Provider notification result:', providerNotificationResult);
     } catch (notificationError) {
       console.error('❌ Failed to send provider confirmation:', notificationError);
     }
