@@ -1,6 +1,5 @@
-
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -29,6 +28,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import NotificationPopup from "@/components/NotificationPopup";
 
 const sidebarItems = [
   {
@@ -65,6 +65,15 @@ const sidebarItems = [
 
 export default function ProviderDashboardLayout({ children }) {
   const pathname = usePathname();
+  const [isNotificationPopupOpen, setIsNotificationPopupOpen] = useState(false);
+
+  const handleBellClick = () => {
+    setIsNotificationPopupOpen(!isNotificationPopupOpen);
+  };
+
+  const handleCloseNotifications = () => {
+    setIsNotificationPopupOpen(false);
+  };
 
   return (
     <div className="bg-slate-900 min-h-screen">
@@ -137,14 +146,15 @@ export default function ProviderDashboardLayout({ children }) {
                     className="pl-10 bg-gray-700 border-gray-600 text-gray-100 w-64"
                   />
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-gray-300 relative"
-                >
-                  <Bell className="h-4 w-4" />
-                  <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full text-xs"></span>
-                </Button>
+                
+                {/* Replace the old notification button with NotificationPopup component */}
+                <div className="relative">
+                  <NotificationPopup
+                    isOpen={isNotificationPopupOpen}
+                    onClose={handleCloseNotifications}
+                    onBellClick={handleBellClick}
+                  />
+                </div>
               </div>
             </header>
 
