@@ -6,6 +6,7 @@ import { useCreateListing } from "@/hooks/useListings";
 import { useUserProfile } from "@/hooks/useProfile";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
 import { useAuth } from "@clerk/nextjs";
+import Image from "next/image";
 
 const FRESHNESS_OPTIONS = [
   { value: "Fresh", hours: 24, label: "Fresh (24 hours)" },
@@ -422,7 +423,7 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
             </div>
           ) : (
             <div className="relative">
-              <img
+              <Image
                 src={imagePreview}
                 alt="Food preview"
                 className="w-full h-48 object-cover rounded-lg"

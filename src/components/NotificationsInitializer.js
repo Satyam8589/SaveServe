@@ -21,35 +21,33 @@ const NotificationsInitializer = ({ userRole: propUserRole = 'recipient', userAr
   const userRole = (user?.publicMetadata?.mainrole || propUserRole).toUpperCase();
 
   useEffect(() => {
-    // Get user's current location
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const location = `Lat: ${position.coords.latitude}, Lon: ${position.coords.longitude}`;
-          setLocationArea(location);
-          setLocationPermissionDenied(false);
-          console.log('Location obtained:', location);
-        },
-        (error) => {
-          console.error('Geolocation error:', error);
-          setLocationPermissionDenied(true);
-          
-          // If user denied permission, set area to empty string
-          if (error.code === error.PERMISSION_DENIED) {
-            console.log('Location permission denied by user');
-            setLocationArea(''); // Keep area blank when permission denied
-          } else {
-            // For other errors (timeout, unavailable), also use empty string
-            setLocationArea('');
-          }
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 } // 5 minute cache
-      );
-    } else {
-      console.log('Geolocation is not supported by this browser.');
-      setLocationArea('');
-    }
-  }, []);
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const location = `Lat: ${position.coords.latitude}, Lon: ${position.coords.longitude}`;
+        setLocationArea(location);
+        setLocationPermissionDenied(false);
+        console.log('Location obtained:', location);
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+        setLocationPermissionDenied(true);
+
+        if (error.code === error.PERMISSION_DENIED) {
+          console.log('Location permission denied by user');
+          setLocationArea('');
+        } else {
+          setLocationArea('');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+    );
+  } else {
+    console.log('Geolocation is not supported by this browser.');
+    setLocationArea('');
+  }
+}, [setLocationArea, setLocationPermissionDenied]);
+
 
   useEffect(() => {
     // Only initialize if:
