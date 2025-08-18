@@ -132,9 +132,6 @@ const RoutingComponent = ({ providers, recipients }) => {
     if (!map) return;
 
     const loadRouting = async () => {
-      // Dynamically import plugin (client-side only)
-      await import("leaflet-routing-machine");
-      await import("leaflet-routing-machine/dist/leaflet-routing-machine.css");
 
       if (!L.Routing) {
         console.error("❌ L.Routing not available");
