@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import NotificationPopup from "@/components/NotificationPopup";
+// import NotificationPopup from "@/components/NotificationPopup";
 
 const sidebarItems = [
   {
@@ -149,11 +149,11 @@ export default function ProviderDashboardLayout({ children }) {
                 
                 {/* Replace the old notification button with NotificationPopup component */}
                 <div className="relative">
-                  <NotificationPopup
+                  {/* <NotificationPopup
                     isOpen={isNotificationPopupOpen}
                     onClose={handleCloseNotifications}
                     onBellClick={handleBellClick}
-                  />
+                  /> */}
                 </div>
               </div>
             </header>

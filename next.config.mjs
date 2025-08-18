@@ -10,18 +10,27 @@ const withTranspile = withTM([
 const nextConfig = {
   reactStrictMode: true,
 
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+      },
+    ],
+  },
+
   async headers() {
     return [
       {
-        source: '/firebase-messaging-sw.js',
+        source: "/firebase-messaging-sw.js",
         headers: [
           {
-            key: 'Service-Worker-Allowed',
-            value: '/',
+            key: "Service-Worker-Allowed",
+            value: "/",
           },
           {
-            key: 'Cache-Control',
-            value: 'no-cache, no-store, must-revalidate',
+            key: "Cache-Control",
+            value: "no-cache, no-store, must-revalidate",
           },
         ],
       },
