@@ -11,7 +11,6 @@ const QRCodeDisplay = ({ booking, onClose }) => {
   const [copied, setCopied] = useState(false);
 
   // Use the unified time calculations hook
-  // Both main page and QR modal now use the same API-enriched data
   const { 
     getTimeRemaining, 
     getBadgeColor,
@@ -53,6 +52,32 @@ const QRCodeDisplay = ({ booking, onClose }) => {
     link.click();
   };
 
+  // Simple close handler - just close the modal without any side effects
+  const handleClose = () => {
+    console.log('🔒 QR Modal closing normally');
+    onClose();
+  };
+
+  // Handle backdrop click to close modal
+  const handleBackdropClick = (e) => {
+    // Only close if clicking the backdrop, not the card content
+    if (e.target === e.currentTarget) {
+      handleClose();
+    }
+  };
+
+  // Handle escape key
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        handleClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, []);
+
   // Use the same time display format as the main page
   const getStatusColor = () => {
     if (isExpired) {
@@ -74,7 +99,10 @@ const QRCodeDisplay = ({ booking, onClose }) => {
   const foodData = booking.listingId || booking.foodListing || booking.listing || {};
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+    <div 
+      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+      onClick={handleBackdropClick}
+    >
       <Card className="w-full max-w-md bg-gray-800 border-gray-700 max-h-[90vh] overflow-y-auto">
         <CardHeader className="text-center">
           <CardTitle className="text-gray-100 flex items-center justify-center">
@@ -299,7 +327,7 @@ const QRCodeDisplay = ({ booking, onClose }) => {
 
           {/* Close Button */}
           <Button
-            onClick={onClose}
+            onClick={handleClose}
             className="w-full bg-gray-700 hover:bg-gray-600 text-gray-100"
           >
             Close
