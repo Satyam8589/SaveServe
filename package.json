@@ -40,7 +40,6 @@
     "framer-motion": "^12.23.12",
     "jsqr": "^1.4.0",
     "leaflet": "^1.9.4",
-    "leaflet-routing-machine": "^3.2.12",
     "lucide-react": "^0.539.0",
     "mongoose": "^8.17.1",
     "next": "15.4.6",
