@@ -63,79 +63,160 @@ const getListingStatus = (expiryTimeString, quantity = 0) => {
   return { text: "Available" };
 };
 
-function generateNotificationsFromData(listingsData, bookingsData) {
+function generateNotificationsFromData(listingsData, bookingsData, currentUserId, userRole) {
     const combinedNotifications = [];
     const readIds = getReadNotificationIds();
 
-    if (listingsData.success && Array.isArray(listingsData.data)) {
+    // Only show new food arrivals to recipients (not to providers)
+    if (userRole === 'recipient' && listingsData.success && Array.isArray(listingsData.data)) {
         listingsData.data.forEach(listing => {
+            // Don't show user's own listings as "new food available"
+            if (listing.providerId === currentUserId) return;
+            
             const timeSinceCreation = Date.now() - new Date(listing.createdAt).getTime();
-            if (timeSinceCreation < 24 * 60 * 60 * 1000) {
+            // Show listings created in the last 24 hours and are still available
+            if (timeSinceCreation < 24 * 60 * 60 * 1000 && listing.status === 'available' && listing.quantity > 0) {
                 const id = `listing-${listing._id}`;
                 combinedNotifications.push({ 
-                    listingId: listing._id, id, title: '✨ New Food Available', 
-                    message: `${listing.title} at ${listing.location}`, time: getTimeAgo(listing.createdAt), 
-                    createdAt: new Date(listing.createdAt), type: 'new-food', 
-                    urgent: getListingStatus(listing.expiryTime).text === 'Urgent', 
-                    read: readIds.has(id), priority: 'medium'
+                    listingId: listing._id, 
+                    id, 
+                    title: '✨ New Food Available', 
+                    message: `${listing.title} at ${listing.location}`, 
+                    time: getTimeAgo(listing.createdAt), 
+                    createdAt: new Date(listing.createdAt), 
+                    type: 'new-food', 
+                    urgent: getListingStatus(listing.expiryTime, listing.quantity).text === 'Urgent', 
+                    read: readIds.has(id), 
+                    priority: 'medium'
                 });
             }
-            if (getListingStatus(listing.expiryTime).text === 'Urgent') {
+            
+            // Show urgent notifications for available listings (regardless of owner)
+            if (getListingStatus(listing.expiryTime, listing.quantity).text === 'Urgent' && listing.status === 'available') {
                 const id = `urgent-${listing._id}`;
                 combinedNotifications.push({ 
-                    listingId: listing._id, id, title: '🔥 Urgent: Food Expiring Soon', 
-                    message: `${listing.title} is expiring soon`, time: getTimeAgo(listing.createdAt), 
-                    createdAt: new Date(listing.createdAt), type: 'urgent', urgent: true, 
-                    read: readIds.has(id), priority: 'high'
+                    listingId: listing._id, 
+                    id, 
+                    title: '🔥 Urgent: Food Expiring Soon', 
+                    message: `${listing.title} is expiring soon`, 
+                    time: getTimeAgo(listing.createdAt), 
+                    createdAt: new Date(listing.createdAt), 
+                    type: 'urgent', 
+                    urgent: true, 
+                    read: readIds.has(id), 
+                    priority: 'high'
                 });
             }
         });
     }
     
+    // Handle booking notifications for both providers and recipients
     if (bookingsData.success && Array.isArray(bookingsData.data)) {
         bookingsData.data.forEach(booking => {
             const foodTitle = booking.listingId?.title || 'a food item';
             const listingId = booking.listingId?._id;
             if (!listingId) return;
+            
             let notificationData;
-            if (booking.userRole === 'recipient') {
+            
+            if (booking.userRole === 'recipient' && booking.recipientId === currentUserId) {
                 switch (booking.status) {
                     case 'approved':
-                        notificationData = { id: `booking-conf-${booking._id}`, title: '✅ Claim Confirmed', message: `Your claim for ${foodTitle} is confirmed.`, time: getTimeAgo(booking.approvedAt || booking.updatedAt), createdAt: new Date(booking.approvedAt || booking.updatedAt), type: 'confirmation', priority: 'medium' };
+                        notificationData = { 
+                            id: `booking-conf-${booking._id}`, 
+                            title: '✅ Claim Confirmed', 
+                            message: `Your claim for ${foodTitle} has been approved. You can now collect it.`, 
+                            time: getTimeAgo(booking.approvedAt || booking.updatedAt), 
+                            createdAt: new Date(booking.approvedAt || booking.updatedAt), 
+                            type: 'confirmation', 
+                            priority: 'high' 
+                        };
                         break;
                     case 'cancelled':
-                        notificationData = { id: `booking-cancel-${booking._id}`, title: '🚫 Claim Cancelled', message: `Your claim for ${foodTitle} was cancelled.`, time: getTimeAgo(booking.cancelledAt || booking.updatedAt), createdAt: new Date(booking.cancelledAt || booking.updatedAt), type: 'cancellation', priority: 'medium' };
+                        notificationData = { 
+                            id: `booking-cancel-${booking._id}`, 
+                            title: '🚫 Claim Cancelled', 
+                            message: `Your claim for ${foodTitle} was cancelled.`, 
+                            time: getTimeAgo(booking.cancelledAt || booking.updatedAt), 
+                            createdAt: new Date(booking.cancelledAt || booking.updatedAt), 
+                            type: 'cancellation', 
+                            priority: 'medium' 
+                        };
                         break;
                     case 'rejected':
-                        notificationData = { id: `booking-reject-${booking._id}`, title: '❌ Claim Rejected', message: `Unfortunately, your claim for ${foodTitle} was rejected.`, time: getTimeAgo(booking.rejectedAt || booking.updatedAt), createdAt: new Date(booking.rejectedAt || booking.updatedAt), type: 'rejection', priority: 'medium' };
+                        notificationData = { 
+                            id: `booking-reject-${booking._id}`, 
+                            title: '❌ Claim Rejected', 
+                            message: `Unfortunately, your claim for ${foodTitle} was rejected.`, 
+                            time: getTimeAgo(booking.rejectedAt || booking.updatedAt), 
+                            createdAt: new Date(booking.rejectedAt || booking.updatedAt), 
+                            type: 'rejection', 
+                            priority: 'medium' 
+                        };
                         break;
-                    // --- ADDED: Completed notification for recipient ---
                     case 'completed':
-                        notificationData = { id: `booking-comp-${booking._id}`, title: '✅ Order Completed', message: `You have successfully received ${foodTitle}. Enjoy!`, time: getTimeAgo(booking.completedAt || booking.updatedAt), createdAt: new Date(booking.completedAt || booking.updatedAt), type: 'confirmation', priority: 'medium' };
+                        notificationData = { 
+                            id: `booking-comp-${booking._id}`, 
+                            title: '🎉 Order Completed', 
+                            message: `You have successfully received ${foodTitle}. Thank you for reducing food waste!`, 
+                            time: getTimeAgo(booking.completedAt || booking.updatedAt), 
+                            createdAt: new Date(booking.completedAt || booking.updatedAt), 
+                            type: 'confirmation', 
+                            priority: 'medium' 
+                        };
                         break;
                 }
-            } else if (booking.userRole === 'provider') {
+            } else if (booking.userRole === 'provider' && booking.listingId?.providerId === currentUserId) {
                 switch (booking.status) {
                     case 'pending':
-                        notificationData = { id: `booking-req-${booking._id}`, title: '👤 New Claim Request', message: `You have a new claim request for ${foodTitle}.`, time: getTimeAgo(booking.createdAt), createdAt: new Date(booking.createdAt), type: 'request', urgent: true, priority: 'high' };
+                        notificationData = { 
+                            id: `booking-req-${booking._id}`, 
+                            title: '👤 New Claim Request', 
+                            message: `You have a new claim request for ${foodTitle}. Please review and respond.`, 
+                            time: getTimeAgo(booking.createdAt), 
+                            createdAt: new Date(booking.createdAt), 
+                            type: 'request', 
+                            urgent: true, 
+                            priority: 'high' 
+                        };
                         break;
                     case 'cancelled':
-                         notificationData = { id: `prov-booking-cancel-${booking._id}`, title: '🚫 Claim Cancelled', message: `The claim for your item "${foodTitle}" has been cancelled.`, time: getTimeAgo(booking.cancelledAt || booking.updatedAt), createdAt: new Date(booking.cancelledAt || booking.updatedAt), type: 'cancellation', priority: 'medium' };
-                         break;
-                    // --- ADDED: Completed notification for provider ---
+                        notificationData = { 
+                            id: `prov-booking-cancel-${booking._id}`, 
+                            title: '🚫 Claim Cancelled', 
+                            message: `The claim for your item "${foodTitle}" has been cancelled by the recipient.`, 
+                            time: getTimeAgo(booking.cancelledAt || booking.updatedAt), 
+                            createdAt: new Date(booking.cancelledAt || booking.updatedAt), 
+                            type: 'cancellation', 
+                            priority: 'medium' 
+                        };
+                        break;
                     case 'completed':
-                        notificationData = { id: `prov-booking-comp-${booking._id}`, title: '🎉 Donation Completed', message: `Your donation of ${foodTitle} has been successfully collected.`, time: getTimeAgo(booking.completedAt || booking.updatedAt), createdAt: new Date(booking.completedAt || booking.updatedAt), type: 'confirmation', priority: 'medium' };
+                        notificationData = { 
+                            id: `prov-booking-comp-${booking._id}`, 
+                            title: '🎉 Donation Completed', 
+                            message: `Your donation of ${foodTitle} has been successfully collected. Great job reducing food waste!`, 
+                            time: getTimeAgo(booking.completedAt || booking.updatedAt), 
+                            createdAt: new Date(booking.completedAt || booking.updatedAt), 
+                            type: 'confirmation', 
+                            priority: 'medium' 
+                        };
                         break;
                 }
             }
+            
             if (notificationData) {
                 combinedNotifications.push({
-                    ...notificationData, listingId, read: readIds.has(notificationData.id), urgent: notificationData.urgent || false,
+                    ...notificationData, 
+                    listingId, 
+                    read: readIds.has(notificationData.id), 
+                    urgent: notificationData.urgent || false,
                 });
             }
         });
     }
     
+    // Remove duplicates and sort by creation time
     const uniqueNotifications = Array.from(new Map(combinedNotifications.map(item => [item.id, item])).values());
     uniqueNotifications.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     return uniqueNotifications;
@@ -154,18 +235,33 @@ export const NotificationProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [allListings, setAllListings] = useState([]);
+  const [userRole, setUserRole] = useState(null);
+
+  // Determine user role based on current path
+  useEffect(() => {
+    if (pathname?.includes('/providerDashboard')) {
+      setUserRole('provider');
+    } else if (pathname?.includes('/recipientDashboard')) {
+      setUserRole('recipient');
+    } else {
+      // Default to recipient if unclear
+      setUserRole('recipient');
+    }
+  }, [pathname]);
 
   const fetchAndSetNotifications = useCallback(async () => {
-    if (!user) {
+    if (!user || !userRole) {
         setIsLoading(false);
         return;
-    };
+    }
+    
     setIsLoading(true);
     try {
       const [listingsRes, bookingsRes] = await Promise.all([
         fetch('/api/listings'),
         fetch(`/api/bookings?userId=${user.id}&role=all`)
       ]);
+      
       if (!listingsRes.ok || !bookingsRes.ok) throw new Error('Failed to fetch data.');
       
       const listingsData = await listingsRes.json();
@@ -173,7 +269,8 @@ export const NotificationProvider = ({ children }) => {
       
       if(listingsData.success) setAllListings(listingsData.data);
       
-      const generated = generateNotificationsFromData(listingsData, bookingsData);
+      // Generate notifications based on user role and context
+      const generated = generateNotificationsFromData(listingsData, bookingsData, user.id, userRole);
       setNotifications(generated);
       setUnreadCount(generated.filter(n => !n.read).length);
     } catch (error) {
@@ -181,13 +278,13 @@ export const NotificationProvider = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, userRole]);
 
   useEffect(() => {
-    if (isLoaded && user) {
+    if (isLoaded && user && userRole) {
         fetchAndSetNotifications();
     }
-  }, [isLoaded, user, fetchAndSetNotifications]);
+  }, [isLoaded, user, userRole, fetchAndSetNotifications]);
 
   const markAsRead = useCallback((id) => {
     addReadNotificationId(id);
@@ -203,13 +300,6 @@ export const NotificationProvider = ({ children }) => {
     setNotifications(updatedNotifications);
     setUnreadCount(0);
   }, [notifications]);
-  
-  useEffect(() => {
-    if (pathname === '/recipientDashboard/notifications' && unreadCount > 0) {
-      // This effect is here in case you want to add logic
-      // for automatically clearing the dot when the page is visited.
-    }
-  }, [pathname, unreadCount]);
 
   const value = {
     notifications,
@@ -218,7 +308,8 @@ export const NotificationProvider = ({ children }) => {
     allListings,
     markAsRead,
     markAllAsRead,
-    refetch: fetchAndSetNotifications
+    refetch: fetchAndSetNotifications,
+    userRole
   };
 
   return (
