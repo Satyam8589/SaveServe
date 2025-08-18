@@ -109,6 +109,10 @@ function generateNotificationsFromData(listingsData, bookingsData) {
                     case 'rejected':
                         notificationData = { id: `booking-reject-${booking._id}`, title: '❌ Claim Rejected', message: `Unfortunately, your claim for ${foodTitle} was rejected.`, time: getTimeAgo(booking.rejectedAt || booking.updatedAt), createdAt: new Date(booking.rejectedAt || booking.updatedAt), type: 'rejection', priority: 'medium' };
                         break;
+                    // --- ADDED: Completed notification for recipient ---
+                    case 'completed':
+                        notificationData = { id: `booking-comp-${booking._id}`, title: '✅ Order Completed', message: `You have successfully received ${foodTitle}. Enjoy!`, time: getTimeAgo(booking.completedAt || booking.updatedAt), createdAt: new Date(booking.completedAt || booking.updatedAt), type: 'confirmation', priority: 'medium' };
+                        break;
                 }
             } else if (booking.userRole === 'provider') {
                 switch (booking.status) {
@@ -118,6 +122,10 @@ function generateNotificationsFromData(listingsData, bookingsData) {
                     case 'cancelled':
                          notificationData = { id: `prov-booking-cancel-${booking._id}`, title: '🚫 Claim Cancelled', message: `The claim for your item "${foodTitle}" has been cancelled.`, time: getTimeAgo(booking.cancelledAt || booking.updatedAt), createdAt: new Date(booking.cancelledAt || booking.updatedAt), type: 'cancellation', priority: 'medium' };
                          break;
+                    // --- ADDED: Completed notification for provider ---
+                    case 'completed':
+                        notificationData = { id: `prov-booking-comp-${booking._id}`, title: '🎉 Donation Completed', message: `Your donation of ${foodTitle} has been successfully collected.`, time: getTimeAgo(booking.completedAt || booking.updatedAt), createdAt: new Date(booking.completedAt || booking.updatedAt), type: 'confirmation', priority: 'medium' };
+                        break;
                 }
             }
             if (notificationData) {
