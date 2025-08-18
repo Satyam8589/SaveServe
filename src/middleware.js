@@ -64,6 +64,8 @@ export default clerkMiddleware(async (auth, req) => {
     "/analytics/(.*)",
     "/sign-in(.*)",
     "/sign-up(.*)",
+    "/map",
+    "/map(.*)",
   ]);
 
   console.log("Current path in middleware:", currentPath);
