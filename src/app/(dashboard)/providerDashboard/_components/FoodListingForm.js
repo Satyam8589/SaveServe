@@ -423,10 +423,12 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
             </div>
           ) : (
             <div className="relative">
-              <Image
+              {/* Use regular img tag for base64 data URLs */}
+              <img
                 src={imagePreview}
                 alt="Food preview"
                 className="w-full h-48 object-cover rounded-lg"
+                style={{ maxWidth: "100%", height: "192px" }}
               />
               <button
                 type="button"
