@@ -1,7 +1,6 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
-import Footer from "@/components/Footer";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { Toaster } from "sonner";
@@ -56,7 +55,6 @@ export default async function RootLayout({ children }) {
                 <Analytics />
               </main>
               
-              <Footer />
               <Toaster richColors />
             </Providers>
           </ThemeProvider>
