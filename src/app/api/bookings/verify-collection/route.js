@@ -1,230 +1,159 @@
-// app/api/bookings/verify-collection/route.js (Updated with Firestore notifications)
-import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import { connectDB } from '@/lib/db';
-import Booking from '@/models/Booking';
-import FoodListing from '@/models/FoodListing';
-import UserProfile from '@/models/UserProfile';
-import { QRCodeService } from '@/lib/qrCodeService';
-import { sendCompleteNotification, NOTIFICATION_TYPES } from '@/lib/firestoreNotificationService';
-import mongoose from 'mongoose';
+// File: app/api/bookings/verify-collection/route.js
+import { NextResponse } from "next/server";
+import mongoose from "mongoose";
+import dbConnect from "@/lib/dbConnect";
+import Booking from "@/models/Booking";
+import Listing from "@/models/Listing";
+import UserProfile from "@/models/UserProfile";
+import { sendCompleteNotification } from "@/lib/notifications";
 
-export async function POST(request) {
-  const { userId: providerClerkId } = await auth(request);
-
-  if (!providerClerkId) {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-  }
-
-  await connectDB();
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
+// POST /api/bookings/verify-collection
+export async function POST(req) {
   try {
-    const body = await request.json();
-    const { qrData, collectionCode, listingId } = body;
+    await dbConnect();
+    const { bookingId, qrCode, providerClerkId } = await req.json();
 
-    if (!listingId) {
-        throw new Error("Listing ID is required for verification.");
+    if (!bookingId || !qrCode || !providerClerkId) {
+      return NextResponse.json(
+        { success: false, message: "Missing required fields" },
+        { status: 400 }
+      );
     }
 
-    const listing = await FoodListing.findById(listingId).session(session);
-    if (!listing) {
-      throw new Error('Food listing not found');
-    }
+    // Start transaction
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    if (listing.providerId !== providerClerkId) {
-      throw new Error('Not authorized to verify collections for this listing');
-    }
-
-    let booking = null;
-
-    if (qrData) {
-      const qrVerification = QRCodeService.verifyQRData(qrData);
-      if (!qrVerification.isValid) {
-        throw new Error('Invalid QR code format');
-      }
-
-      const { bookingId, recipientId, listingId: qrListingId } = qrVerification.data;
-
-      if (qrListingId !== listingId) {
-        throw new Error('QR code does not match this listing');
-      }
-
-      booking = await Booking.findById(bookingId).session(session);
+    try {
+      // 1. Fetch booking
+      const booking = await Booking.findById(bookingId).session(session);
       if (!booking) {
-        throw new Error('Booking not found from QR code');
+        throw new Error("Booking not found");
       }
 
-      if (booking.recipientId !== recipientId) {
-        throw new Error('QR code does not belong to the booking recipient');
+      // 2. Fetch listing
+      const listing = await Listing.findById(booking.listingId).session(session);
+      if (!listing) {
+        throw new Error("Listing not found");
       }
-    } else if (collectionCode) {
-      booking = await Booking.findOne({
-        listingId: listingId,
-        collectionCode: collectionCode,
-      }).session(session);
 
-      if (!booking) {
-        throw new Error('Invalid collection code for this listing');
+      // 3. Verify provider owns this listing
+      if (listing.providerId.toString() !== providerClerkId.toString()) {
+        throw new Error("Not authorized to verify collections for this listing");
       }
-    } else {
-      throw new Error('Either QR data or collection code is required');
-    }
 
-    if (booking.status === 'collected') {
-        throw new Error('This booking has already been collected.');
-    }
-
-    if (booking.status !== 'approved') {
-      throw new Error(`Cannot collect a booking with status: ${booking.status}`);
-    }
-
-    if (booking.qrCodeExpiry && new Date(booking.qrCodeExpiry) < new Date()) {
-        booking.status = 'expired';
+      // 4. Expiry check
+      if (booking.expiresAt && new Date() > booking.expiresAt) {
+        booking.status = "expired";
         await booking.save({ session });
-        throw new Error('This booking has expired.');
-    }
 
-    const collectionTime = new Date();
-    booking.status = 'collected';
-    booking.collectedAt = collectionTime;
-    booking.collectionVerifiedBy = providerClerkId;
-    
-    // --- THE FIX ---
-    const embeddedBooking = listing.bookings.find(
-      b => b.bookingRefId && b.bookingRefId.toString() === booking._id.toString()
-    );
+        await session.commitTransaction();
+        session.endSession();
 
-    if (embeddedBooking) {
-      embeddedBooking.status = 'collected';
-    } else {
-      console.warn(`Could not find embedded booking ref ${booking._id} in listing ${listing._id}`);
-    }
-
-    await booking.save({ session });
-    await listing.save({ session });
-
-    // Update stats (optional, but good to have in the transaction)
-    await UserProfile.findOneAndUpdate(
-      { userId: providerClerkId }, 
-      { 
-        $inc: { 
-          'stats.totalItemsShared': booking.approvedQuantity, 
-          'stats.totalBookingsCompleted': 1 
-        }, 
-        $set: { 'stats.lastActivity': collectionTime } 
-      }, 
-      { session, new: true }
-    );
-    
-    await UserProfile.findOneAndUpdate(
-      { userId: booking.recipientId }, 
-      { 
-        $inc: { 
-          'stats.totalItemsClaimed': booking.approvedQuantity, 
-          'stats.totalBookingsCompleted': 1 
-        }, 
-        $set: { 'stats.lastActivity': collectionTime } 
-      }, 
-      { session, new: true }
-    );
-
-    await session.commitTransaction();
-
-    const recipient = await UserProfile.findOne({ userId: booking.recipientId }).lean();
-
-    // 🔔 Send collection confirmation notification to recipient (FCM + Firestore)
-    try {
-      console.log('📢 Sending collection confirmation to recipient:', booking.recipientId);
-      
-      const recipientNotificationResult = await sendCompleteNotification(
-        booking.recipientId,
-        'Food Collected Successfully! 🎉',
-        `You've successfully collected "${listing.title}". Enjoy your meal!`,
-        {
-          bookingId: booking._id.toString(),
-          listingId: listing._id.toString(),
-          action: 'collection_confirmed',
-          collectedAt: collectionTime.toISOString()
-        },
-        {
-          type: NOTIFICATION_TYPES.COLLECTION_CONFIRMED,
-          bookingId: booking._id.toString(),
-          listingId: listing._id.toString(),
-          listingTitle: listing.title,
-          providerName: listing.providerName,
-          quantity: booking.approvedQuantity,
-          unit: listing.unit || 'items',
-          collectedAt: collectionTime.toISOString()
-        }
-      );
-
-      console.log('📨 Collection confirmation result:', recipientNotificationResult);
-    } catch (notificationError) {
-      console.error('❌ Failed to send collection confirmation:', notificationError);
-    }
-
-    // 🔔 Send collection notification to provider (FCM + Firestore) 
-    try {
-      console.log('📢 Sending collection success confirmation to provider:', providerClerkId);
-      
-      const providerNotificationResult = await sendCompleteNotification(
-        providerClerkId,
-        'Food Collected Successfully! ✅',
-        `${recipient?.fullName || 'A recipient'} has collected "${listing.title}". Thanks for sharing food!`,
-        {
-          bookingId: booking._id.toString(),
-          listingId: listing._id.toString(),
-          recipientId: booking.recipientId,
-          action: 'collection_completed_confirmation'
-        },
-        {
-          type: NOTIFICATION_TYPES.COLLECTION_COMPLETED_CONFIRMATION,
-          bookingId: booking._id.toString(),
-          listingId: listing._id.toString(),
-          listingTitle: listing.title,
-          recipientId: booking.recipientId,
-          recipientName: recipient?.fullName || 'A recipient',
-          quantity: booking.approvedQuantity,
-          unit: listing.unit || 'items',
-          collectedAt: collectionTime.toISOString()
-        }
-      );
-
-      console.log('📨 Provider collection confirmation result:', providerNotificationResult);
-    } catch (notificationError) {
-      console.error('❌ Failed to send provider collection confirmation:', notificationError);
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Food collection verified successfully!',
-      data: {
-        booking: {
-          _id: booking._id,
-          status: booking.status,
-          collectedAt: booking.collectedAt,
-          recipientName: recipient ? recipient.fullName : 'Unknown',
-        },
-        listing: {
-          _id: listing._id,
-          title: listing.title,
-        }
+        return NextResponse.json(
+          { success: false, message: "Booking has expired" },
+          { status: 400 }
+        );
       }
-    });
 
+      // 5. QR/Collection code verification
+      if (booking.qrCode !== qrCode && booking.collectionCode !== qrCode) {
+        throw new Error("Invalid QR or collection code");
+      }
+
+      // 6. Mark as collected
+      const collectionTime = new Date();
+      booking.status = "collected";
+      booking.collectedAt = collectionTime;
+      booking.collectionVerifiedBy = providerClerkId;
+      await booking.save({ session });
+
+      // 7. Update embedded booking in listing
+      const embeddedBooking = listing.bookings.find(
+        (b) =>
+          b.bookingRefId &&
+          b.bookingRefId.toString() === booking._id.toString()
+      );
+
+      if (embeddedBooking) {
+        embeddedBooking.status = "collected";
+        embeddedBooking.collectedAt = collectionTime;
+        embeddedBooking.collectionVerifiedBy = providerClerkId;
+      }
+      await listing.save({ session });
+
+      // ✅ Commit DB changes before notifications
+      await session.commitTransaction();
+      session.endSession();
+
+      // 8. Fetch users (outside transaction)
+      const recipient = await UserProfile.findOne({
+        userId: booking.recipientId,
+      }).lean();
+
+      const provider = await UserProfile.findOne({
+        userId: listing.providerId,
+      }).lean();
+
+      // 9. Send notifications (non-blocking)
+      try {
+        if (recipient?.deviceToken) {
+          await sendCompleteNotification(
+            recipient.deviceToken,
+            "Booking Collected",
+            `Your booking for "${listing.title}" has been successfully collected.`,
+            {
+              type: "booking_collected",
+              bookingId: booking._id.toString(),
+              listingId: listing._id.toString(),
+            }
+          );
+        }
+
+        if (provider?.deviceToken) {
+          await sendCompleteNotification(
+            provider.deviceToken,
+            "Collection Verified",
+            `You have successfully verified collection for "${listing.title}".`,
+            {
+              type: "collection_verified",
+              bookingId: booking._id.toString(),
+              listingId: listing._id.toString(),
+            }
+          );
+        }
+      } catch (notifyErr) {
+        console.error("Notification error:", notifyErr);
+      }
+
+      // 10. Success response
+      return NextResponse.json(
+        {
+          success: true,
+          message: "Booking collection verified successfully",
+          booking,
+        },
+        { status: 200 }
+      );
+    } catch (error) {
+      // Rollback transaction
+      await session.abortTransaction();
+      session.endSession();
+      console.error("Collection verification failed:", error);
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: error.message || "Failed to verify collection",
+        },
+        { status: error.message?.includes("not found") ? 404 : 400 }
+      );
+    }
   } catch (error) {
-    await session.abortTransaction();
-    console.error('❌ Collection verification error:', error);
+    console.error("Route handler error:", error);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: error.message || 'Failed to verify collection'
-      },
-      { status: 400 } // Use 400 for client-side errors, 500 for true server errors
+      { success: false, message: "Internal server error" },
+      { status: 500 }
     );
-  } finally {
-    session.endSession();
   }
 }
