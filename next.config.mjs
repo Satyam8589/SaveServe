@@ -1,6 +1,16 @@
+// next.config.js
+import withTM from "next-transpile-modules";
+
+// Tell Next.js to transpile CJS packages like leaflet-routing-machine
+const withTranspile = withTM([
+  "leaflet-routing-machine",
+]);
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    async headers() {
+  reactStrictMode: true,
+
+  async headers() {
     return [
       {
         source: '/firebase-messaging-sw.js',
@@ -19,4 +29,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withTranspile(nextConfig);
