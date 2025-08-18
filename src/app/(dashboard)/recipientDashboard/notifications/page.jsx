@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import {
   Bell, Eye, Loader2, AlertCircle, Trash2, XCircle, CheckCircle2,
@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-// --- 1. IMPORT the context hook ---
 import { useNotifications } from "@/contexts/NotificationContext";
 
 // --- HELPERS needed for components in this file ---
@@ -44,19 +43,24 @@ const notificationConfig = {
 const getNotificationConfig = (type) => notificationConfig[type] || notificationConfig.default;
 
 export default function NotificationsPage() {
-  // --- 2. GET everything from the context ---
   const { 
     notifications, 
     unreadCount, 
     isLoading, 
     allListings, 
     markAsRead, 
-    markAllAsRead 
+    markAllAsRead,
+    refetch 
   } = useNotifications();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [modalData, setModalData] = useState({ isOpen: false, listing: null });
+  
+  // --- ADDED: This hook re-fetches notifications every time the page is visited ---
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
   
   const handleNotificationClick = useCallback((listingId) => {
     if (!listingId) return;
@@ -64,13 +68,13 @@ export default function NotificationsPage() {
     if (listingDetails) {
       setModalData({ isOpen: true, listing: listingDetails });
     } else {
-       console.warn("Details for this listing were not found.");
+      console.warn("Details for this listing were not found.");
     }
   }, [allListings]);
   
   const handleViewAndMarkRead = useCallback((notification) => {
     if (!notification.read) {
-      markAsRead(notification.id); // Use context function
+      markAsRead(notification.id);
     }
     handleNotificationClick(notification.listingId);
   }, [markAsRead, handleNotificationClick]);
@@ -232,7 +236,7 @@ const FoodDetailModal = React.memo(({ isOpen, listing, onClose }) => {
                   {status.isExpired || isPlaceholder ? 'Unavailable' : 'Claim This Food'}
                 </Button>
                  {(!status.isExpired && !isPlaceholder) && (
-                   <p className="text-center text-emerald-300 text-sm animate-pulse">Hurry up and order fast! 🏃💨</p>
+                    <p className="text-center text-emerald-300 text-sm animate-pulse">Hurry up and order fast! 🏃💨</p>
                 )}
               </div>
             </div>
@@ -242,10 +246,10 @@ const FoodDetailModal = React.memo(({ isOpen, listing, onClose }) => {
                 <p className="text-gray-300">{listing.description || "No description provided."}</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                 <InfoCard Icon={Package} title="Quantity" value={isPlaceholder ? 'N/A' : `${listing.quantity} items`} color="text-blue-400" />
-                 <InfoCard Icon={Info} title="Freshness" value={listing.freshnessStatus} color="text-green-400" isPlaceholder={isPlaceholder}/>
-                 <InfoCard Icon={MapPin} title="Location" value={listing.location} color="text-purple-400" isPlaceholder={isPlaceholder}/>
-                 <InfoCard Icon={Clock} title="Pickup Window" value={isPlaceholder ? 'N/A' : `${formatDateTime(listing.availabilityWindow?.startTime)} - ${formatDateTime(listing.availabilityWindow?.endTime)}`} color="text-orange-400" isPlaceholder={isPlaceholder}/>
+                  <InfoCard Icon={Package} title="Quantity" value={isPlaceholder ? 'N/A' : `${listing.quantity} items`} color="text-blue-400" />
+                  <InfoCard Icon={Info} title="Freshness" value={listing.freshnessStatus} color="text-green-400" isPlaceholder={isPlaceholder}/>
+                  <InfoCard Icon={MapPin} title="Location" value={listing.location} color="text-purple-400" isPlaceholder={isPlaceholder}/>
+                  <InfoCard Icon={Clock} title="Pickup Window" value={isPlaceholder ? 'N/A' : `${formatDateTime(listing.availabilityWindow?.startTime)} - ${formatDateTime(listing.availabilityWindow?.endTime)}`} color="text-orange-400" isPlaceholder={isPlaceholder}/>
               </div>
             </div>
           </div>

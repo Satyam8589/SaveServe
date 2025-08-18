@@ -57,6 +57,14 @@ export async function PATCH(request, { params }) {
         status: 'available',
         currentBooking: null
       });
+    } else if (status === 'completed') { // --- ADDED THIS BLOCK ---
+      booking.completedAt = new Date();
+      // Mark listing as completed & unavailable
+      await FoodListing.findByIdAndUpdate(booking.listingId._id, {
+        status: 'completed',
+        quantity: 0, 
+        currentBooking: null
+      });
     }
 
     await booking.save();
