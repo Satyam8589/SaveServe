@@ -1,9 +1,9 @@
-// hooks/useNotifications.js (Fixed imports and fetchNotifications)
+// hooks/useNotifications.js (FIXED VERSION)
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { useUser } from '@clerk/nextjs';
+import { useUser, useAuth } from '@clerk/nextjs';
 import { useFirebaseAuth } from '@/components/FirebaseAuthProvider';
 import { 
   collection, 
@@ -15,25 +15,27 @@ import {
   startAfter,
   getDocs,
   doc,
-  getDoc
+  setDoc,
+  serverTimestamp
 } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebaseClient'; // ✅ Import auth from firebaseClient
+import { db, auth } from '@/lib/firebaseClient';
 
 const NOTIFICATIONS_QUERY_KEY = 'notifications';
 
 /**
  * Custom hook for managing user notifications with Firestore real-time updates
- * @param {string} userId - The current user ID
- * @param {object} options - Configuration options
  */
-export function useNotifications(userId, options = {}) {
+export function useNotifications(options = {}) {
   const {
     limit = 50,
     enableRealtime = true,
     filterUnread = false
   } = options;
 
-  const { user: clerkUser } = useUser();
+  // Get user ID from Clerk
+  const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
+  const userId = useAuth().userId; // This is the key fix - get userId from Clerk
+
   const { firebaseUser, isFirebaseAuthenticated, isLoading: isAuthLoading } = useFirebaseAuth();
   const queryClient = useQueryClient();
   const unsubscribeRef = useRef(null);
@@ -44,7 +46,22 @@ export function useNotifications(userId, options = {}) {
   const queryKey = [NOTIFICATIONS_QUERY_KEY, userId];
 
   // Check if we're ready to make Firestore queries
-  const isReady = !isAuthLoading && !!userId && !!firebaseUser && isFirebaseAuthenticated;
+  const isReady = isClerkLoaded && 
+                  !isAuthLoading && 
+                  !!userId && 
+                  !!firebaseUser && 
+                  isFirebaseAuthenticated && 
+                  firebaseUser.uid === userId;
+
+  console.log('🔥 useNotifications state:', {
+    isClerkLoaded,
+    isAuthLoading,
+    userId,
+    firebaseUserId: firebaseUser?.uid,
+    isFirebaseAuthenticated,
+    isReady,
+    userIdsMatch: firebaseUser?.uid === userId
+  });
 
   // React Query for initial data and caching
   const {
@@ -55,12 +72,13 @@ export function useNotifications(userId, options = {}) {
   } = useQuery({
     queryKey,
     queryFn: () => fetchNotifications(userId, { limit, filterUnread }),
-    enabled: isReady,
+    enabled: isReady, // Only run when everything is ready
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 30, // 30 minutes
     retry: (failureCount, error) => {
+      console.error('🔄 Query retry:', { failureCount, error: error?.code });
       // Don't retry if it's an authentication error
-      if (error?.code === 'permission-denied') {
+      if (error?.code === 'permission-denied' || error?.code === 'unauthenticated') {
         setAuthError(error);
         return false;
       }
@@ -75,58 +93,81 @@ export function useNotifications(userId, options = {}) {
 
     if (!isReady || !enableRealtime) {
       console.log('🔄 Not ready for real-time listener:', {
+        isReady,
+        enableRealtime,
+        isClerkLoaded,
         isAuthLoading,
         userId: !!userId,
         firebaseUser: !!firebaseUser,
-        isFirebaseAuthenticated
+        isFirebaseAuthenticated,
+        userIdsMatch: firebaseUser?.uid === userId
       });
       return;
     }
 
-    const notificationsRef = collection(db, 'notifications', userId, 'notifications');
-    let q = query(
-      notificationsRef,
-      orderBy('createdAt', 'desc'),
-      firestoreLimit(limit)
-    );
+    console.log('🔥 Setting up real-time notification listener for user:', userId);
+    console.log('🔑 Firebase user authenticated:', firebaseUser?.uid);
 
-    if (filterUnread) {
-      q = query(q, where('read', '==', false));
-    }
+    // Ensure parent document exists first
+    ensureUserNotificationDocument(userId).then(() => {
+      console.log('✅ Parent document ensured, setting up listener');
+      
+      const notificationsRef = collection(db, 'notifications', userId, 'notifications');
+      let q = query(
+        notificationsRef,
+        orderBy('createdAt', 'desc'),
+        firestoreLimit(limit)
+      );
 
-    console.log('🔄 Setting up real-time notification listener for user:', userId);
-    console.log('🔍 Firebase user authenticated:', firebaseUser?.uid);
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        setIsConnected(true);
-        setAuthError(null);
-        
-        const updatedNotifications = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate?.() || new Date(),
-          readAt: doc.data().readAt?.toDate?.() || null
-        }));
-
-        // Update React Query cache with real-time data
-        queryClient.setQueryData(queryKey, updatedNotifications);
-        
-        console.log(`📨 Real-time notification update: ${updatedNotifications.length} notifications`);
-      },
-      (error) => {
-        console.error('❌ Notification listener error:', error);
-        setIsConnected(false);
-        
-        if (error.code === 'permission-denied') {
-          setAuthError(error);
-          console.error('🔒 Permission denied - check Firebase Auth and Firestore rules');
-        }
+      if (filterUnread) {
+        q = query(q, where('read', '==', false));
       }
-    );
 
-    unsubscribeRef.current = unsubscribe;
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          setIsConnected(true);
+          setAuthError(null);
+          
+          console.log(`🔄 Real-time update: ${snapshot.size} documents`);
+          
+          const updatedNotifications = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              createdAt: data.createdAt?.toDate?.() || new Date(),
+              readAt: data.readAt?.toDate?.() || null
+            };
+          });
+
+          // Update React Query cache with real-time data
+          queryClient.setQueryData(queryKey, updatedNotifications);
+          
+          console.log(`🔨 Real-time notification update: ${updatedNotifications.length} notifications`);
+        },
+        (error) => {
+          console.error('❌ Notification listener error:', error);
+          setIsConnected(false);
+          
+          if (error.code === 'permission-denied' || error.code === 'unauthenticated') {
+            setAuthError(error);
+            console.error('🔒 Permission denied - check Firebase Auth and Firestore rules');
+            console.error('🔍 Debug info:', {
+              firebaseUserId: firebaseUser?.uid,
+              requestedUserId: userId,
+              match: firebaseUser?.uid === userId,
+              isAuthenticated: isFirebaseAuthenticated
+            });
+          }
+        }
+      );
+
+      unsubscribeRef.current = unsubscribe;
+    }).catch(error => {
+      console.error('❌ Failed to ensure parent document:', error);
+      setAuthError(error);
+    });
 
     return () => {
       console.log('🔇 Cleaning up notification listener');
@@ -221,7 +262,7 @@ export function useNotifications(userId, options = {}) {
   };
 
   // Combine loading states
-  const isLoading = isAuthLoading || isQueryLoading;
+  const isLoading = !isClerkLoaded || isAuthLoading || isQueryLoading;
 
   return {
     // Data
@@ -237,6 +278,7 @@ export function useNotifications(userId, options = {}) {
     // Authentication state
     isFirebaseAuthenticated,
     firebaseUser,
+    userId, // Include userId in return for debugging
     
     // Error handling
     error: error || authError,
@@ -258,63 +300,55 @@ export function useNotifications(userId, options = {}) {
 }
 
 /**
- * Enhanced fetch notifications with detailed debugging (FIXED)
+ * Ensure the parent notification document exists
+ */
+async function ensureUserNotificationDocument(userId) {
+  try {
+    const userNotificationDoc = doc(db, 'notifications', userId);
+    await setDoc(userNotificationDoc, {
+      createdAt: serverTimestamp(),
+      lastAccessed: serverTimestamp()
+    }, { merge: true });
+    console.log('✅ Parent notification document ensured for user:', userId);
+  } catch (error) {
+    console.error('❌ Failed to ensure parent document:', error);
+    throw error;
+  }
+}
+
+/**
+ * Enhanced fetch notifications with better error handling
  */
 async function fetchNotifications(userId, options = {}) {
   const { limit = 50, filterUnread = false, startAfterDoc = null } = options;
 
   try {
-    console.log('🔍 Starting fetchNotifications debug...');
+    console.log('🔍 Starting fetchNotifications...');
     console.log('🔍 User ID:', userId);
     console.log('🔍 Firebase Auth State:', auth.currentUser ? '✅ Authenticated' : '❌ Not authenticated');
     
-    if (auth.currentUser) {
-      console.log('🔍 Firebase UID:', auth.currentUser.uid);
-      
-      // Check if we can get an ID token
-      try {
-        const idToken = await auth.currentUser.getIdToken();
-        console.log('🎟️ ID Token available:', !!idToken);
-        console.log('🎟️ Token length:', idToken?.length);
-        
-        // Get token claims for debugging
-        const tokenResult = await auth.currentUser.getIdTokenResult();
-        console.log('🎟️ Token claims:', tokenResult.claims);
-      } catch (tokenError) {
-        console.error('❌ Token error:', tokenError);
-      }
+    if (!auth.currentUser) {
+      throw new Error('Not authenticated to Firebase');
     }
 
-    // First, try to access the parent document
-    console.log('🔍 Checking parent document access...');
-    const parentDocRef = doc(db, 'notifications', userId);
+    if (auth.currentUser.uid !== userId) {
+      throw new Error(`User ID mismatch: Firebase=${auth.currentUser.uid}, Requested=${userId}`);
+    }
+
+    console.log('🔍 Firebase UID:', auth.currentUser.uid);
     
-    try {
-      const parentDoc = await getDoc(parentDocRef);
-      console.log('🔍 Parent document exists:', parentDoc.exists());
-      console.log('🔍 Parent document data:', parentDoc.data());
-    } catch (parentError) {
-      console.error('❌ Parent document access failed:', parentError);
-      console.error('❌ Error code:', parentError.code);
-      console.error('❌ Error message:', parentError.message);
-      
-      // This might be the issue - security rules might not allow reading the parent doc
-      if (parentError.code === 'permission-denied') {
-        console.error('🚨 PERMISSION DENIED on parent document! Check Firestore security rules.');
-      }
-    }
-
-    // Now try the subcollection
-    console.log('🔍 Accessing notifications subcollection...');
+    // Ensure parent document exists
+    await ensureUserNotificationDocument(userId);
+    
+    // Now query the subcollection
+    console.log('🔍 Querying notifications subcollection...');
     const notificationsRef = collection(db, 'notifications', userId, 'notifications');
-    console.log('🔍 Subcollection reference created');
     
     let q = query(
       notificationsRef,
       orderBy('createdAt', 'desc'),
       firestoreLimit(limit)
     );
-    console.log('🔍 Query created with orderBy and limit');
 
     if (filterUnread) {
       q = query(q, where('read', '==', false));
@@ -331,19 +365,12 @@ async function fetchNotifications(userId, options = {}) {
     console.log('🔍 Query completed. Document count:', snapshot.size);
     
     if (snapshot.empty) {
-      console.log('🔭 No notifications found');
+      console.log('🔭 No notifications found for user:', userId);
       return [];
     }
     
     const notifications = snapshot.docs.map(doc => {
       const data = doc.data();
-      console.log(`🔍 Processing doc ${doc.id}:`, {
-        hasCreatedAt: !!data.createdAt,
-        createdAtType: typeof data.createdAt,
-        read: data.read,
-        title: data.title
-      });
-      
       return {
         id: doc.id,
         ...data,
@@ -353,7 +380,6 @@ async function fetchNotifications(userId, options = {}) {
     });
 
     console.log(`✅ Successfully fetched ${notifications.length} notifications for user ${userId}`);
-    console.log('🔍 First notification sample:', notifications[0]);
     
     return notifications;
   } catch (error) {
@@ -361,19 +387,14 @@ async function fetchNotifications(userId, options = {}) {
     console.error('❌ Error details:', {
       code: error.code,
       message: error.message,
-      name: error.name,
-      stack: error.stack
+      name: error.name
     });
     
     if (error.code === 'permission-denied') {
-      console.error('🚨 PERMISSION DENIED! Detailed debugging:');
+      console.error('🚨 PERMISSION DENIED! Debug info:');
       console.error('🔍 Current user:', auth.currentUser?.uid);
       console.error('🔍 Requested user:', userId);
       console.error('🔍 User ID match:', auth.currentUser?.uid === userId);
-      console.error('🔍 Auth state:', auth.currentUser ? 'authenticated' : 'not authenticated');
-      console.error('🔍 Suggestion: Check Firestore security rules for notifications subcollection');
-    } else if (error.code === 'not-found') {
-      console.error('🔍 Document/collection not found - this might be normal if no notifications exist yet');
     }
     
     throw error;
@@ -383,10 +404,18 @@ async function fetchNotifications(userId, options = {}) {
 /**
  * Hook for unread notifications count only (lighter weight)
  */
-export function useUnreadNotificationsCount(userId) {
+export function useUnreadNotificationsCount() {
+  const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
+  const userId = clerkUser?.id;
   const { firebaseUser, isFirebaseAuthenticated, isLoading: isAuthLoading } = useFirebaseAuth();
   const queryKey = [NOTIFICATIONS_QUERY_KEY, userId, 'unread-count'];
-  const isReady = !isAuthLoading && !!userId && !!firebaseUser && isFirebaseAuthenticated;
+  
+  const isReady = isClerkLoaded && 
+                  !isAuthLoading && 
+                  !!userId && 
+                  !!firebaseUser && 
+                  isFirebaseAuthenticated && 
+                  firebaseUser.uid === userId;
 
   const { data: unreadCount = 0 } = useQuery({
     queryKey,
@@ -397,7 +426,7 @@ export function useUnreadNotificationsCount(userId) {
     enabled: isReady,
     staleTime: 1000 * 60 * 2, // 2 minutes
     retry: (failureCount, error) => {
-      if (error?.code === 'permission-denied') {
+      if (error?.code === 'permission-denied' || error?.code === 'unauthenticated') {
         return false;
       }
       return failureCount < 3;
