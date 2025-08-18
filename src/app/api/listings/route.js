@@ -10,6 +10,48 @@ import {
   NOTIFICATION_TYPES 
 } from '@/lib/firestoreNotificationService';
 
+// GET - Retrieve listings with pagination and filtering
+export async function GET(request) {
+  try {
+    await connectDB();
+
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const providerId = searchParams.get('providerId');
+
+    const query = {};
+    if (providerId) {
+      query.providerId = providerId;
+    }
+
+    const listings = await FoodListing.find(query)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    const total = await FoodListing.countDocuments(query);
+
+    return NextResponse.json({
+      success: true,
+      data: listings,
+      pagination: {
+        current: page,
+        pages: Math.ceil(total / limit),
+        total: total,
+      },
+    });
+  } catch (error) {
+    console.error('GET /api/listings error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch listings' },
+      { status: 500 }
+    );
+  }
+}
+
+// POST - Create new listing with FCM + Firestore notifications
+
 // POST - Create new listing with FCM + Firestore notifications
 export async function POST(request) {
   try {
