@@ -19,6 +19,7 @@ export const metadata = {
   description: "Connect with doctors anytime, anywhere",
 };
 
+
 export default async function RootLayout({ children }) {
   const user = await currentUser();
 
