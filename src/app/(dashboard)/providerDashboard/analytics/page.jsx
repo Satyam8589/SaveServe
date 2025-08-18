@@ -625,21 +625,7 @@ export default function ProviderAnalyticsPage() {
           </Card>
         </section>
 
-        {/* Footer */}
-        <footer className="text-center py-8 border-t border-gray-800">
-          <div className="max-w-2xl mx-auto">
-            <p className="text-gray-500 text-sm mb-2">
-              Analytics data is updated in real-time. Recommendations are generated based on your recent activity patterns.
-            </p>
-            <div className="flex items-center justify-center space-x-6 text-xs text-gray-600">
-              <span>Last sync: {new Date().toLocaleTimeString()}</span>
-              <span>•</span>
-              <span>Data retention: 90 days</span>
-              <span>•</span>
-              <span>Auto-refresh: 5 mins</span>
-            </div>
-          </div>
-        </footer>
+        
       </div>
     </div>
   );
