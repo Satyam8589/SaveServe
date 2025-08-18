@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import QRCodeDisplay from "@/components/QRCodeDisplay";
+import DirectionModal from "@/components/DirectionModal"; // Import the new modal
 import { useRouter } from "next/navigation";
 import {
   useUserBookings,
@@ -136,6 +137,10 @@ const IntegratedClaimsPage = () => {
   const [showContactModal, setShowContactModal] = useState(false);
   const [providerDetails, setProviderDetails] = useState(null);
   const [isFetchingProvider, setIsFetchingProvider] = useState(false);
+
+  // State for the map modal
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [mapLocations, setMapLocations] = useState({ provider: null, recipient: null });
 
   const rateBookingMutation = useRateBooking();
   const cancelBookingMutation = useCancelBooking();
@@ -273,6 +278,32 @@ const IntegratedClaimsPage = () => {
   const handleCloseContactModal = () => {
     setShowContactModal(false);
     setProviderDetails(null);
+  };
+
+  const handleDirectionsClick = async (claim) => {
+    if (!user || !claim.providerId) {
+      toast({ title: "Error", description: "Cannot get directions. User or provider information is missing." });
+      return;
+    }
+
+    try {
+      const response = await axios.get('/api/users/locations');
+      if (response.data && response.data.validLocations) {
+        const locations = response.data.validLocations;
+        const provider = locations.find(loc => loc.id === claim.providerId);
+        const recipient = locations.find(loc => loc.id === user.id);
+
+        if (provider && recipient) {
+          setMapLocations({ provider, recipient });
+          setShowMapModal(true);
+        } else {
+          toast({ title: "Error", description: "Could not find location data for provider or recipient." });
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch locations for directions:", error);
+      toast({ title: "Error", description: "Failed to fetch location data." });
+    }
   };
 
   // Helper functions using enriched data
@@ -491,9 +522,7 @@ const IntegratedClaimsPage = () => {
                     size="sm"
                     variant="outline"
                     className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                    onClick={() => {
-                      /* Implement directions */
-                    }}
+                    onClick={() => handleDirectionsClick(claim)}
                   >
                     <Navigation className="h-4 w-4 mr-2" />
                     Directions
@@ -573,6 +602,14 @@ const IntegratedClaimsPage = () => {
           provider={providerDetails}
           isLoading={isFetchingProvider}
           onClose={handleCloseContactModal}
+        />
+      )}
+
+      {showMapModal && (
+        <DirectionModal
+          provider={mapLocations.provider}
+          recipient={mapLocations.recipient}
+          onClose={() => setShowMapModal(false)}
         />
       )}
     </div>

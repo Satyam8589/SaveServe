@@ -84,6 +84,7 @@ export async function GET() {
       { isActive: true },
       {
         _id: 1,
+        userId: 1, // Fetch the userId (Clerk ID)
         fullName: 1,
         role: 1,
         subrole: 1,
@@ -98,7 +99,8 @@ export async function GET() {
       const { latitude, longitude } = parseCoordinates(user.area);
       
       return {
-        id: user._id.toString(),
+        id: user.userId, // Use userId (Clerk ID) as the main identifier
+        mongoId: user._id.toString(), // Keep mongoId for reference
         fullName: user.fullName,
         role: user.role,
         subrole: user.subrole,

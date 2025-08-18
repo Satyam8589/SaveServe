@@ -197,15 +197,17 @@ const RoutingComponent = ({ providers, recipients }) => {
   return null;
 };
 
-const MapWithRouting = () => {
+const MapWithRouting = ({ provider: singleProvider, recipient: singleRecipient }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [mapLoaded, setMapLoaded] = useState(false);
 
+  const isSingleRouteMode = singleProvider && singleRecipient;
+
   // Separate providers and recipients
-  const providers = users.filter(user => user.role === 'PROVIDER' && user.latitude && user.longitude);
-  const recipients = users.filter(user => user.role === 'RECIPIENT' && user.latitude && user.longitude);
+  const providers = isSingleRouteMode ? [singleProvider] : users.filter(user => user.role === 'PROVIDER' && user.latitude && user.longitude);
+  const recipients = isSingleRouteMode ? [singleRecipient] : users.filter(user => user.role === 'RECIPIENT' && user.latitude && user.longitude);
 
   /**
    * Fetch user locations from API
@@ -242,8 +244,12 @@ const MapWithRouting = () => {
 
   // Fetch data on component mount
   useEffect(() => {
-    fetchUserLocations();
-  }, [fetchUserLocations]);
+    if (!isSingleRouteMode) {
+      fetchUserLocations();
+    } else {
+      setLoading(false);
+    }
+  }, [fetchUserLocations, isSingleRouteMode]);
 
   // Handle map ready
   const handleMapReady = useCallback(() => {
@@ -252,7 +258,9 @@ const MapWithRouting = () => {
   }, []);
 
   // Default map center (Kolkata area based on your coordinates)
-  const defaultCenter = [22.5151549, 88.4104219];
+  const defaultCenter = isSingleRouteMode 
+    ? [singleProvider.latitude, singleProvider.longitude] 
+    : [22.5151549, 88.4104219];
 
   // Loading state
   if (loading) {
@@ -288,28 +296,30 @@ const MapWithRouting = () => {
   return (
     <div className="w-full">
       {/* Map Header */}
-      <div className="mb-4 p-4 bg-gray-800 rounded-t-xl border-b border-gray-700">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-white">Food Distribution Network</h2>
-            <p className="text-gray-400 text-sm">
-              {users.length} active locations • 🍲 Providers ({providers.length}) • 👤 Recipients ({recipients.length})
-              {providers.length > 0 && recipients.length > 0 && (
-                <span className="text-blue-400"> • 🚗 Route displayed</span>
-              )}
-            </p>
-          </div>
-          <div className="flex space-x-2">
-            <button
-              onClick={fetchUserLocations}
-              className="px-3 py-1 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors"
-              disabled={loading}
-            >
-              🔄 Refresh
-            </button>
+      {!isSingleRouteMode && (
+        <div className="mb-4 p-4 bg-gray-800 rounded-t-xl border-b border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-white">Food Distribution Network</h2>
+              <p className="text-gray-400 text-sm">
+                {users.length} active locations • 🍲 Providers ({providers.length}) • 👤 Recipients ({recipients.length})
+                {providers.length > 0 && recipients.length > 0 && (
+                  <span className="text-blue-400"> • 🚗 Route displayed</span>
+                )}
+              </p>
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={fetchUserLocations}
+                className="px-3 py-1 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors"
+                disabled={loading}
+              >
+                🔄 Refresh
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Leaflet Map Container */}
       <div className="relative">
@@ -486,20 +496,22 @@ const MapWithRouting = () => {
       </div>
 
       {/* Map Footer Stats */}
-      <div className="mt-2 p-3 bg-gray-800 rounded-b-xl border-t border-gray-700">
-        <div className="flex justify-between items-center text-sm text-gray-400">
-          <div>
-            Providers: {providers.length} • Recipients: {recipients.length}
-            {providers.length > 0 && recipients.length > 0 && (
-              <span className="text-blue-400"> • Route: {providers[0]?.fullName} → {recipients[0]?.fullName}</span>
-            )}
-          </div>
-          <div className="flex items-center space-x-4">
-            {mapLoaded && <span className="text-emerald-400">🗺️ Map ready</span>}
-            <span>Powered by OpenStreetMap</span>
+      {!isSingleRouteMode && (
+        <div className="mt-2 p-3 bg-gray-800 rounded-b-xl border-t border-gray-700">
+          <div className="flex justify-between items-center text-sm text-gray-400">
+            <div>
+              Providers: {providers.length} • Recipients: {recipients.length}
+              {providers.length > 0 && recipients.length > 0 && (
+                <span className="text-blue-400"> • Route: {providers[0]?.fullName} → {recipients[0]?.fullName}</span>
+              )}
+            </div>
+            <div className="flex items-center space-x-4">
+              {mapLoaded && <span className="text-emerald-400">🗺️ Map ready</span>}
+              <span>Powered by OpenStreetMap</span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
