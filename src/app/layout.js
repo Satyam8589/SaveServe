@@ -5,7 +5,7 @@ import Footer from "@/components/Footer";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { Toaster } from "sonner";
-import Header from "@/components/Header"; // Make sure this matches your actual filename case
+import Header from "@/components/header"; // Make sure this matches your actual filename case
 import { Providers } from "./providers";
 import { currentUser } from "@clerk/nextjs/server";
 import { Analytics } from '@vercel/analytics/next';
