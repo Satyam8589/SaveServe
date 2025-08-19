@@ -1,36 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# 🍽️ SaveServe  
 
-## Getting Started
+<p align="center">
+  <img src="https://github.com/Satyam8589/SaveServe/blob/main/Screenshot%202025-08-19%20031449.png?raw=true" alt="SaveServe Banner" width="900"/>
+</p>
 
-First, run the development server:
+<p align="center">
+  <img src="./public/logo.png" alt="SaveServe Logo" width="140"/>
+</p>
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+> **SaveServe** – *Smart Food Redistribution Platform*  
+> Helping reduce food waste by connecting providers with those in need.  
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## 📌 Overview  
+**SaveServe** is a smart food redistribution platform designed to minimize food waste and help communities.  
+It connects **food providers** (restaurants, shops, individuals) with **recipients** who need meals, ensuring surplus food is saved and served instead of wasted.  
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Beyond just distribution, SaveServe empowers providers to track their contributions, monitor analytics, and engage in sustainable practices.  
+By leveraging modern web technologies and Firebase-powered notifications, the platform creates a **seamless experience** for both food donors and recipients.  
 
-## Learn More
+Our mission is simple:  
+- ♻️ **Reduce food waste** at scale  
+- 🤝 **Support communities in need**  
+- 🌍 **Promote sustainability and social impact**  
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🎯 Mission & Vision  
+- **Mission**: To create a world where no edible food goes to waste while millions go hungry.  
+- **Vision**: A global community connected through technology, redistributing surplus food with transparency and efficiency.  
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 🔄 How It Works  
+1. **Food Providers** (restaurants, shops, households) list surplus food on the platform.  
+2. **Recipients** (individuals, NGOs, shelters) browse available food and request it.  
+3. **SaveServe Dashboard** helps providers manage their listings, donations, and track analytics.  
+4. **Firebase Notifications** ensure both sides stay updated in real-time.  
+5. **Data Insights** encourage sustainable food practices through reporting and analytics.  
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 👥 User Roles  
+
+### 🍴 Providers  
+- List surplus food  
+- Track donations via dashboard  
+- View analytics & contributions  
+
+### 🙌 Recipients  
+- Access listed food  
+- Receive real-time notifications  
+- Reduce hunger & food insecurity  
+
+### 🛡️ Admin (future feature)  
+- Monitor platform usage  
+- Approve or verify listings  
+- Generate impact reports  
+
+---
+
+## ✨ Features  
+- 🔐 **Authentication System** – Secure sign-up, sign-in, and post-login flow.  
+- 📦 **Provider Dashboard** – Manage food listings with forms & tables.  
+- 📊 **Analytics Dashboard** – Track contributions and distribution metrics.  
+- 📱 **Firebase Notifications** – Stay updated on food requests & status.  
+- 🎨 **Responsive UI** – Built with Next.js and modern Tailwind CSS.  
+- 🌍 **Community Impact** – Built to reduce waste and serve society.  
+
+---
+
+## 🛠️ Tech Stack  
+- ⚡ [Next.js](https://nextjs.org/) – React framework  
+- 🎨 [Tailwind CSS](https://tailwindcss.com/) – Modern styling  
+- 🔥 [Firebase](https://firebase.google.com/) – Authentication & notifications  
+- ✅ [ESLint](https://eslint.org/) – Code linting & standards  
+- 📦 Node.js & npm  
+
+---
+
+## 🚀 Getting Started 

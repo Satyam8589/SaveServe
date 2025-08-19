@@ -4,7 +4,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { Toaster } from "sonner";
-import Header from "@/components/Header"; // Make sure this matches your actual filename case
+import Header from "@/components/header"; // Make sure this matches your actual filename case
 import { Providers } from "./providers";
 import { currentUser } from "@clerk/nextjs/server";
 import { Analytics } from '@vercel/analytics/next';
@@ -17,6 +17,7 @@ export const metadata = {
   title: "Smart food",
   description: "Connect with doctors anytime, anywhere",
 };
+
 
 export default async function RootLayout({ children }) {
   const user = await currentUser();
@@ -54,7 +55,6 @@ export default async function RootLayout({ children }) {
                 <SpeedInsights />
                 <Analytics />
               </main>
-              
               <Toaster richColors />
             </Providers>
           </ThemeProvider>

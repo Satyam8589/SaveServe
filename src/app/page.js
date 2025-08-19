@@ -102,7 +102,7 @@ export default function Home() {
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 via-orange-500 to-amber-500"></div>
                   <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 via-orange-600 to-amber-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  <span className="relative z-10 text-white">Start Sharing Food</span>
+                  <Link href="/sign-up" className="relative z-10 text-white">Start Sharing Food</Link>
                 </motion.button>
               </Link>
               <Link href="/about">
