@@ -128,7 +128,11 @@ const providerData = {
   },
 };
 
+import { redirect } from 'next/navigation';
+
 export default function ProviderDashboardPage() {
+  redirect('/providerDashboard/listings');
+
   const [isAddingFood, setIsAddingFood] = useState(false);
   const [newListing, setNewListing] = useState({
     title: "",
