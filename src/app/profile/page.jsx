@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useUser, useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import DocumentUpload from "../../components/DocumentUpload";
 
 // Icon Components
 const UserIcon = () => (
@@ -151,6 +152,7 @@ const UserProfileForm = ({
     description: "",
     isProfileComplete: false,
     isActive: true,
+    verificationDocuments: [], // Add documents array
   });
 
   const [status, setStatus] = useState({
@@ -246,6 +248,45 @@ const UserProfileForm = ({
       return;
     }
 
+    // Document validation for providers and recipients
+    if (formData.role === "PROVIDER" || formData.role === "RECIPIENT") {
+      const requiredDocTypes = ["ID_CARD"];
+
+      if (formData.subrole === "STUDENT") {
+        requiredDocTypes.push("STUDENT_ID");
+      } else if (formData.subrole === "STAFF") {
+        requiredDocTypes.push("STAFF_ID");
+      } else if (formData.subrole === "NGO") {
+        requiredDocTypes.push("NGO_CERTIFICATE");
+      }
+
+      const uploadedDocTypes = (formData.verificationDocuments || []).map(
+        (doc) => doc.type
+      );
+      const missingDocTypes = requiredDocTypes.filter(
+        (type) => !uploadedDocTypes.includes(type)
+      );
+
+      if (missingDocTypes.length > 0) {
+        const docLabels = {
+          ID_CARD: "Government ID Card",
+          STUDENT_ID: "Student ID Card",
+          STAFF_ID: "Staff ID Card",
+          NGO_CERTIFICATE: "NGO Registration Certificate",
+        };
+        const missingDocNames = missingDocTypes.map((type) => docLabels[type]);
+
+        setStatus({
+          loading: false,
+          message: `Please upload required documents: ${missingDocNames.join(
+            ", "
+          )}`,
+          type: "error",
+        });
+        return;
+      }
+    }
+
     setStatus({
       loading: true,
       message: "Saving your profile...",
@@ -265,6 +306,7 @@ const UserProfileForm = ({
           ? formData.organizationName.trim()
           : "",
         description: formData.description ? formData.description.trim() : "",
+        verificationDocuments: formData.verificationDocuments || [],
         isActive: formData.isActive !== undefined ? formData.isActive : true,
       };
 
@@ -295,10 +337,18 @@ const UserProfileForm = ({
         onProfileSaved(data.data);
       }
 
-      setTimeout(() => {
-        setStatus({ loading: false, message: "", type: "" });
-        onClose();
-      }, 1500);
+      // If this is a new profile, redirect to pending approval
+      if (data.isNew) {
+        setTimeout(() => {
+          setStatus({ loading: false, message: "", type: "" });
+          window.location.href = "/pending-approval";
+        }, 1500);
+      } else {
+        setTimeout(() => {
+          setStatus({ loading: false, message: "", type: "" });
+          onClose();
+        }, 1500);
+      }
     } catch (error) {
       console.error("Profile save error:", error);
       setStatus({
@@ -473,6 +523,21 @@ const UserProfileForm = ({
               </div>
             </div>
 
+            {/* Document Upload Section */}
+            <div className="group">
+              <DocumentUpload
+                documents={formData.verificationDocuments || []}
+                onDocumentsChange={(docs) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    verificationDocuments: docs,
+                  }))
+                }
+                userRole={formData.role}
+                userSubrole={formData.subrole}
+              />
+            </div>
+
             {/* Submit Button */}
             <div className="pt-2">
               <button
@@ -638,10 +703,12 @@ const ProfilePage = () => {
       });
 
       const result = await response.json();
-      
+
       if (!response.ok) {
         console.error("Failed to update metadata:", result);
-        throw new Error(result.error || "Failed to update profile completion status");
+        throw new Error(
+          result.error || "Failed to update profile completion status"
+        );
       }
 
       console.log("Metadata updated successfully:", result);
@@ -658,7 +725,7 @@ const ProfilePage = () => {
       setShowEditForm(false);
 
       // Small delay to ensure metadata propagation
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Redirect to appropriate dashboard based on role
       const userMainRole =
