@@ -13,6 +13,7 @@ import {
   LogOut,
   Leaf,
   Search,
+  User, // Added for profile link
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -132,9 +133,11 @@ export default function ProviderDashboardLayout({ children }) {
               <div className="flex items-center gap-4">
                 <SidebarTrigger className="text-gray-300" />
                 <div>
-                  <h1 className="text-xl font-semibold text-gray-100">
-                    {sidebarItems.find((item) => item.href === pathname)?.label || "Dashboard"}
-                  </h1>
+                  <Link href="/providerDashboard" passHref prefetch={true}>
+                    <h1 className="text-xl font-semibold text-gray-100 cursor-pointer">
+                      {sidebarItems.find((item) => item.href === pathname)?.label || "Dashboard"}
+                    </h1>
+                  </Link>
                 </div>
               </div>
 
@@ -146,6 +149,11 @@ export default function ProviderDashboardLayout({ children }) {
                     className="pl-10 bg-gray-700 border-gray-600 text-gray-100 w-64"
                   />
                 </div>
+                <Link href="/profile" passHref prefetch={true}>
+                  <Button variant="ghost" size="icon" className="text-gray-300 hover:text-gray-100 hover:bg-gray-700">
+                    <User className="h-5 w-5" />
+                  </Button>
+                </Link>
                 
                 {/* Replace the old notification button with NotificationPopup component */}
                 <div className="relative">
