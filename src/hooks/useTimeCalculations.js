@@ -1,5 +1,5 @@
 // hooks/useTimeCalculations.js
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 export const useTimeCalculations = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -14,21 +14,28 @@ export const useTimeCalculations = () => {
 
   // Unified function to get expiry time from any booking/claim object
   const getExpiryTime = (item) => {
+    if (!item) {
+      console.warn("getExpiryTime called with undefined/null item");
+      return new Date(); // Return current time as fallback
+    }
+
     // Try direct expiry time first
-    const directExpiry = item.expiryTime || 
-                        item.listingId?.expiryTime || 
-                        item.foodListing?.expiryTime || 
-                        item.listing?.expiryTime;
-    
+    const directExpiry =
+      item.expiryTime ||
+      item?.listingId?.expiryTime ||
+      item?.foodListing?.expiryTime ||
+      item?.listing?.expiryTime;
+
     if (directExpiry) {
       return new Date(directExpiry);
     }
 
     // Try availability window end
-    const availabilityEnd = item.listingId?.availabilityWindow?.end ||
-                           item.foodListing?.availabilityWindow?.end ||
-                           item.listing?.availabilityWindow?.end;
-    
+    const availabilityEnd =
+      item.listingId?.availabilityWindow?.end ||
+      item.foodListing?.availabilityWindow?.end ||
+      item.listing?.availabilityWindow?.end;
+
     if (availabilityEnd) {
       return new Date(availabilityEnd);
     }
@@ -46,33 +53,33 @@ export const useTimeCalculations = () => {
     // If no direct freshness hours, parse from status
     if (!freshnessHours && foodData.freshnessStatus) {
       const freshnessHoursMap = {
-        "Fresh": 24,
+        Fresh: 24,
         "Safe to Eat for 12 hours": 12,
         "Safe to Eat for 8 hours": 8,
         "Safe to Eat for 6 hours": 6,
         "Safe to Eat for 4 hours": 4,
-        "Safe to Eat for 2 hours": 2
+        "Safe to Eat for 2 hours": 2,
       };
       freshnessHours = freshnessHoursMap[foodData.freshnessStatus] || 24;
     }
 
     if (startTime && freshnessHours) {
       const start = new Date(startTime);
-      return new Date(start.getTime() + (freshnessHours * 60 * 60 * 1000));
+      return new Date(start.getTime() + freshnessHours * 60 * 60 * 1000);
     }
 
     // Final fallback - 6 hours from creation/request time
     const creationTime = item.createdAt || item.requestedAt || Date.now();
-    return new Date(new Date(creationTime).getTime() + (6 * 60 * 60 * 1000));
+    return new Date(new Date(creationTime).getTime() + 6 * 60 * 60 * 1000);
   };
 
   // Unified function to calculate time remaining
   const calculateTimeRemaining = (expiryTime) => {
     const expiry = new Date(expiryTime);
     const diff = expiry.getTime() - currentTime.getTime();
-    
+
     if (diff <= 0) return { text: "Expired", isExpired: true, totalMinutes: 0 };
-    
+
     const totalMinutes = Math.floor(diff / (1000 * 60));
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
@@ -88,14 +95,14 @@ export const useTimeCalculations = () => {
       text = `${days}d ${remainingHours}h left`;
     }
 
-    return { 
-      text, 
-      isExpired: false, 
+    return {
+      text,
+      isExpired: false,
       totalMinutes,
       hours,
       minutes,
       days,
-      remainingHours
+      remainingHours,
     };
   };
 
@@ -108,7 +115,7 @@ export const useTimeCalculations = () => {
   // Get badge color based on time remaining
   const getBadgeColor = (item) => {
     const timeRemaining = getTimeRemaining(item);
-    
+
     if (timeRemaining.isExpired) return "bg-red-600";
     if (timeRemaining.hours <= 1) return "bg-red-600";
     if (timeRemaining.hours <= 3) return "bg-orange-600";
@@ -125,12 +132,12 @@ export const useTimeCalculations = () => {
   // Format expiry time for display
   const formatExpiryTime = (item) => {
     const expiryTime = getExpiryTime(item);
-    return expiryTime.toLocaleString('en-US', { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric', 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return expiryTime.toLocaleString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -141,6 +148,6 @@ export const useTimeCalculations = () => {
     getBadgeColor,
     isExpired,
     formatExpiryTime,
-    calculateTimeRemaining
+    calculateTimeRemaining,
   };
 };

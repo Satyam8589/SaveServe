@@ -1,62 +1,230 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { QrCode, Copy, Download, Clock, MapPin, Package, AlertTriangle, CheckCircle, Eye, EyeOff } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { useTimeCalculations } from '@/hooks/useTimeCalculations';
+import React, { useState, useEffect } from "react";
+import { useUser } from "@clerk/nextjs";
+import { useUserBookings } from "@/hooks/useBookings";
+import {
+  QrCode,
+  Copy,
+  Download,
+  Clock,
+  MapPin,
+  Package,
+  AlertTriangle,
+  CheckCircle,
+  Eye,
+  EyeOff,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { useTimeCalculations } from "@/hooks/useTimeCalculations";
+
+const ClaimsPage = () => {
+  const { user } = useUser();
+  const { data: bookingsData, isLoading, error } = useUserBookings(user?.id);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  // Early loading state
+  if (isLoading) {
+    return (
+      <div className="p-4">
+        <h1 className="text-2xl font-bold mb-4">My Claims</h1>
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="bg-gray-800/50 animate-pulse">
+              <CardContent className="h-32"></CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="p-4">
+        <Card className="bg-red-900/20 border-red-500/20">
+          <CardContent className="p-6">
+            <h2 className="text-xl font-semibold text-red-400 mb-2">
+              Error Loading Claims
+            </h2>
+            <p className="text-red-300">
+              Failed to load your claims. Please try again later.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const claims = bookingsData?.data || [];
+  const filteredClaims =
+    statusFilter === "all"
+      ? claims
+      : claims.filter((claim) => claim.status === statusFilter);
+
+  return (
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">My Claims</h1>
+
+      {/* Filters */}
+      <div className="flex gap-2 mb-4">
+        {["all", "pending", "approved", "collected"].map((status) => (
+          <Button
+            key={status}
+            variant={statusFilter === status ? "default" : "outline"}
+            onClick={() => setStatusFilter(status)}
+          >
+            {status.charAt(0).toUpperCase() + status.slice(1)}
+          </Button>
+        ))}
+      </div>
+
+      {/* Claims List */}
+      <div className="space-y-4">
+        {filteredClaims.length === 0 ? (
+          <Card className="bg-gray-800/50">
+            <CardContent className="p-6 text-center">
+              <p className="text-gray-400">No claims found</p>
+            </CardContent>
+          </Card>
+        ) : (
+          filteredClaims.map((claim) => (
+            <Card
+              key={claim._id}
+              className="bg-gray-800 hover:bg-gray-800/80 transition-colors"
+            >
+              <CardContent className="p-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-lg font-semibold">
+                      {claim.listingId?.title || "Food Item"}
+                    </h3>
+                    <p className="text-sm text-gray-400">
+                      {claim.listingId?.location || "Location not specified"}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => setSelectedBooking(claim)}
+                    disabled={
+                      claim.status === "cancelled" || claim.status === "expired"
+                    }
+                  >
+                    Show QR Code
+                  </Button>
+                </div>
+                <div className="mt-4 flex items-center gap-2">
+                  <Badge
+                    variant={
+                      claim.status === "approved"
+                        ? "success"
+                        : claim.status === "pending"
+                        ? "warning"
+                        : claim.status === "collected"
+                        ? "default"
+                        : "destructive"
+                    }
+                  >
+                    {claim.status.charAt(0).toUpperCase() +
+                      claim.status.slice(1)}
+                  </Badge>
+                  {claim.scheduledPickupTime && (
+                    <span className="text-sm text-gray-400">
+                      Pickup:{" "}
+                      {new Date(claim.scheduledPickupTime).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* QR Code Modal */}
+      {selectedBooking && (
+        <QRCodeDisplay
+          booking={selectedBooking}
+          onClose={() => setSelectedBooking(null)}
+        />
+      )}
+    </div>
+  );
+};
 
 const QRCodeDisplay = ({ booking, onClose }) => {
   const [showBackupCode, setShowBackupCode] = useState(false);
   const [copied, setCopied] = useState(false);
 
   // Use the unified time calculations hook
-  const { 
-    getTimeRemaining, 
+  const {
+    getTimeRemaining,
     getBadgeColor,
     getExpiryTime,
     formatExpiryTime,
-    isExpired: checkExpired
+    isExpired: checkExpired,
   } = useTimeCalculations();
 
-  // Use the enriched booking data passed from the main page
-  const timeRemaining = getTimeRemaining(booking);
-  const isExpired = checkExpired(booking);
-  const expiryTime = getExpiryTime(booking);
-  const badgeColor = getBadgeColor(booking);
+  // Safety check for booking properties
+  const bookingId = booking?._id;
+  const bookingStatus = booking?.status;
+  const collectionCode = booking?.collectionCode;
+  const qrCodeImage = booking?.qrCodeImage;
 
-  console.log('🔍 QR Modal - Using API-enriched data from main page:', {
-    bookingId: booking._id,
-    directExpiryTime: booking.expiryTime,
-    listingExpiryTime: booking.listingId?.expiryTime,
-    calculatedExpiryTime: expiryTime.toISOString(),
-    timeRemainingText: timeRemaining.text,
-    isExpired,
-    enrichedBookingData: booking
-  });
+  // Use the enriched booking data passed from the main page
+  const timeRemaining = getTimeRemaining(booking) || {
+    text: "Unknown",
+    totalMinutes: 0,
+  };
+  const isExpired = checkExpired(booking) || false;
+  const expiryTime = getExpiryTime(booking) || new Date();
+  const badgeColor = getBadgeColor(booking) || "";
+
+  if (booking) {
+    console.log("🔍 QR Modal - Using API-enriched data from main page:", {
+      bookingId,
+      directExpiryTime: booking.expiryTime,
+      listingExpiryTime: booking.listingId?.expiryTime,
+      calculatedExpiryTime: expiryTime?.toISOString() || "Unknown",
+      timeRemainingText: timeRemaining?.text,
+      isExpired,
+      enrichedBookingData: booking,
+    });
+  }
 
   const copyBackupCode = async () => {
+    if (!collectionCode) {
+      console.error("No collection code available");
+      return;
+    }
     try {
-      await navigator.clipboard.writeText(booking.collectionCode);
+      await navigator.clipboard.writeText(collectionCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error('Failed to copy:', error);
+      console.error("Failed to copy:", error);
     }
   };
 
   const downloadQRCode = () => {
-    const link = document.createElement('a');
-    link.href = booking.qrCodeImage;
-    link.download = `food-collection-qr-${booking._id}.png`;
+    if (!qrCodeImage || !bookingId) {
+      console.error("Missing QR code image or booking ID");
+      return;
+    }
+    const link = document.createElement("a");
+    link.href = qrCodeImage;
+    link.download = `food-collection-qr-${bookingId}.png`;
     link.click();
   };
 
   // Simple close handler - just close the modal without any side effects
   const handleClose = () => {
-    console.log('🔒 QR Modal closing normally');
+    console.log("🔒 QR Modal closing normally");
     onClose();
   };
 
@@ -71,37 +239,38 @@ const QRCodeDisplay = ({ booking, onClose }) => {
   // Handle escape key
   useEffect(() => {
     const handleEscape = (e) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         handleClose();
       }
     };
 
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
   }, []);
 
   // Use the same time display format as the main page
   const getStatusColor = () => {
     if (isExpired) {
-      return 'bg-red-900/20 border-red-500/20 text-red-400';
+      return "bg-red-900/20 border-red-500/20 text-red-400";
     } else if (timeRemaining.totalMinutes < 60) {
-      return 'bg-red-900/20 border-red-500/20 text-red-400';
+      return "bg-red-900/20 border-red-500/20 text-red-400";
     } else if (timeRemaining.totalMinutes < 120) {
-      return 'bg-amber-900/20 border-amber-500/20 text-amber-400';
+      return "bg-amber-900/20 border-amber-500/20 text-amber-400";
     } else if (timeRemaining.totalMinutes < 360) {
-      return 'bg-yellow-900/20 border-yellow-500/20 text-yellow-400';
+      return "bg-yellow-900/20 border-yellow-500/20 text-yellow-400";
     } else {
-      return 'bg-green-900/20 border-green-500/20 text-green-400';
+      return "bg-green-900/20 border-green-500/20 text-green-400";
     }
   };
 
   const shouldAnimate = isExpired || timeRemaining.totalMinutes < 60;
 
   // Get food listing data for display
-  const foodData = booking.listingId || booking.foodListing || booking.listing || {};
+  const foodData =
+    booking.listingId || booking.foodListing || booking.listing || {};
 
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
       onClick={handleBackdropClick}
     >
@@ -111,33 +280,41 @@ const QRCodeDisplay = ({ booking, onClose }) => {
             <QrCode className="mr-2 h-6 w-6" />
             Collection QR Code
           </CardTitle>
-          <Badge 
+          <Badge
             className={`mx-auto w-fit ${
-              booking.status === 'approved' ? 'bg-green-600' : 
-              booking.status === 'pending' ? 'bg-yellow-600' : 
-              'bg-gray-600'
+              booking.status === "approved"
+                ? "bg-green-600"
+                : booking.status === "pending"
+                ? "bg-yellow-600"
+                : "bg-gray-600"
             }`}
           >
-            {booking.status === 'approved' ? 'Ready for Pickup' : 
-             booking.status === 'pending' ? 'Awaiting Approval' :
-             'Booking ' + booking.status}
+            {booking.status === "approved"
+              ? "Ready for Pickup"
+              : booking.status === "pending"
+              ? "Awaiting Approval"
+              : "Booking " + booking.status}
           </Badge>
         </CardHeader>
-        
+
         <CardContent className="space-y-6">
           {/* Consistent Expiry Warning - Using same logic as main page */}
-          <div className={`p-3 rounded-lg border flex items-center space-x-2 ${getStatusColor()} ${shouldAnimate ? 'animate-pulse' : ''}`}>
+          <div
+            className={`p-3 rounded-lg border flex items-center space-x-2 ${getStatusColor()} ${
+              shouldAnimate ? "animate-pulse" : ""
+            }`}
+          >
             {isExpired ? (
               <AlertTriangle className="h-4 w-4 flex-shrink-0" />
             ) : (
               <Clock className="h-4 w-4 flex-shrink-0" />
             )}
             <div className="flex-1">
-              <p className="text-sm font-medium">
-                Food {timeRemaining.text}
-              </p>
+              <p className="text-sm font-medium">Food {timeRemaining.text}</p>
               <p className="text-xs opacity-80">
-                {isExpired ? 'Food has expired - not safe to consume' : 'Collect before food expires'}
+                {isExpired
+                  ? "Food has expired - not safe to consume"
+                  : "Collect before food expires"}
               </p>
               <p className="text-xs opacity-60 mt-1">
                 Expires: {formatExpiryTime(booking)}
@@ -147,10 +324,14 @@ const QRCodeDisplay = ({ booking, onClose }) => {
 
           {/* QR Code */}
           <div className="text-center">
-            <div className={`inline-block p-4 bg-white rounded-lg ${isExpired ? 'opacity-50 grayscale' : ''}`}>
+            <div
+              className={`inline-block p-4 bg-white rounded-lg ${
+                isExpired ? "opacity-50 grayscale" : ""
+              }`}
+            >
               {booking.qrCodeImage ? (
-                <img 
-                  src={booking.qrCodeImage} 
+                <img
+                  src={booking.qrCodeImage}
                   alt="Collection QR Code"
                   className="w-48 h-48 mx-auto"
                 />
@@ -160,7 +341,7 @@ const QRCodeDisplay = ({ booking, onClose }) => {
                 </div>
               )}
             </div>
-            
+
             {/* QR Actions */}
             <div className="flex justify-center space-x-2 mt-4">
               <Button
@@ -174,7 +355,7 @@ const QRCodeDisplay = ({ booking, onClose }) => {
                 Download
               </Button>
             </div>
-            
+
             {isExpired && (
               <p className="text-red-400 text-sm mt-2">
                 ⚠️ QR Code disabled - Food has expired
@@ -195,13 +376,21 @@ const QRCodeDisplay = ({ booking, onClose }) => {
                 className="text-gray-400 hover:text-gray-100"
                 disabled={isExpired}
               >
-                {showBackupCode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                {showBackupCode ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
               </Button>
             </div>
-            
+
             <div className="flex items-center space-x-2">
-              <div className={`flex-1 bg-gray-700 p-3 rounded-lg font-mono text-center text-lg tracking-wider ${isExpired ? 'opacity-50' : ''}`}>
-                {showBackupCode ? booking.collectionCode : '••••••'}
+              <div
+                className={`flex-1 bg-gray-700 p-3 rounded-lg font-mono text-center text-lg tracking-wider ${
+                  isExpired ? "opacity-50" : ""
+                }`}
+              >
+                {showBackupCode ? booking.collectionCode : "••••••"}
               </div>
               <Button
                 onClick={copyBackupCode}
@@ -228,50 +417,80 @@ const QRCodeDisplay = ({ booking, onClose }) => {
             <div className="space-y-2 text-sm">
               <div className="flex items-center space-x-2 text-gray-300">
                 <Package className="h-4 w-4 text-emerald-400" />
-                <span>{foodData.title || booking.title || 'Food Item'}</span>
+                <span>{foodData.title || booking.title || "Food Item"}</span>
               </div>
               <div className="flex items-center space-x-2 text-gray-300">
                 <MapPin className="h-4 w-4 text-emerald-400" />
-                <span>{foodData.location || booking.pickupLocation || 'Pickup Location'}</span>
+                <span>
+                  {foodData.location ||
+                    booking.pickupLocation ||
+                    "Pickup Location"}
+                </span>
               </div>
               {booking.scheduledPickupTime && (
                 <div className="flex items-center space-x-2 text-gray-300">
                   <Clock className="h-4 w-4 text-emerald-400" />
                   <span>
-                    Pickup: {new Date(booking.scheduledPickupTime).toLocaleString()}
+                    Pickup:{" "}
+                    {new Date(booking.scheduledPickupTime).toLocaleString()}
                   </span>
                 </div>
               )}
-              
+
               {/* Food Freshness Info - Using same data as main page */}
               <div className="bg-gray-700/50 p-3 rounded text-xs space-y-1">
                 <div className="flex justify-between">
-                  <span className="text-gray-400"><strong>Freshness:</strong></span>
-                  <span className="text-gray-300">{foodData.freshnessStatus || 'Fresh'}</span>
+                  <span className="text-gray-400">
+                    <strong>Freshness:</strong>
+                  </span>
+                  <span className="text-gray-300">
+                    {foodData.freshnessStatus || "Fresh"}
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400"><strong>Safe Duration:</strong></span>
+                  <span className="text-gray-400">
+                    <strong>Safe Duration:</strong>
+                  </span>
                   <span className="text-gray-300">
-                    {foodData.freshnessHours || booking.listingId?.freshnessHours || 24} hours
+                    {foodData.freshnessHours ||
+                      booking.listingId?.freshnessHours ||
+                      24}{" "}
+                    hours
                   </span>
                 </div>
                 {foodData.availabilityWindow?.startTime && (
                   <div className="flex justify-between">
-                    <span className="text-gray-400"><strong>Available From:</strong></span>
+                    <span className="text-gray-400">
+                      <strong>Available From:</strong>
+                    </span>
                     <span className="text-gray-300">
-                      {new Date(foodData.availabilityWindow.startTime).toLocaleString()}
+                      {new Date(
+                        foodData.availabilityWindow.startTime
+                      ).toLocaleString()}
                     </span>
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span className="text-gray-400"><strong>Expires:</strong></span>
-                  <span className={`font-medium ${isExpired ? 'text-red-400' : 'text-green-400'}`}>
+                  <span className="text-gray-400">
+                    <strong>Expires:</strong>
+                  </span>
+                  <span
+                    className={`font-medium ${
+                      isExpired ? "text-red-400" : "text-green-400"
+                    }`}
+                  >
                     {expiryTime.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400"><strong>Time Remaining:</strong></span>
-                  <span className={`font-medium ${isExpired ? 'text-red-400' : 'text-green-400'}`}>
+                  <span className="text-gray-400">
+                    <strong>Time Remaining:</strong>
+                  </span>
+                  <span
+                    className={`font-medium ${
+                      isExpired ? "text-red-400" : "text-green-400"
+                    }`}
+                  >
                     {timeRemaining.text}
                   </span>
                 </div>
@@ -280,14 +499,20 @@ const QRCodeDisplay = ({ booking, onClose }) => {
           </div>
 
           {/* Instructions */}
-          <div className={`border p-4 rounded-lg ${
-            isExpired ? 'bg-red-900/20 border-red-500/20' : 'bg-blue-900/20 border-blue-500/20'
-          }`}>
-            <h4 className={`font-medium mb-2 flex items-center ${
-              isExpired ? 'text-red-400' : 'text-blue-400'
-            }`}>
+          <div
+            className={`border p-4 rounded-lg ${
+              isExpired
+                ? "bg-red-900/20 border-red-500/20"
+                : "bg-blue-900/20 border-blue-500/20"
+            }`}
+          >
+            <h4
+              className={`font-medium mb-2 flex items-center ${
+                isExpired ? "text-red-400" : "text-blue-400"
+              }`}
+            >
               <AlertTriangle className="h-4 w-4 mr-2" />
-              {isExpired ? 'Food Expired' : 'Collection Instructions'}
+              {isExpired ? "Food Expired" : "Collection Instructions"}
             </h4>
             {isExpired ? (
               <div className="text-xs text-red-300 space-y-1">
@@ -319,7 +544,8 @@ const QRCodeDisplay = ({ booking, onClose }) => {
                     </li>
                     <li className="flex items-start">
                       <span className="text-blue-400 mr-2">4.</span>
-                      Collect your food before it expires at {expiryTime.toLocaleTimeString()}!
+                      Collect your food before it expires at{" "}
+                      {expiryTime.toLocaleTimeString()}!
                     </li>
                   </>
                 )}
@@ -340,4 +566,4 @@ const QRCodeDisplay = ({ booking, onClose }) => {
   );
 };
 
-export default QRCodeDisplay;
+export default ClaimsPage;
