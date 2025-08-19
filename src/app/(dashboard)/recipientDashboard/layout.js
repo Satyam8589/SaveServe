@@ -42,7 +42,7 @@ const LayoutContent = ({ children }) => {
   return (
     <SidebarProvider open={isSidebarOpen} onOpenChange={setSidebarOpen}>
       <div className="flex min-h-screen w-full">
-        <Sidebar className="border-gray-700 bg-gray-800 w-64 flex-shrink-0 min-h-screen mt-16">
+        <Sidebar className="border-gray-700 bg-gray-800 w-64 flex-shrink-0 min-h-screen mt-16 flex flex-col">
           <SidebarHeader className="p-4 border-b border-gray-700">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-emerald-600 rounded-lg">
@@ -76,7 +76,7 @@ const LayoutContent = ({ children }) => {
               ))}
             </SidebarMenu>
           </SidebarContent>
-          <SidebarFooter className="p-4 mb-75 border-t border-gray-700">
+          <SidebarFooter className="p-4 border-t border-gray-700">
              <SidebarMenuButton className="text-gray-300 hover:text-gray-100 hover:bg-gray-700">
                <Settings className="h-4 w-4" />
                <span>Settings</span>

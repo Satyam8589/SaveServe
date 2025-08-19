@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useVerifyCollection } from '@/hooks/useBookings'; // Import the useVerifyCollection hook
 
 const QRScanner = ({ onScanSuccess, onClose, listingId, providerId }) => {
   const [isScanning, setIsScanning] = useState(false);
@@ -17,6 +18,9 @@ const QRScanner = ({ onScanSuccess, onClose, listingId, providerId }) => {
   const streamRef = useRef(null);
   const canvasRef = useRef(null);
   const requestRef = useRef(null);
+
+  // Initialize the mutation hook
+  const verifyCollectionMutation = useVerifyCollection();
 
   const stopCamera = useCallback(() => {
     if (requestRef.current) {
@@ -49,29 +53,17 @@ const QRScanner = ({ onScanSuccess, onClose, listingId, providerId }) => {
   }, [requestCameraPermission, stopCamera]);
 
   const handleQRDetection = useCallback(async (qrData) => {
+    stopCamera();
+    setScanError(null);
     try {
-      stopCamera();
-      setScanError(null);
-      
-      const response = await fetch(`/api/bookings/verify-collection`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ qrData, providerId, listingId }),
-      });
-
-      const result = await response.json();
-      
-      if (result.success) {
-        onScanSuccess(result.data);
-      } else {
-        setScanError(result.message || 'Invalid QR code');
-        setTimeout(() => setScanError(null), 5000);
-      }
+      await verifyCollectionMutation.mutateAsync({ qrData, providerId, listingId });
+      onScanSuccess(); // Assuming onScanSuccess doesn't need data directly from the mutation result
     } catch (error) {
       console.error('QR verification error:', error);
-      setScanError('Failed to verify QR code');
+      setScanError(error.message || 'Failed to verify QR code');
+      setTimeout(() => setScanError(null), 5000);
     }
-  }, [listingId, onScanSuccess, providerId, stopCamera]);
+  }, [listingId, onScanSuccess, providerId, stopCamera, verifyCollectionMutation]);
 
   const tick = useCallback(() => {
     if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
@@ -128,21 +120,13 @@ const QRScanner = ({ onScanSuccess, onClose, listingId, providerId }) => {
       setScanError('Please enter a valid 6-digit code');
       return;
     }
+    setScanError(null);
     try {
-      const response = await fetch(`/api/bookings/verify-collection`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ collectionCode: manualCode, providerId, listingId }),
-      });
-      const result = await response.json();
-      if (result.success) {
-        onScanSuccess(result.data);
-      } else {
-        setScanError(result.message || 'Invalid collection code');
-      }
+      await verifyCollectionMutation.mutateAsync({ collectionCode: manualCode, providerId, listingId });
+      onScanSuccess();
     } catch (error) {
       console.error('Manual code verification error:', error);
-      setScanError('Failed to verify collection code');
+      setScanError(error.message || 'Failed to verify collection code');
     }
   };
 
@@ -230,8 +214,9 @@ const QRScanner = ({ onScanSuccess, onClose, listingId, providerId }) => {
                 value={manualCode}
                 onChange={(e) => setManualCode(e.target.value.replace(/\D/g, ''))}
                 className="bg-gray-700 border-gray-600 text-gray-100"
+                disabled={verifyCollectionMutation.isPending}
               />
-              <Button onClick={handleManualCodeSubmit} disabled={manualCode.length !== 6} className="bg-emerald-600 hover:bg-emerald-700">
+              <Button onClick={handleManualCodeSubmit} disabled={manualCode.length !== 6 || verifyCollectionMutation.isPending} className="bg-emerald-600 hover:bg-emerald-700">
                 Verify
               </Button>
             </div>

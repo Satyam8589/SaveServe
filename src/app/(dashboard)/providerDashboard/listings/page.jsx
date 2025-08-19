@@ -7,6 +7,8 @@ import FoodListingTable from '../_components/FoodListingTable';
 import { Plus, Utensils, Search, Heart, TrendingUp, Users, Clock } from 'lucide-react';
 import { useAuth } from '@clerk/nextjs';
 
+import dynamic from 'next/dynamic';
+
 // Create a client
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,6 +17,11 @@ const queryClient = new QueryClient({
       gcTime: 1000 * 60 * 10, // 10 minutes
     },
   },
+});
+
+const DynamicFoodListingForm = dynamic(() => import('../_components/FoodListingForm'), {
+  ssr: false, // This component might rely on browser APIs (e.g., forms, user interaction)
+  loading: () => <p>Loading form...</p>,
 });
 
 function ListingsContent() {
@@ -59,7 +66,7 @@ function ListingsContent() {
           <div className="mb-12">
             <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl shadow-2xl p-1">
               <div className="bg-gray-800 rounded-xl">
-                <FoodListingForm 
+                <DynamicFoodListingForm 
                   onSuccess={handleFormSuccess}
                   onCancel={handleFormCancel}
                 />
