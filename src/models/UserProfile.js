@@ -106,7 +106,8 @@ const UserProfileSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
-    area: { // Added area field
+    area: {
+      // Added area field
       type: String,
       trim: true,
       maxlength: [100, "Area cannot exceed 100 characters."],
@@ -124,6 +125,82 @@ const UserProfileSchema = new mongoose.Schema(
       type: Number,
       default: 1,
     },
+    // Admin Approval System
+    approvalStatus: {
+      type: String,
+      enum: {
+        values: ["PENDING", "APPROVED", "REJECTED"],
+        message: "Approval status must be PENDING, APPROVED, or REJECTED.",
+      },
+      default: "PENDING",
+      index: true,
+    },
+    approvedAt: {
+      type: Date,
+      default: null,
+    },
+    approvedBy: {
+      type: String, // Admin user ID who approved
+      default: null,
+    },
+    rejectionReason: {
+      type: String,
+      trim: true,
+      maxlength: [500, "Rejection reason cannot exceed 500 characters."],
+      default: null,
+    },
+    submittedForApprovalAt: {
+      type: Date,
+      default: null,
+    },
+    // Document Upload System
+    verificationDocuments: [
+      {
+        name: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        url: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        type: {
+          type: String,
+          enum: [
+            "ID_CARD",
+            "STUDENT_ID",
+            "STAFF_ID",
+            "NGO_CERTIFICATE",
+            "OTHER",
+          ],
+          required: true,
+        },
+        uploadedAt: {
+          type: Date,
+          default: Date.now,
+        },
+        fileSize: {
+          type: Number, // in bytes
+        },
+        mimeType: {
+          type: String,
+        },
+        viewedByAdmin: {
+          type: Boolean,
+          default: false,
+        },
+        viewedAt: {
+          type: Date,
+          default: null,
+        },
+        viewedBy: {
+          type: String, // Admin user ID who viewed the document
+          default: null,
+        },
+      },
+    ],
   },
   {
     timestamps: true,
@@ -165,6 +242,16 @@ UserProfileSchema.pre("save", function (next) {
     );
   }
 
+  // Auto-submit for approval when profile is completed for the first time
+  if (
+    this.isProfileComplete &&
+    this.isNew &&
+    this.approvalStatus === "PENDING"
+  ) {
+    this.submittedForApprovalAt = new Date();
+    console.log("📝 Profile completed - submitted for admin approval");
+  }
+
   // Update other fields as before
   if (!this.isNew) {
     this.lastLoginAt = new Date();
@@ -193,6 +280,32 @@ UserProfileSchema.methods.canProvideFood = function () {
   );
 };
 
+// Instance methods for approval system
+UserProfileSchema.methods.approve = function (adminUserId) {
+  this.approvalStatus = "APPROVED";
+  this.approvedAt = new Date();
+  this.approvedBy = adminUserId;
+  this.rejectionReason = null; // Clear any previous rejection reason
+  return this.save();
+};
+
+UserProfileSchema.methods.reject = function (adminUserId, reason) {
+  this.approvalStatus = "REJECTED";
+  this.approvedAt = null;
+  this.approvedBy = adminUserId;
+  this.rejectionReason = reason;
+  return this.save();
+};
+
+UserProfileSchema.methods.submitForApproval = function () {
+  this.approvalStatus = "PENDING";
+  this.submittedForApprovalAt = new Date();
+  this.approvedAt = null;
+  this.approvedBy = null;
+  this.rejectionReason = null;
+  return this.save();
+};
+
 // Static methods
 UserProfileSchema.statics.findByRoleAndLocation = function (role, location) {
   return this.find({
@@ -200,6 +313,20 @@ UserProfileSchema.statics.findByRoleAndLocation = function (role, location) {
     campusLocation: { $regex: location, $options: "i" },
     isActive: true,
   }).sort({ lastLoginAt: -1 });
+};
+
+UserProfileSchema.statics.findPendingApprovals = function () {
+  return this.find({
+    approvalStatus: "PENDING",
+    isActive: true,
+  }).sort({ submittedForApprovalAt: 1 }); // Oldest first
+};
+
+UserProfileSchema.statics.findByApprovalStatus = function (status) {
+  return this.find({
+    approvalStatus: status,
+    isActive: true,
+  }).sort({ updatedAt: -1 });
 };
 
 // ... (all other methods and statics remain the same)

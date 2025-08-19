@@ -20,6 +20,7 @@ const isProtectedRoute = createRouteMatcher([
 
 const isOnboardingRoute = createRouteMatcher(["/onboarding(.*)"]);
 const isProfileRoute = createRouteMatcher(["/profile(.*)"]);
+const isPendingApprovalRoute = createRouteMatcher(["/pending-approval(.*)"]);
 
 const isPostLoginRoute = createRouteMatcher([
   "/post-login(.*)",
@@ -66,6 +67,7 @@ export default clerkMiddleware(async (auth, req) => {
     "/sign-up(.*)",
     "/map",
     "/map(.*)",
+    "/pending-approval(.*)", // Allow access to pending approval page
   ]);
 
   console.log("Current path in middleware:", currentPath);
@@ -98,14 +100,13 @@ export default clerkMiddleware(async (auth, req) => {
       mainRole = metadata.mainRole;
 
       // Debug logging
-      console.log("Middleware check (fresh data):", {
+      console.log("Middleware check:", {
         userId,
         currentPath,
         hasOnboarded,
         hasCompleteProfile,
         mainRole,
-        metadata,
-        sessionMetadata: sessionClaims?.publicMetadata, // Compare with session
+        approvalStatus: metadata.approvalStatus,
       });
     } catch (error) {
       console.error("Error fetching fresh user data:", error);
@@ -154,44 +155,90 @@ export default clerkMiddleware(async (auth, req) => {
       return NextResponse.next();
     }
 
-    // Step 3: User is fully set up, redirect from onboarding/profile to dashboard
+    // Step 3: User has completed profile, now check approval status
     if (hasOnboarded && hasCompleteProfile) {
-      console.log("User fully set up, handling dashboard redirects...");
-      // Block access to onboarding once completed
-      if (isOnboardingRoute(req)) {
-        const roleBasedRedirect = getRoleBasedDashboard(mainRole);
-        console.log(
-          "Blocking onboarding access, redirecting to:",
-          roleBasedRedirect
-        );
-        return NextResponse.redirect(new URL(roleBasedRedirect, req.url));
+      console.log("User has completed profile, checking approval status...");
+
+      // Admin users bypass approval system
+      if (mainRole === "ADMIN") {
+        // Block access to onboarding once completed
+        if (isOnboardingRoute(req)) {
+          return NextResponse.redirect(new URL("/admin", req.url));
+        }
+        // Allow admin access to all routes
+        return NextResponse.next();
       }
 
-      // Redirect from profile to dashboard if profile is complete (optional)
-      if (currentPath === "/profile" && !currentPath.includes("/profile/")) {
-        const roleBasedRedirect = getRoleBasedDashboard(mainRole);
+      // For non-admin users, check approval status for dashboard access
+      const isDashboardRoute =
+        currentPath.includes("Dashboard") || currentPath === "/dashboard";
+
+      if (isDashboardRoute) {
+        // Check user's approval status from Clerk metadata
+        let approvalStatus = metadata.approvalStatus;
+
+        // If approval status is not in Clerk metadata, check database as fallback
+        if (!approvalStatus) {
+          try {
+            const response = await fetch(
+              `${req.nextUrl.origin}/api/profile?userId=${userId}`
+            );
+            if (response.ok) {
+              const data = await response.json();
+              approvalStatus = data.profile?.approvalStatus;
+
+              // Update Clerk metadata with the database status
+              if (approvalStatus) {
+                try {
+                  await client.users.updateUserMetadata(userId, {
+                    publicMetadata: {
+                      ...metadata,
+                      approvalStatus: approvalStatus,
+                    },
+                  });
+                } catch (updateError) {
+                  console.warn("Failed to update Clerk metadata:", updateError);
+                }
+              }
+            }
+          } catch (dbError) {
+            console.error(
+              "Error checking database for approval status:",
+              dbError
+            );
+          }
+        }
+
+        if (approvalStatus === "APPROVED") {
+          console.log("User is approved, allowing dashboard access");
+          return NextResponse.next();
+        } else {
+          // Block access for PENDING, REJECTED, or undefined status
+          console.log(
+            "User not approved, blocking dashboard access. Status:",
+            approvalStatus || "undefined"
+          );
+          return NextResponse.redirect(new URL("/pending-approval", req.url));
+        }
+      }
+
+      // Block access to onboarding once completed
+      if (isOnboardingRoute(req)) {
         console.log(
-          "Redirecting from profile to dashboard:",
-          roleBasedRedirect
+          "Blocking onboarding access - redirecting to pending approval"
         );
-        return NextResponse.redirect(new URL(roleBasedRedirect, req.url));
+        return NextResponse.redirect(new URL("/pending-approval", req.url));
+      }
+
+      // Allow access to pending approval page and profile page
+      if (isPendingApprovalRoute(req) || isProfileRoute(req)) {
+        return NextResponse.next();
       }
     }
   }
 
   return NextResponse.next();
 });
-
-// Helper function to determine dashboard based on role
-function getRoleBasedDashboard(mainRole) {
-  const role = mainRole?.toLowerCase();
-  if (role === "provider") {
-    return "/providerDashboard";
-  } else if (role === "recipient") {
-    return "/recipientDashboard";
-  }
-  return "/onboarding"; // fallback
-}
 
 export const config = {
   matcher: ["/((?!_next|.*\\..*).*)", "/(api|trpc)(.*)"],
