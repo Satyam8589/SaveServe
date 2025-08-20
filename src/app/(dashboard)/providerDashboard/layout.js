@@ -148,8 +148,8 @@ export default function ProviderDashboardLayout({ children }) {
 
           {/* Desktop Sidebar */}
           <Sidebar className={cn(
-            "border-gray-700 bg-gray-800/95 backdrop-blur-md transition-all duration-300 ease-in-out",
-            "hidden lg:flex lg:w-64 lg:flex-shrink-0 lg:fixed lg:left-0 lg:top-0 lg:bottom-0 lg:z-30"
+            "border-gray-700 bg-gray-800/95 backdrop-blur-md transition-all duration-300 ease-in-out shadow-xl rounded-r-2xl",
+            "hidden lg:flex lg:w-60 xl:w-72 lg:flex-shrink-0 lg:fixed lg:left-0 lg:top-0 lg:bottom-0 lg:z-30"
           )}>
             <SidebarHeader className="p-4 sm:p-6 border-b border-gray-700/50">
               <div className="flex items-center space-x-3">
@@ -163,23 +163,26 @@ export default function ProviderDashboardLayout({ children }) {
               </div>
             </SidebarHeader>
 
-            <SidebarContent className="p-3 sm:p-4 flex-1 overflow-y-auto">
+            <SidebarContent className="p-3 sm:p-4 flex-1 overflow-y-auto custom-scrollbar">
               <SidebarMenu className="space-y-1">
                 {sidebarItems.map((item) => (
                   <SidebarMenuItem key={item.href}>
                     <Link href={item.href} passHref>
                       <SidebarMenuButton
                         className={cn(
-                          "w-full text-gray-300 hover:text-gray-100 hover:bg-gray-700/70 transition-all duration-200 rounded-lg p-3 group relative",
+                          "w-full flex items-center gap-3 text-gray-300 hover:text-orange-400 hover:bg-gray-700/70 transition-all duration-200 rounded-xl p-3 group relative",
                           isActiveRoute(item.href)
                             ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25"
                             : ""
                         )}
                       >
-                        <item.icon className="h-5 w-5 flex-shrink-0" />
+                        <item.icon className={cn(
+                          "h-5 w-5 flex-shrink-0",
+                          isActiveRoute(item.href) ? "text-white" : "text-orange-400"
+                        )} />
                         <span className="font-medium truncate">{item.label}</span>
                         {item.badge && (
-                          <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                          <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md">
                             {item.badge}
                           </span>
                         )}
@@ -192,11 +195,11 @@ export default function ProviderDashboardLayout({ children }) {
 
             <SidebarFooter className="p-3 sm:p-4 border-t border-gray-700/50">
               <div className="space-y-1">
-                <SidebarMenuButton className="w-full text-gray-300 hover:text-gray-100 hover:bg-gray-700/70 transition-all duration-200 rounded-lg p-3">
+                <SidebarMenuButton className="w-full flex items-center gap-3 text-gray-300 hover:text-orange-400 hover:bg-gray-700/70 transition-all duration-200 rounded-xl p-3">
                   <Settings className="h-5 w-5" />
                   <span className="font-medium">Settings</span>
                 </SidebarMenuButton>
-                <SidebarMenuButton className="w-full text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200 rounded-lg p-3">
+                <SidebarMenuButton className="w-full flex items-center gap-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200 rounded-xl p-3">
                   <LogOut className="h-5 w-5" />
                   <span className="font-medium">Sign Out</span>
                 </SidebarMenuButton>
@@ -206,7 +209,7 @@ export default function ProviderDashboardLayout({ children }) {
 
           {/* Mobile Sidebar */}
           <div className={cn(
-            "fixed inset-y-0 left-0 z-50 w-64 bg-gray-800/95 backdrop-blur-md border-r border-gray-700/50 transform transition-transform duration-300 ease-in-out lg:hidden",
+            "fixed inset-y-0 left-0 z-50 w-56 sm:w-64 bg-gray-800/95 backdrop-blur-md border-r border-gray-700/50 transform transition-transform duration-300 ease-in-out shadow-xl rounded-r-2xl lg:hidden",
             isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
           )}>
             <div className="flex h-full flex-col">
@@ -225,29 +228,32 @@ export default function ProviderDashboardLayout({ children }) {
                   variant="ghost"
                   size="icon"
                   onClick={toggleMobileSidebar}
-                  className="text-gray-400 hover:text-gray-100 hover:bg-gray-700/50"
+                  className="text-gray-400 hover:text-orange-400 hover:bg-gray-700/50"
                 >
                   <X className="h-5 w-5" />
                 </Button>
               </div>
 
               {/* Mobile Sidebar Content */}
-              <div className="flex-1 overflow-y-auto p-3">
+              <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
                 <div className="space-y-1">
                   {sidebarItems.map((item) => (
                     <Link key={item.href} href={item.href}>
                       <div
                         className={cn(
-                          "flex items-center space-x-3 rounded-lg p-3 text-gray-300 hover:text-gray-100 hover:bg-gray-700/70 transition-all duration-200 group",
+                          "flex items-center gap-3 rounded-xl p-3 text-gray-300 hover:text-orange-400 hover:bg-gray-700/70 transition-all duration-200 group",
                           isActiveRoute(item.href)
                             ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg"
                             : ""
                         )}
                       >
-                        <item.icon className="h-5 w-5 flex-shrink-0" />
+                        <item.icon className={cn(
+                          "h-5 w-5 flex-shrink-0",
+                          isActiveRoute(item.href) ? "text-white" : "text-orange-400"
+                        )} />
                         <span className="font-medium flex-1">{item.label}</span>
                         {item.badge && (
-                          <span className="bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                          <span className="bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md">
                             {item.badge}
                           </span>
                         )}
@@ -260,11 +266,11 @@ export default function ProviderDashboardLayout({ children }) {
               {/* Mobile Sidebar Footer */}
               <div className="p-3 border-t border-gray-700/50">
                 <div className="space-y-1">
-                  <div className="flex items-center space-x-3 rounded-lg p-3 text-gray-300 hover:text-gray-100 hover:bg-gray-700/70 transition-all duration-200">
+                  <div className="flex items-center gap-3 rounded-xl p-3 text-gray-300 hover:text-orange-400 hover:bg-gray-700/70 transition-all duration-200">
                     <Settings className="h-5 w-5" />
                     <span className="font-medium">Settings</span>
                   </div>
-                  <div className="flex items-center space-x-3 rounded-lg p-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200">
+                  <div className="flex items-center gap-3 rounded-xl p-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200">
                     <LogOut className="h-5 w-5" />
                     <span className="font-medium">Sign Out</span>
                   </div>
@@ -274,7 +280,7 @@ export default function ProviderDashboardLayout({ children }) {
           </div>
 
           {/* Main Content */}
-          <SidebarInset className="flex-1 lg:ml-64">
+          <SidebarInset className="flex-1 lg:ml-60 xl:ml-72">
             {/* Header */}
             <header className="sticky top-0 z-30 flex h-14 sm:h-16 items-center justify-between border-b border-gray-700/50 bg-gray-800/95 backdrop-blur-md px-3 sm:px-4 lg:px-6">
               <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
@@ -363,8 +369,8 @@ export default function ProviderDashboardLayout({ children }) {
             </header>
 
             {/* Main Content Area */}
-            <main className="bg-slate-900 flex-1 overflow-auto p-3 sm:p-4 lg:p-6">
-              <div className="max-w-full mx-auto">
+            <main className="bg-slate-900 flex-1 overflow-auto p-3 sm:p-4 lg:p-8 xl:p-12">
+              <div className="max-w-4xl mx-auto w-full">
                 {children}
               </div>
             </main>
