@@ -25,7 +25,7 @@ export async function GET(request) {
         id: listing._id.toString(),
         title: listing.title,
         description: listing.description,
-        quantity: `${listing.quantity} servings`,
+        quantity: listing.availableQuantity,
         location: listing.location,
         provider: listing.providerName,
         timeLeft: timeLeftDisplay,
