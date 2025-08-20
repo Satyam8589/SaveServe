@@ -170,6 +170,17 @@ const UserProfileSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    // Food Preferences
+    foodPreference: {
+      type: String,
+      enum: {
+        values: ["VEG", "NON_VEG", "BOTH"],
+        message: "Food preference must be VEG, NON_VEG, or BOTH.",
+      },
+      default: "BOTH",
+      index: true,
+    },
     // Document Upload System
     verificationDocuments: [
       {

@@ -213,7 +213,7 @@ export default clerkMiddleware(async (auth, req) => {
       // Allow blocked users to access only the blocked page
       if (currentPath === "/blocked" && userStatus !== "BLOCKED") {
         // If user is not blocked but trying to access blocked page, redirect to dashboard
-        if (mainRole === "provider") {
+        if (mainRole === "PROVIDER") {
           return NextResponse.redirect(new URL("/providerDashboard", req.url));
         } else {
           return NextResponse.redirect(new URL("/recipientDashboard", req.url));
@@ -233,12 +233,43 @@ export default clerkMiddleware(async (auth, req) => {
         return NextResponse.next();
       }
 
+      // Redirect users to their correct dashboard based on role
+      console.log("DEBUG: Checking dashboard redirects...");
+      console.log("DEBUG: currentPath:", currentPath);
+      console.log("DEBUG: mainRole:", mainRole);
+
+      if (currentPath === "/recipientDashboard" && mainRole === "PROVIDER") {
+        console.log(
+          "DEBUG: Redirecting PROVIDER from recipient dashboard to provider dashboard"
+        );
+        return NextResponse.redirect(new URL("/providerDashboard", req.url));
+      }
+
+      if (currentPath === "/providerDashboard" && mainRole === "RECIPIENT") {
+        console.log(
+          "DEBUG: Redirecting RECIPIENT from provider dashboard to recipient dashboard"
+        );
+        return NextResponse.redirect(new URL("/recipientDashboard", req.url));
+      }
+
       // Block access to onboarding once completed
       if (isOnboardingRoute(req)) {
         console.log("Blocking onboarding access - redirecting to dashboard");
-        if (mainRole === "provider") {
+        console.log(
+          "DEBUG: mainRole value:",
+          mainRole,
+          "type:",
+          typeof mainRole
+        );
+        console.log("DEBUG: mainRole === 'PROVIDER':", mainRole === "PROVIDER");
+        if (mainRole === "PROVIDER") {
+          console.log("DEBUG: Redirecting PROVIDER to /providerDashboard");
           return NextResponse.redirect(new URL("/providerDashboard", req.url));
         } else {
+          console.log(
+            "DEBUG: Redirecting to /recipientDashboard, mainRole:",
+            mainRole
+          );
           return NextResponse.redirect(new URL("/recipientDashboard", req.url));
         }
       }

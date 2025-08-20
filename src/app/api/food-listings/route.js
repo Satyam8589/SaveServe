@@ -1,5 +1,5 @@
-import { connectDB } from '@/lib/db';
-import FoodListing from '@/models/FoodListing';
+import { connectDB } from "@/lib/db";
+import FoodListing from "@/models/FoodListing";
 
 export async function GET(request) {
   try {
@@ -7,31 +7,37 @@ export async function GET(request) {
 
     const foodListings = await FoodListing.find({
       isActive: true,
-      expiryTime: { $gte: new Date() }
+      expiryTime: { $gte: new Date() },
     }).sort({ createdAt: -1 });
 
-    const transformedListings = foodListings.map(listing => {
+    const transformedListings = foodListings.map((listing) => {
       const now = new Date();
-      const timeLeft = Math.max(0, Math.floor((listing.expiryTime - now) / (1000 * 60))); // minutes
+      const timeLeft = Math.max(
+        0,
+        Math.floor((listing.expiryTime - now) / (1000 * 60))
+      ); // minutes
       const hours = Math.floor(timeLeft / 60);
       const minutes = timeLeft % 60;
 
-      let status = 'available';
-      if (timeLeft <= 60) status = 'urgent';
+      let status = "available";
+      if (timeLeft <= 60) status = "urgent";
 
-      const timeLeftDisplay = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+      const timeLeftDisplay =
+        hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 
       return {
         id: listing._id.toString(),
         title: listing.title,
         description: listing.description,
-        quantity: `${listing.quantity} servings`,
+        category: listing.category,
+        foodType: listing.foodType, // Add food type
+        quantity: `${listing.quantity} ${listing.unit}`,
         location: listing.location,
         provider: listing.providerName,
         timeLeft: timeLeftDisplay,
         status: status,
         freshness: listing.freshnessStatus,
-        freshnessHours: listing.freshnessHours, // Added this line
+        freshnessHours: listing.freshnessHours,
         type: "Main Course",
         distance: "0.5 km",
         posted: getTimeAgo(listing.createdAt),
@@ -40,28 +46,33 @@ export async function GET(request) {
         imageUrl: listing.imageUrl,
         expiryTime: listing.expiryTime,
         availabilityWindow: listing.availabilityWindow,
-        providerId: listing.providerId
+        providerId: listing.providerId,
       };
     });
 
-    return new Response(JSON.stringify({
-      success: true,
-      data: transformedListings,
-      count: transformedListings.length
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        data: transformedListings,
+        count: transformedListings.length,
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   } catch (error) {
-    console.error('Error fetching food listings:', error);
-    return new Response(JSON.stringify({
-      success: false,
-      message: 'Error fetching food listings'
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    console.error("Error fetching food listings:", error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: "Error fetching food listings",
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 }
 
@@ -70,6 +81,11 @@ function getTimeAgo(date) {
   const now = new Date();
   const diffInMinutes = Math.floor((now - date) / (1000 * 60));
   if (diffInMinutes < 60) return `${diffInMinutes} mins ago`;
-  if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes/60)} hour${Math.floor(diffInMinutes/60) > 1 ? 's' : ''} ago`;
-  return `${Math.floor(diffInMinutes/1440)} day${Math.floor(diffInMinutes/1440) > 1 ? 's' : ''} ago`;
+  if (diffInMinutes < 1440)
+    return `${Math.floor(diffInMinutes / 60)} hour${
+      Math.floor(diffInMinutes / 60) > 1 ? "s" : ""
+    } ago`;
+  return `${Math.floor(diffInMinutes / 1440)} day${
+    Math.floor(diffInMinutes / 1440) > 1 ? "s" : ""
+  } ago`;
 }

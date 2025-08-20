@@ -16,7 +16,7 @@ export default function PostLogin() {
     const checkUserStatus = async () => {
       try {
         const hasOnboarded = user?.publicMetadata?.hasOnboarded;
-        const mainRole = user?.publicMetadata?.mainRole?.toLowerCase();
+        const mainRole = user?.publicMetadata?.mainRole;
 
         if (hasOnboarded === true) {
           // User has completed onboarding, now check approval status
@@ -28,7 +28,7 @@ export default function PostLogin() {
 
             if (profile) {
               // Admin users bypass approval system
-              if (mainRole === "admin") {
+              if (mainRole === "ADMIN") {
                 router.replace("/admin");
                 return;
               }
@@ -56,9 +56,9 @@ export default function PostLogin() {
                     console.warn("Failed to refresh session:", error);
                   }
 
-                  if (mainRole === "provider") {
+                  if (mainRole === "PROVIDER") {
                     router.replace("/providerDashboard");
-                  } else if (mainRole === "recipient") {
+                  } else if (mainRole === "RECIPIENT") {
                     router.replace("/recipientDashboard");
                   } else {
                     router.replace("/dashboard");

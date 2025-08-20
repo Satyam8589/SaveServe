@@ -271,6 +271,8 @@ export async function POST(request) {
         await client.users.updateUserMetadata(userId, {
           publicMetadata: {
             approvalStatus: "PENDING",
+            mainRole: profileData.role.toLowerCase(), // Add the main role
+            onboarded: true,
           },
         });
 
