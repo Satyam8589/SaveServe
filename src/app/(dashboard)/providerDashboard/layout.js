@@ -133,7 +133,7 @@ export default function ProviderDashboardLayout({ children }) {
               <SidebarMenu>
                 {sidebarItems.map((item) => (
                   <SidebarMenuItem key={item.href}>
-                    <Link href={item.href} passHref>
+                    <Link href={item.href} passHref prefetch={true}>
                       <SidebarMenuButton
                         className={cn(
                           "relative w-full text-gray-300 hover:text-gray-100 hover:bg-gray-700/70 transition-all duration-200 rounded-lg p-3 group",
