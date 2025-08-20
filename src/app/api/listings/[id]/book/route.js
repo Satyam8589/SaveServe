@@ -6,15 +6,8 @@ import Booking from "@/models/Booking";
 import UserProfile from "@/models/UserProfile";
 import mongoose from "mongoose";
 import { QRCodeService } from "@/lib/qrCodeService";
-import {
-  sendCompleteNotification,
-  NOTIFICATION_TYPES,
-} from "@/lib/firestoreNotificationService";
 import { sendSSENotification } from "@/lib/sendSSENotification";
-import {
-  sendCompleteNotification,
-  NOTIFICATION_TYPES,
-} from "@/lib/firestoreNotificationService";
+
 
 export async function POST(request, { params }) {
   const { id } = await params;
