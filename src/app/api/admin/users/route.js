@@ -1,51 +1,59 @@
 // app/api/admin/users/route.js
-import { NextResponse } from 'next/server';
-import { currentUser } from '@clerk/nextjs/server';
-import { connectDB } from '@/lib/db';
-import UserProfile from '../../../../models/UserProfile';
+import { NextResponse } from "next/server";
+import { currentUser } from "@clerk/nextjs/server";
+import { connectDB } from "@/lib/db";
+import UserProfile from "../../../../models/UserProfile";
 
 // GET request handler - Fetch all users for admin
 export async function GET(request) {
   try {
-    console.log('🔍 GET /api/admin/users - Starting request');
-    
+    console.log("🔍 GET /api/admin/users - Starting request");
+
     // Check if user is authenticated and is admin
     const user = await currentUser();
     if (!user) {
       return NextResponse.json(
-        { success: false, message: 'Unauthorized - No user found' },
+        { success: false, message: "Unauthorized - No user found" },
         { status: 401 }
       );
     }
 
     // Check if user has admin role
     const userRole = user.publicMetadata?.mainRole;
-    if (userRole !== 'ADMIN') {
+    if (userRole !== "ADMIN") {
       return NextResponse.json(
-        { success: false, message: 'Unauthorized - Admin access required' },
+        { success: false, message: "Unauthorized - Admin access required" },
         { status: 403 }
       );
     }
 
     await connectDB();
-    
+
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status'); // Optional filter by status
-    const limit = parseInt(searchParams.get('limit')) || 100;
-    const skip = parseInt(searchParams.get('skip')) || 0;
+    const status = searchParams.get("status"); // Optional filter by status
+    const limit = parseInt(searchParams.get("limit")) || 100;
+    const skip = parseInt(searchParams.get("skip")) || 0;
 
-    console.log('📝 Query params:', { status, limit, skip });
+    console.log("📝 Query params:", { status, limit, skip });
 
-    // Build query
+    // Build query - support both new userStatus and legacy approvalStatus
     let query = { isActive: true };
-    if (status && ['PENDING', 'APPROVED', 'REJECTED'].includes(status)) {
-      query.approvalStatus = status;
+    if (
+      status &&
+      ["ACTIVE", "APPROVED", "REJECTED", "BLOCKED", "PENDING"].includes(status)
+    ) {
+      // For new system, use userStatus; for legacy, use approvalStatus
+      if (status === "BLOCKED") {
+        query.userStatus = status;
+      } else {
+        query.$or = [{ userStatus: status }, { approvalStatus: status }];
+      }
     }
 
-    console.log('🔎 Fetching users with query:', query);
-    
+    console.log("🔎 Fetching users with query:", query);
+
     const users = await UserProfile.find(query)
-      .select('-fcmToken') // Exclude sensitive data
+      .select("-fcmToken") // Exclude sensitive data
       .sort({ submittedForApprovalAt: -1, createdAt: -1 }) // Newest first
       .limit(limit)
       .skip(skip)
@@ -53,28 +61,30 @@ export async function GET(request) {
 
     const totalCount = await UserProfile.countDocuments(query);
 
-    console.log('✅ Found users:', {
+    console.log("✅ Found users:", {
       count: users.length,
       total: totalCount,
-      hasMore: (skip + users.length) < totalCount
+      hasMore: skip + users.length < totalCount,
     });
-    
+
     return NextResponse.json({
       success: true,
-      message: 'Users fetched successfully.',
+      message: "Users fetched successfully.",
       users: users,
       pagination: {
         total: totalCount,
         limit: limit,
         skip: skip,
-        hasMore: (skip + users.length) < totalCount
-      }
+        hasMore: skip + users.length < totalCount,
+      },
     });
-
   } catch (error) {
-    console.error('💥 GET /api/admin/users error:', error);
+    console.error("💥 GET /api/admin/users error:", error);
     return NextResponse.json(
-      { success: false, message: 'Internal server error while fetching users.' },
+      {
+        success: false,
+        message: "Internal server error while fetching users.",
+      },
       { status: 500 }
     );
   }
@@ -83,39 +93,39 @@ export async function GET(request) {
 // POST request handler - Create admin user (optional)
 export async function POST(request) {
   try {
-    console.log('📝 POST /api/admin/users - Starting request');
-    
+    console.log("📝 POST /api/admin/users - Starting request");
+
     // Check if user is authenticated and is admin
     const user = await currentUser();
     if (!user) {
       return NextResponse.json(
-        { success: false, message: 'Unauthorized - No user found' },
+        { success: false, message: "Unauthorized - No user found" },
         { status: 401 }
       );
     }
 
     // Check if user has admin role
     const userRole = user.publicMetadata?.mainRole;
-    if (userRole !== 'ADMIN') {
+    if (userRole !== "ADMIN") {
       return NextResponse.json(
-        { success: false, message: 'Unauthorized - Admin access required' },
+        { success: false, message: "Unauthorized - Admin access required" },
         { status: 403 }
       );
     }
 
     await connectDB();
-    
+
     const body = await request.json();
     const { action, userId, data } = body;
 
-    console.log('📦 Received admin action:', { action, userId });
+    console.log("📦 Received admin action:", { action, userId });
 
     switch (action) {
-      case 'UPDATE_STATUS':
+      case "UPDATE_STATUS":
         const profile = await UserProfile.findOne({ userId });
         if (!profile) {
           return NextResponse.json(
-            { success: false, message: 'User profile not found.' },
+            { success: false, message: "User profile not found." },
             { status: 404 }
           );
         }
@@ -124,25 +134,30 @@ export async function POST(request) {
         Object.assign(profile, data);
         await profile.save();
 
-        console.log('✅ User status updated:', { userId, newStatus: data.approvalStatus });
-        
+        console.log("✅ User status updated:", {
+          userId,
+          newStatus: data.approvalStatus,
+        });
+
         return NextResponse.json({
           success: true,
-          message: 'User status updated successfully.',
-          user: profile
+          message: "User status updated successfully.",
+          user: profile,
         });
 
       default:
         return NextResponse.json(
-          { success: false, message: 'Invalid action specified.' },
+          { success: false, message: "Invalid action specified." },
           { status: 400 }
         );
     }
-
   } catch (error) {
-    console.error('💥 POST /api/admin/users error:', error);
+    console.error("💥 POST /api/admin/users error:", error);
     return NextResponse.json(
-      { success: false, message: 'Internal server error while processing admin action.' },
+      {
+        success: false,
+        message: "Internal server error while processing admin action.",
+      },
       { status: 500 }
     );
   }

@@ -19,21 +19,32 @@ import {
   Image,
   Download,
   ZoomIn,
+  Shield,
+  Ban,
+  UserMinus,
+  Activity,
+  TrendingUp,
 } from "lucide-react";
 import DocumentViewer from "../../components/DocumentViewer";
 
 export default function AdminDashboard() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
-  const [pendingUsers, setPendingUsers] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [filter, setFilter] = useState("PENDING");
+  const [filter, setFilter] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
   const [viewingDocument, setViewingDocument] = useState(null);
+  const [userStats, setUserStats] = useState({
+    total: 0,
+    active: 0,
+    approved: 0,
+    rejected: 0,
+    blocked: 0,
+  });
 
   // Check if user is admin
   useEffect(() => {
@@ -53,10 +64,24 @@ export default function AdminDashboard() {
       const response = await fetch("/api/admin/users");
       if (response.ok) {
         const data = await response.json();
-        setAllUsers(data.users || []);
-        setPendingUsers(
-          data.users?.filter((u) => u.approvalStatus === "PENDING") || []
-        );
+        const users = data.users || [];
+        setAllUsers(users);
+
+        // Calculate user statistics
+        const stats = {
+          total: users.length,
+          active: users.filter(
+            (u) => (u.userStatus || u.approvalStatus) === "ACTIVE"
+          ).length,
+          approved: users.filter(
+            (u) => (u.userStatus || u.approvalStatus) === "APPROVED"
+          ).length,
+          rejected: users.filter(
+            (u) => (u.userStatus || u.approvalStatus) === "REJECTED"
+          ).length,
+          blocked: users.filter((u) => u.userStatus === "BLOCKED").length,
+        };
+        setUserStats(stats);
       } else {
         setError("Failed to fetch users");
       }
@@ -68,56 +93,54 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleApprove = async (userId) => {
+  // New user status management functions
+  const handleUserAction = async (userId, action, reason = "") => {
     try {
       setActionLoading(true);
-      const response = await fetch("/api/admin/approve-user", {
+      const response = await fetch(`/api/user-status/${userId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, adminId: user.id }),
+        body: JSON.stringify({
+          action,
+          reason:
+            reason ||
+            `${action.charAt(0).toUpperCase() + action.slice(1)}ed by admin`,
+          adminUserId: user.id,
+        }),
       });
 
       if (response.ok) {
         await fetchUsers(); // Refresh the list
         setSelectedUser(null);
+        setError(null);
       } else {
         const data = await response.json();
-        setError(data.message || "Failed to approve user");
+        setError(data.error || `Failed to ${action} user`);
       }
     } catch (err) {
-      setError("Error approving user");
+      setError(`Error ${action}ing user`);
       console.error("Error:", err);
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleReject = async (userId, reason) => {
-    try {
-      setActionLoading(true);
-      const response = await fetch("/api/admin/reject-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, adminId: user.id, reason }),
-      });
-
-      if (response.ok) {
-        await fetchUsers(); // Refresh the list
-        setSelectedUser(null);
-      } else {
-        const data = await response.json();
-        setError(data.message || "Failed to reject user");
-      }
-    } catch (err) {
-      setError("Error rejecting user");
-      console.error("Error:", err);
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  const handleApprove = (userId, reason) =>
+    handleUserAction(userId, "approve", reason);
+  const handleReject = (userId, reason) =>
+    handleUserAction(userId, "reject", reason);
+  const handleBlock = (userId, reason) =>
+    handleUserAction(userId, "block", reason);
+  const handleUnblock = (userId, reason) =>
+    handleUserAction(userId, "unblock", reason);
+  const handleActivate = (userId, reason) =>
+    handleUserAction(userId, "activate", reason);
 
   const filteredUsers = allUsers.filter((user) => {
-    const matchesFilter = filter === "ALL" || user.approvalStatus === filter;
+    // Handle both new userStatus and legacy approvalStatus
+    const userCurrentStatus =
+      user.userStatus || user.approvalStatus || "ACTIVE";
+    const matchesFilter = filter === "ALL" || userCurrentStatus === filter;
     const matchesSearch =
       user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -198,60 +221,16 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Enhanced Stats Cards */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <Clock className="w-6 h-6 text-yellow-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">
-                  Pending Approval
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {pendingUsers.length}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Approved</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {
-                    allUsers.filter((u) => u.approvalStatus === "APPROVED")
-                      .length
-                  }
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <XCircle className="w-6 h-6 text-red-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Rejected</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {
-                    allUsers.filter((u) => u.approvalStatus === "REJECTED")
-                      .length
-                  }
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+          {/* Total Users */}
+          <button
+            onClick={() => setFilter("ALL")}
+            className={`bg-white rounded-lg shadow p-6 text-left transition-all hover:shadow-lg hover:scale-105 ${
+              filter === "ALL" ? "ring-2 ring-blue-500" : ""
+            }`}
+          >
             <div className="flex items-center">
               <div className="p-2 bg-blue-100 rounded-lg">
                 <Users className="w-6 h-6 text-blue-600" />
@@ -259,11 +238,91 @@ export default function AdminDashboard() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Users</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {allUsers.length}
+                  {userStats.total}
                 </p>
               </div>
             </div>
-          </div>
+          </button>
+
+          {/* Active Users */}
+          <button
+            onClick={() => setFilter("ACTIVE")}
+            className={`bg-white rounded-lg shadow p-6 text-left transition-all hover:shadow-lg hover:scale-105 ${
+              filter === "ACTIVE" ? "ring-2 ring-green-500" : ""
+            }`}
+          >
+            <div className="flex items-center">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <Activity className="w-6 h-6 text-green-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Active</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {userStats.active}
+                </p>
+              </div>
+            </div>
+          </button>
+
+          {/* Approved Users */}
+          <button
+            onClick={() => setFilter("APPROVED")}
+            className={`bg-white rounded-lg shadow p-6 text-left transition-all hover:shadow-lg hover:scale-105 ${
+              filter === "APPROVED" ? "ring-2 ring-emerald-500" : ""
+            }`}
+          >
+            <div className="flex items-center">
+              <div className="p-2 bg-emerald-100 rounded-lg">
+                <CheckCircle className="w-6 h-6 text-emerald-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Approved</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {userStats.approved}
+                </p>
+              </div>
+            </div>
+          </button>
+
+          {/* Rejected Users */}
+          <button
+            onClick={() => setFilter("REJECTED")}
+            className={`bg-white rounded-lg shadow p-6 text-left transition-all hover:shadow-lg hover:scale-105 ${
+              filter === "REJECTED" ? "ring-2 ring-red-500" : ""
+            }`}
+          >
+            <div className="flex items-center">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <XCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Rejected</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {userStats.rejected}
+                </p>
+              </div>
+            </div>
+          </button>
+
+          {/* Blocked Users */}
+          <button
+            onClick={() => setFilter("BLOCKED")}
+            className={`bg-white rounded-lg shadow p-6 text-left transition-all hover:shadow-lg hover:scale-105 ${
+              filter === "BLOCKED" ? "ring-2 ring-gray-500" : ""
+            }`}
+          >
+            <div className="flex items-center">
+              <div className="p-2 bg-gray-100 rounded-lg">
+                <Ban className="w-6 h-6 text-gray-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Blocked</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {userStats.blocked}
+                </p>
+              </div>
+            </div>
+          </button>
         </div>
 
         {/* Filters and Search */}
@@ -289,10 +348,15 @@ export default function AdminDashboard() {
                   onChange={(e) => setFilter(e.target.value)}
                   className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="ALL">All Users</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="APPROVED">Approved</option>
-                  <option value="REJECTED">Rejected</option>
+                  <option value="ALL">All Users ({userStats.total})</option>
+                  <option value="ACTIVE">Active ({userStats.active})</option>
+                  <option value="APPROVED">
+                    Approved ({userStats.approved})
+                  </option>
+                  <option value="REJECTED">
+                    Rejected ({userStats.rejected})
+                  </option>
+                  <option value="BLOCKED">Blocked ({userStats.blocked})</option>
                 </select>
               </div>
             </div>
@@ -492,6 +556,9 @@ export default function AdminDashboard() {
           onClose={() => setSelectedUser(null)}
           onApprove={handleApprove}
           onReject={handleReject}
+          onBlock={handleBlock}
+          onUnblock={handleUnblock}
+          onActivate={handleActivate}
           actionLoading={actionLoading}
           onViewDocument={setViewingDocument}
           onRefreshUsers={fetchUsers}
@@ -518,6 +585,9 @@ function UserDetailModal({
   onClose,
   onApprove,
   onReject,
+  onBlock,
+  onUnblock,
+  onActivate,
   actionLoading,
   onViewDocument,
   onRefreshUsers,
@@ -604,7 +674,6 @@ function UserDetailModal({
               </div>
             )}
           </div>
-
           {/* Verification Documents */}
           <div className="mb-6">
             {user.verificationDocuments &&
@@ -846,7 +915,6 @@ function UserDetailModal({
               </div>
             )}
           </div>
-
           {/* Status Info */}
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
             <h3 className="font-medium text-gray-900 mb-3">
@@ -899,65 +967,116 @@ function UserDetailModal({
               </div>
             )}
           </div>
+          {/* Enhanced Actions */}
+          <div className="border-t pt-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              User Actions
+            </h3>
 
-          {/* Actions */}
-          {user.approvalStatus === "PENDING" && (
-            <div className="flex flex-col gap-4">
-              {!showRejectForm ? (
-                <div className="flex gap-4">
+            {/* Current Status Display */}
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-600">Current Status:</p>
+              <p className="font-semibold text-gray-900">
+                {(
+                  user.userStatus ||
+                  user.approvalStatus ||
+                  "ACTIVE"
+                ).toUpperCase()}
+              </p>
+            </div>
+
+            {!showRejectForm ? (
+              <div className="grid grid-cols-2 gap-3">
+                {/* Approve Button */}
+                <button
+                  onClick={() => onApprove(user.userId, "Approved by admin")}
+                  disabled={actionLoading}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <UserCheck className="w-4 h-4" />
+                  Approve
+                </button>
+
+                {/* Reject Button */}
+                <button
+                  onClick={() => setShowRejectForm(true)}
+                  disabled={actionLoading}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <UserX className="w-4 h-4" />
+                  Reject
+                </button>
+
+                {/* Block Button */}
+                <button
+                  onClick={() => {
+                    const reason = prompt("Reason for blocking this user:");
+                    if (reason) onBlock(user.userId, reason);
+                  }}
+                  disabled={actionLoading}
+                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <Ban className="w-4 h-4" />
+                  Block
+                </button>
+
+                {/* Unblock Button (only show if user is blocked) */}
+                {user.userStatus === "BLOCKED" && (
                   <button
-                    onClick={() => onApprove(user.userId)}
+                    onClick={() => onUnblock(user.userId, "Unblocked by admin")}
                     disabled={actionLoading}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     <UserCheck className="w-4 h-4" />
-                    Approve User
+                    Unblock
+                  </button>
+                )}
+
+                {/* Activate Button */}
+                <button
+                  onClick={() => onActivate(user.userId, "Activated by admin")}
+                  disabled={actionLoading}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <Activity className="w-4 h-4" />
+                  Activate
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Reason for Rejection
+                  </label>
+                  <textarea
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="Please provide a clear reason for rejection..."
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={4}
+                  />
+                </div>
+                <div className="flex gap-4">
+                  <button
+                    onClick={handleRejectSubmit}
+                    disabled={actionLoading || !rejectionReason.trim()}
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    Confirm Rejection
                   </button>
                   <button
-                    onClick={() => setShowRejectForm(true)}
-                    disabled={actionLoading}
-                    className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    onClick={() => {
+                      setShowRejectForm(false);
+                      setRejectionReason("");
+                    }}
+                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors"
                   >
-                    <UserX className="w-4 h-4" />
-                    Reject User
+                    Cancel
                   </button>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Reason for Rejection
-                    </label>
-                    <textarea
-                      value={rejectionReason}
-                      onChange={(e) => setRejectionReason(e.target.value)}
-                      placeholder="Please provide a clear reason for rejection..."
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      rows={4}
-                    />
-                  </div>
-                  <div className="flex gap-4">
-                    <button
-                      onClick={handleRejectSubmit}
-                      disabled={actionLoading || !rejectionReason.trim()}
-                      className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                      Confirm Rejection
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowRejectForm(false);
-                        setRejectionReason("");
-                      }}
-                      className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -125,16 +125,32 @@ const UserProfileSchema = new mongoose.Schema(
       type: Number,
       default: 1,
     },
-    // Admin Approval System
-    approvalStatus: {
+    // User Status System (Updated)
+    userStatus: {
       type: String,
       enum: {
-        values: ["PENDING", "APPROVED", "REJECTED"],
-        message: "Approval status must be PENDING, APPROVED, or REJECTED.",
+        values: ["ACTIVE", "APPROVED", "REJECTED", "BLOCKED"],
+        message: "User status must be ACTIVE, APPROVED, REJECTED, or BLOCKED.",
       },
-      default: "PENDING",
+      default: "ACTIVE", // Users are active by default, can use the app immediately
       index: true,
     },
+    // Status change tracking
+    statusChangedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    statusChangedBy: {
+      type: String,
+      default: null,
+    },
+    statusReason: {
+      type: String,
+      trim: true,
+      maxlength: [500, "Status reason cannot exceed 500 characters."],
+      default: null,
+    },
+    // Legacy fields (for backward compatibility)
     approvedAt: {
       type: Date,
       default: null,
@@ -149,7 +165,8 @@ const UserProfileSchema = new mongoose.Schema(
       maxlength: [500, "Rejection reason cannot exceed 500 characters."],
       default: null,
     },
-    submittedForApprovalAt: {
+    // Profile completion tracking
+    profileCompletedAt: {
       type: Date,
       default: null,
     },
@@ -242,14 +259,10 @@ UserProfileSchema.pre("save", function (next) {
     );
   }
 
-  // Auto-submit for approval when profile is completed for the first time
-  if (
-    this.isProfileComplete &&
-    this.isNew &&
-    this.approvalStatus === "PENDING"
-  ) {
-    this.submittedForApprovalAt = new Date();
-    console.log("📝 Profile completed - submitted for admin approval");
+  // Track profile completion for the first time
+  if (this.isProfileComplete && this.isNew && !this.profileCompletedAt) {
+    this.profileCompletedAt = new Date();
+    console.log("📝 Profile completed - user can now use the app");
   }
 
   // Update other fields as before
@@ -280,29 +293,67 @@ UserProfileSchema.methods.canProvideFood = function () {
   );
 };
 
-// Instance methods for approval system
-UserProfileSchema.methods.approve = function (adminUserId) {
-  this.approvalStatus = "APPROVED";
+// Instance methods for user status management
+UserProfileSchema.methods.approve = function (
+  adminUserId,
+  reason = "Approved by admin"
+) {
+  this.userStatus = "APPROVED";
+  this.statusChangedAt = new Date();
+  this.statusChangedBy = adminUserId;
+  this.statusReason = reason;
+  // Legacy fields for backward compatibility
   this.approvedAt = new Date();
   this.approvedBy = adminUserId;
-  this.rejectionReason = null; // Clear any previous rejection reason
+  this.rejectionReason = null;
   return this.save();
 };
 
-UserProfileSchema.methods.reject = function (adminUserId, reason) {
-  this.approvalStatus = "REJECTED";
+UserProfileSchema.methods.reject = function (
+  adminUserId,
+  reason = "Rejected by admin"
+) {
+  this.userStatus = "REJECTED";
+  this.statusChangedAt = new Date();
+  this.statusChangedBy = adminUserId;
+  this.statusReason = reason;
+  // Legacy fields for backward compatibility
   this.approvedAt = null;
   this.approvedBy = adminUserId;
   this.rejectionReason = reason;
   return this.save();
 };
 
-UserProfileSchema.methods.submitForApproval = function () {
-  this.approvalStatus = "PENDING";
-  this.submittedForApprovalAt = new Date();
-  this.approvedAt = null;
-  this.approvedBy = null;
-  this.rejectionReason = null;
+UserProfileSchema.methods.block = function (
+  adminUserId,
+  reason = "Blocked due to policy violation"
+) {
+  this.userStatus = "BLOCKED";
+  this.statusChangedAt = new Date();
+  this.statusChangedBy = adminUserId;
+  this.statusReason = reason;
+  return this.save();
+};
+
+UserProfileSchema.methods.unblock = function (
+  adminUserId,
+  reason = "Unblocked by admin"
+) {
+  this.userStatus = "ACTIVE";
+  this.statusChangedAt = new Date();
+  this.statusChangedBy = adminUserId;
+  this.statusReason = reason;
+  return this.save();
+};
+
+UserProfileSchema.methods.activate = function (
+  adminUserId,
+  reason = "Activated by admin"
+) {
+  this.userStatus = "ACTIVE";
+  this.statusChangedAt = new Date();
+  this.statusChangedBy = adminUserId;
+  this.statusReason = reason;
   return this.save();
 };
 
@@ -315,18 +366,66 @@ UserProfileSchema.statics.findByRoleAndLocation = function (role, location) {
   }).sort({ lastLoginAt: -1 });
 };
 
+// Updated static methods for new status system
+UserProfileSchema.statics.findByUserStatus = function (status) {
+  return this.find({
+    userStatus: status,
+    isActive: true,
+  }).sort({ statusChangedAt: -1 });
+};
+
+UserProfileSchema.statics.findActiveUsers = function () {
+  return this.find({
+    userStatus: "ACTIVE",
+    isActive: true,
+  }).sort({ lastLoginAt: -1 });
+};
+
+UserProfileSchema.statics.findApprovedUsers = function () {
+  return this.find({
+    userStatus: "APPROVED",
+    isActive: true,
+  }).sort({ statusChangedAt: -1 });
+};
+
+UserProfileSchema.statics.findRejectedUsers = function () {
+  return this.find({
+    userStatus: "REJECTED",
+    isActive: true,
+  }).sort({ statusChangedAt: -1 });
+};
+
+UserProfileSchema.statics.findBlockedUsers = function () {
+  return this.find({
+    userStatus: "BLOCKED",
+    isActive: true,
+  }).sort({ statusChangedAt: -1 });
+};
+
+UserProfileSchema.statics.getUserStatusCounts = function () {
+  return this.aggregate([
+    { $match: { isActive: true } },
+    { $group: { _id: "$userStatus", count: { $sum: 1 } } },
+    { $sort: { _id: 1 } },
+  ]);
+};
+
+// Legacy methods for backward compatibility
 UserProfileSchema.statics.findPendingApprovals = function () {
   return this.find({
-    approvalStatus: "PENDING",
+    userStatus: "ACTIVE", // In new system, all users are active by default
     isActive: true,
-  }).sort({ submittedForApprovalAt: 1 }); // Oldest first
+  }).sort({ profileCompletedAt: -1 });
 };
 
 UserProfileSchema.statics.findByApprovalStatus = function (status) {
-  return this.find({
-    approvalStatus: status,
-    isActive: true,
-  }).sort({ updatedAt: -1 });
+  // Map old status to new status
+  const statusMap = {
+    PENDING: "ACTIVE",
+    APPROVED: "APPROVED",
+    REJECTED: "REJECTED",
+  };
+  return this.findByUserStatus(statusMap[status] || status);
 };
 
 // ... (all other methods and statics remain the same)

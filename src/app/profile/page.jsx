@@ -337,11 +337,11 @@ const UserProfileForm = ({
         onProfileSaved(data.data);
       }
 
-      // If this is a new profile, redirect to pending approval
+      // If this is a new profile, redirect to pending verification (new flow)
       if (data.isNew) {
         setTimeout(() => {
           setStatus({ loading: false, message: "", type: "" });
-          window.location.href = "/pending-approval";
+          window.location.href = "/pending-verification";
         }, 1500);
       } else {
         setTimeout(() => {
@@ -727,18 +727,8 @@ const ProfilePage = () => {
       // Small delay to ensure metadata propagation
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Redirect to appropriate dashboard based on role
-      const userMainRole =
-        user?.publicMetadata?.mainRole || user?.unsafeMetadata?.mainRole;
-      const role = userMainRole?.toLowerCase();
-
-      if (role === "provider") {
-        router.push("/providerDashboard");
-      } else if (role === "recipient") {
-        router.push("/recipientDashboard");
-      } else {
-        router.push("/dashboard");
-      }
+      // Redirect to pending verification page for new profile completion
+      router.push("/pending-verification");
     } catch (error) {
       console.error("Error updating profile completion:", error);
       // Still allow the profile to be saved locally even if metadata update fails
