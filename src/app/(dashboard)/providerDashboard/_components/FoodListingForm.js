@@ -119,18 +119,22 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
     imageUrl: "",
   });
 
+  console.log("Fetched userProfile:", userProfile);
+
   useEffect(() => {
-    // Check if the userProfile data has been successfully fetched
+
+    
+    // This effect runs when the user profile is loaded or the user changes.
     if (userProfile) {
+      // Pre-fill the form with data from the user's profile.
       setFormData((prev) => ({
         ...prev,
-        // Set the providerName from the fullName in the profile
-        providerName: userProfile.fullName || "",
-        // Set the location from the campusLocation in the profile
+        providerName: userProfile.providerName || userProfile.fullName || "",
         location: userProfile.campusLocation || "",
+        providerId: userId || "", // Ensure providerId is set from the authenticated user
       }));
     }
-  }, [userProfile]);
+  }, [userProfile, userId]); // FIX: Dependency array ensures this runs when data is ready.
 
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);

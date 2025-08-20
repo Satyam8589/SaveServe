@@ -1,8 +1,8 @@
-// app/api/listings/route.js (Updated POST section only)
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import FoodListing from '@/models/FoodListing';
 import { sendNotificationToUser, sendNotificationToRole } from '@/lib/notificationService';
+import { sendSSENotification, sendSSENotificationToRole } from '@/lib/sendSSENotification';
 import { 
   createFirestoreNotification, 
   sendCompleteNotification,
@@ -50,16 +50,14 @@ export async function GET(request) {
   }
 }
 
-// POST - Create new listing with FCM + Firestore notifications
-
-// POST - Create new listing with FCM + Firestore notifications
+// POST - Create new listing with SSE + FCM + Firestore notifications
 export async function POST(request) {
   try {
     await connectDB();
 
     const body = await request.json();
     
-    console.log('🔍 POST /api/listings - Received body:');
+    console.log('📝 POST /api/listings - Received body:');
     console.log('📋 Full request body:', JSON.stringify(body, null, 2));
     console.log('🖼️ imageUrl in request:', body.imageUrl);
     
@@ -114,7 +112,7 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // ✅ CRITICAL: Explicitly handle imageUrl
+    // Create listing data
     const listingData = {
       title,
       description: body.description || '',
@@ -131,7 +129,7 @@ export async function POST(request) {
       expiryTime: expiry,
       providerId,
       providerName,
-      imageUrl: body.imageUrl || '', // ✅ Always include imageUrl, even if empty
+      imageUrl: body.imageUrl || '',
       bookedBy: body.bookedBy || [],
       remainingQuantity: body.remainingQuantity || parseInt(quantity, 10),
       isActive: body.isActive !== undefined ? body.isActive : true
@@ -139,7 +137,6 @@ export async function POST(request) {
 
     console.log('📦 Final listing data to save:');
     console.log('🖼️ imageUrl being saved:', listingData.imageUrl);
-    console.log('📋 Full listing data:', JSON.stringify(listingData, null, 2));
 
     const newListing = new FoodListing(listingData);
     const savedListing = await newListing.save();
@@ -148,7 +145,7 @@ export async function POST(request) {
     console.log('🆔 Saved listing ID:', savedListing._id);
     console.log('🖼️ Saved imageUrl:', savedListing.imageUrl);
 
-    // 🔔 Send notifications to all recipients (FCM + Firestore)
+    // 📢 Send notifications to recipients
     try {
       console.log('📢 Sending notifications to all recipients');
       
@@ -160,28 +157,33 @@ export async function POST(request) {
         action: 'new_listing'
       };
 
-      // Send to all recipients via role (FCM only for now)
+      // 📱 Send FCM to recipients by role
       const roleNotificationResult = await sendNotificationToRole(
         'RECIPIENT',
         'New Food Available! 🍽️',
         `${title} is available in ${location}. Grab it before it's gone!`,
         notificationData
       );
-
       console.log('📨 Recipients FCM notification result:', roleNotificationResult);
 
-      // For Firestore notifications to recipients, you'd need to implement 
-      // a way to get all recipient user IDs. For now, we'll focus on 
-      // individual notifications (provider confirmation and booking notifications)
+      // 📡 Send SSE to all connected recipients
+      const sseResult = await sendSSENotificationToRole('recipient', {
+        title: 'New Food Available! 🍽️',
+        message: `${title} is available in ${location}. Grab it before it's gone!`,
+        type: 'success',
+        data: notificationData
+      });
+      console.log('📡 Recipients SSE notification result:', sseResult);
       
     } catch (notificationError) {
       console.error('❌ Recipients notification sending failed:', notificationError);
     }
 
-    // 🔔 Send confirmation notification to provider (FCM + Firestore)
+    // 📢 Send confirmation to provider
     try {
       console.log('📢 Sending listing confirmation to provider:', providerId);
       
+      // 📱 Send complete notification (FCM + Firestore)
       const providerNotificationResult = await sendCompleteNotification(
         providerId,
         'Listing Created Successfully! ✅',
@@ -197,8 +199,20 @@ export async function POST(request) {
           location: location
         }
       );
+      console.log('📨 Provider FCM+Firestore result:', providerNotificationResult);
 
-      console.log('📨 Provider notification result:', providerNotificationResult);
+      // 📡 Send SSE to provider
+      const providerSSEResult = sendSSENotification(providerId, {
+        title: 'Listing Created Successfully! ✅',
+        message: `Your food listing "${title}" has been posted and recipients have been notified.`,
+        type: 'success',
+        data: {
+          listingId: savedListing._id.toString(),
+          action: 'listing_created_confirmation'
+        }
+      });
+      console.log('📡 Provider SSE result:', providerSSEResult);
+      
     } catch (notificationError) {
       console.error('❌ Failed to send provider confirmation:', notificationError);
     }
@@ -209,7 +223,8 @@ export async function POST(request) {
       notifications: {
         sent: true,
         recipientsNotified: true,
-        providerConfirmed: true
+        providerConfirmed: true,
+        sseNotifications: true
       }
     }, { status: 201 });
 
@@ -218,7 +233,6 @@ export async function POST(request) {
     
     if (error.name === 'ValidationError') {
       console.log('❌ Mongoose validation error:', error.message);
-      console.log('❌ Validation errors:', error.errors);
       return NextResponse.json({
         success: false,
         error: error.message
