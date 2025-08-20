@@ -34,8 +34,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-// import NotificationPopup from "@/components/NotificationPopup";
-
+import NotificationBell from "@/hooks/NotificationBell";;
 const sidebarItems = [
   {
     href: "/providerDashboard/listings",
@@ -72,41 +71,14 @@ const sidebarItems = [
 export default function ProviderDashboardLayout({ children }) {
   const pathname = usePathname();
   const [isNotificationPopupOpen, setIsNotificationPopupOpen] = useState(false);
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSidebarOpen, setSidebarOpen] = useState(true);
+  const [isClient, setIsClient] = useState(false);
 
-  // Handle mobile detection and sidebar behavior
+  // Handle client-side rendering
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
-      if (window.innerWidth >= 1024) {
-        setIsMobileSidebarOpen(false);
-      }
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    setIsClient(true);
   }, []);
-
-  // Close mobile sidebar when pathname changes
-  useEffect(() => {
-    setIsMobileSidebarOpen(false);
-  }, [pathname]);
-
-  // Prevent body scroll when mobile sidebar is open
-  useEffect(() => {
-    if (isMobileSidebarOpen && isMobile) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isMobileSidebarOpen, isMobile]);
 
   const handleBellClick = () => {
     setIsNotificationPopupOpen(!isNotificationPopupOpen);
@@ -114,10 +86,6 @@ export default function ProviderDashboardLayout({ children }) {
 
   const handleCloseNotifications = () => {
     setIsNotificationPopupOpen(false);
-  };
-
-  const toggleMobileSidebar = () => {
-    setIsMobileSidebarOpen(!isMobileSidebarOpen);
   };
 
   const getCurrentPageLabel = () => {
@@ -134,43 +102,40 @@ export default function ProviderDashboardLayout({ children }) {
     return pathname === itemHref || pathname.startsWith(itemHref);
   };
 
+  if (!isClient) {
+    return (
+      <div className="bg-slate-900 min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-500"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-slate-900 min-h-screen">
-      <SidebarProvider defaultOpen={!isMobile}>
-        <div className="flex min-h-screen w-full relative">
-          {/* Mobile Backdrop */}
-          {isMobileSidebarOpen && isMobile && (
-            <div 
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
-              onClick={() => setIsMobileSidebarOpen(false)}
-            />
-          )}
-
-          {/* Desktop Sidebar */}
-          <Sidebar className={cn(
-            "border-gray-700 bg-gray-800/95 backdrop-blur-md transition-all duration-300 ease-in-out",
-            "hidden lg:flex lg:w-64 lg:flex-shrink-0 lg:fixed lg:left-0 lg:top-0 lg:bottom-0 lg:z-30"
-          )}>
-            <SidebarHeader className="p-4 sm:p-6 border-b border-gray-700/50">
+      <SidebarProvider open={isSidebarOpen} onOpenChange={setSidebarOpen}>
+        <div className="flex min-h-screen  w-full">
+          {/* Sidebar */}
+          <Sidebar className="border-gray-900 bg-gray-800 w-64 flex-shrink-0 max-h-screen mt-16 bottom-1 flex flex-col">
+            <SidebarHeader className="p-4 border-b bg-gray-800 border-gray-600">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg">
                   <Leaf className="h-5 w-5 text-white" />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <h2 className="font-bold text-gray-100 text-lg truncate">SmartFood</h2>
+                <div>
+                  <h2 className="font-bold text-gray-100 text-lg">SmartFood</h2>
                   <p className="text-xs text-orange-400 font-medium">Provider Portal</p>
                 </div>
               </div>
             </SidebarHeader>
 
-            <SidebarContent className="p-3 sm:p-4 flex-1 overflow-y-auto">
-              <SidebarMenu className="space-y-1">
+            <SidebarContent className="flex-1 px-3 py-5 bg-gray-800">
+              <SidebarMenu>
                 {sidebarItems.map((item) => (
                   <SidebarMenuItem key={item.href}>
-                    <Link href={item.href} passHref>
+                    <Link href={item.href} passHref prefetch={true}>
                       <SidebarMenuButton
                         className={cn(
-                          "w-full text-gray-300 hover:text-gray-100 hover:bg-gray-700/70 transition-all duration-200 rounded-lg p-3 group relative",
+                          "relative w-full text-gray-300 hover:text-gray-100 hover:bg-gray-700/70 transition-all duration-200 rounded-lg p-3 group",
                           isActiveRoute(item.href)
                             ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25"
                             : ""
@@ -190,142 +155,43 @@ export default function ProviderDashboardLayout({ children }) {
               </SidebarMenu>
             </SidebarContent>
 
-            <SidebarFooter className="p-3 sm:p-4 border-t border-gray-700/50">
-              <div className="space-y-1">
-                <SidebarMenuButton className="w-full text-gray-300 hover:text-gray-100 hover:bg-gray-700/70 transition-all duration-200 rounded-lg p-3">
-                  <Settings className="h-5 w-5" />
-                  <span className="font-medium">Settings</span>
-                </SidebarMenuButton>
-                <SidebarMenuButton className="w-full text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200 rounded-lg p-3">
-                  <LogOut className="h-5 w-5" />
-                  <span className="font-medium">Sign Out</span>
-                </SidebarMenuButton>
-              </div>
+            <SidebarFooter className="p-4 border-t bg-gray-800 border-gray-700">
+              <SidebarMenuButton className="w-full text-gray-300 hover:text-gray-100 hover:bg-gray-700/70 transition-all duration-200 rounded-lg p-3">
+                <Settings className="h-5 w-5" />
+                <span className="font-medium">Settings</span>
+              </SidebarMenuButton>
+              <SidebarMenuButton className="w-full text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200 rounded-lg p-3">
+                <LogOut className="h-5 w-5" />
+                <span className="font-medium">Sign Out</span>
+              </SidebarMenuButton>
             </SidebarFooter>
           </Sidebar>
 
-          {/* Mobile Sidebar */}
-          <div className={cn(
-            "fixed inset-y-0 left-0 z-50 w-64 bg-gray-800/95 backdrop-blur-md border-r border-gray-700/50 transform transition-transform duration-300 ease-in-out lg:hidden",
-            isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
-          )}>
-            <div className="flex h-full flex-col">
-              {/* Mobile Sidebar Header */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-700/50">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg">
-                    <Leaf className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-gray-100">SmartFood</h2>
-                    <p className="text-xs text-orange-400 font-medium">Provider Portal</p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleMobileSidebar}
-                  className="text-gray-400 hover:text-gray-100 hover:bg-gray-700/50"
-                >
-                  <X className="h-5 w-5" />
-                </Button>
-              </div>
-
-              {/* Mobile Sidebar Content */}
-              <div className="flex-1 overflow-y-auto p-3">
-                <div className="space-y-1">
-                  {sidebarItems.map((item) => (
-                    <Link key={item.href} href={item.href}>
-                      <div
-                        className={cn(
-                          "flex items-center space-x-3 rounded-lg p-3 text-gray-300 hover:text-gray-100 hover:bg-gray-700/70 transition-all duration-200 group",
-                          isActiveRoute(item.href)
-                            ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg"
-                            : ""
-                        )}
-                      >
-                        <item.icon className="h-5 w-5 flex-shrink-0" />
-                        <span className="font-medium flex-1">{item.label}</span>
-                        {item.badge && (
-                          <span className="bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                            {item.badge}
-                          </span>
-                        )}
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-
-              {/* Mobile Sidebar Footer */}
-              <div className="p-3 border-t border-gray-700/50">
-                <div className="space-y-1">
-                  <div className="flex items-center space-x-3 rounded-lg p-3 text-gray-300 hover:text-gray-100 hover:bg-gray-700/70 transition-all duration-200">
-                    <Settings className="h-5 w-5" />
-                    <span className="font-medium">Settings</span>
-                  </div>
-                  <div className="flex items-center space-x-3 rounded-lg p-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200">
-                    <LogOut className="h-5 w-5" />
-                    <span className="font-medium">Sign Out</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Main Content */}
-          <SidebarInset className="flex-1 lg:ml-64">
+          <SidebarInset className="flex-1 h-full flex flex-col bg-gray-900">
             {/* Header */}
-            <header className="sticky top-0 z-30 flex h-14 sm:h-16 items-center justify-between border-b border-gray-700/50 bg-gray-800/95 backdrop-blur-md px-3 sm:px-4 lg:px-6">
-              <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
-                {/* Mobile Menu Button */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleMobileSidebar}
-                  className="lg:hidden text-gray-300 hover:text-gray-100 hover:bg-gray-700/50 flex-shrink-0"
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
-
-                {/* Desktop Sidebar Trigger */}
-                <SidebarTrigger className="hidden lg:flex text-gray-300 hover:text-gray-100" />
-
-                {/* Page Title */}
-                <div className="min-w-0 flex-1">
-                  <Link href="/providerDashboard" passHref prefetch={true}>
-                    <h1 className="text-lg sm:text-xl font-bold text-gray-100 cursor-pointer truncate hover:text-orange-400 transition-colors">
-                      {getCurrentPageLabel()}
-                    </h1>
-                  </Link>
-                </div>
+            <header className="h-16 border-b border-gray-700 bg-gray-800 flex items-center px-6">
+              <div className="flex items-center gap-4">
+                <SidebarTrigger className="text-gray-300" />
+                <Link href="/providerDashboard" passHref prefetch={true}>
+                  <h1 className="text-xl font-semibold text-gray-100 cursor-pointer hover:text-orange-400 transition-colors">
+                    {getCurrentPageLabel()}
+                  </h1>
+                </Link>
               </div>
 
               {/* Header Actions */}
-              <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                {/* Search - Hidden on very small screens */}
-                <div className={cn(
-                  "relative transition-all duration-300 ease-in-out",
-                  isSearchFocused ? "w-48 sm:w-64" : "w-32 sm:w-48 md:w-64",
-                  "hidden sm:block"
-                )}>
+              <div className="flex items-center gap-3 ml-auto">
+                {/* Search */}
+                <div className="relative w-64">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
                     placeholder="Search..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10 bg-gray-700/50 border-gray-600/50 text-gray-100 text-sm focus:bg-gray-700 focus:border-orange-500 transition-all duration-200"
-                    onFocus={() => setIsSearchFocused(true)}
-                    onBlur={() => setIsSearchFocused(false)}
                   />
                 </div>
-
-                {/* Mobile Search Button */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="sm:hidden text-gray-300 hover:text-gray-100 hover:bg-gray-700/50"
-                >
-                  <Search className="h-5 w-5" />
-                </Button>
 
                 {/* Profile Button */}
                 <Link href="/profile" passHref prefetch={true}>
@@ -346,11 +212,7 @@ export default function ProviderDashboardLayout({ children }) {
                     onClick={handleBellClick}
                     className="text-gray-300 hover:text-gray-100 hover:bg-gray-700/50 transition-all duration-200 relative"
                   >
-                    <Bell className="h-5 w-5" />
-                    {/* Notification Badge */}
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center">
-                      3
-                    </span>
+                    <NotificationBell />
                   </Button>
                   
                   {/* <NotificationPopup
@@ -363,10 +225,8 @@ export default function ProviderDashboardLayout({ children }) {
             </header>
 
             {/* Main Content Area */}
-            <main className="bg-slate-900 flex-1 overflow-auto p-3 sm:p-4 lg:p-6">
-              <div className="max-w-full mx-auto">
-                {children}
-              </div>
+            <main className="bg-slate-900 flex-1 overflow-y-auto p-6">
+              {children}
             </main>
           </SidebarInset>
         </div>

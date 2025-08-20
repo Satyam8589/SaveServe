@@ -1,4 +1,3 @@
-// app/api/listings/[id]/book/route.js (Updated with Firestore notifications)
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { connectDB } from "@/lib/db";
@@ -11,9 +10,14 @@ import {
   sendCompleteNotification,
   NOTIFICATION_TYPES,
 } from "@/lib/firestoreNotificationService";
+import { sendSSENotification } from "@/lib/sendSSENotification";
+import {
+  sendCompleteNotification,
+  NOTIFICATION_TYPES,
+} from "@/lib/firestoreNotificationService";
 
 export async function POST(request, { params }) {
-  const { id } = await params; // This is the listing ID
+  const { id } = await params;
   const { userId } = await auth(request);
   const { requestedQuantity, recipientName, requestMessage } =
     await request.json();
@@ -57,7 +61,7 @@ export async function POST(request, { params }) {
       throw new Error("Food listing not found");
     }
 
-    // --- AUTOMATED CHECKS ---
+    // Validation checks
     if (foodListing.expiryTime <= new Date()) {
       throw new Error("This food listing has expired.");
     }
@@ -74,9 +78,17 @@ export async function POST(request, { params }) {
       throw new Error("Food listing is no longer available.");
     }
 
-    // --- ALL CHECKS PASSED ---
+    if (
+      foodListing.listingStatus === "fully_booked" ||
+      foodListing.listingStatus === "expired" ||
+      !foodListing.isActive
+    ) {
+      throw new Error("Food listing is no longer available.");
+    }
+
+    // Create booking
     const collectionCode = QRCodeService.generateCollectionCode();
-    const qrCodeExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const qrCodeExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     const booking = new Booking({
       listingId: id,
@@ -85,11 +97,11 @@ export async function POST(request, { params }) {
       recipientId: userId,
       recipientName: recipientName,
       requestedQuantity: requestedQuantity,
-      approvedQuantity: requestedQuantity, // Auto-approve the requested quantity
+      approvedQuantity: requestedQuantity,
       qrCodeExpiry,
       collectionCode,
       requestMessage: requestMessage,
-      status: "approved", // AUTOMATICALLY CONFIRMED
+      status: "approved",
       approvedAt: new Date(),
     });
 
@@ -102,8 +114,8 @@ export async function POST(request, { params }) {
     );
     const qrCodeImage = await QRCodeService.generateQRCode(finalQRData);
 
-    booking.qrCode = finalQRData;
 
+    booking.qrCode = finalQRData;
     await booking.save({ session });
 
     const embeddedBookingRequest = {
@@ -112,18 +124,17 @@ export async function POST(request, { params }) {
       requestedQuantity: requestedQuantity,
       approvedQuantity: requestedQuantity,
       status: "approved",
+      status: "approved",
       requestMessage: requestMessage,
       bookingRefId: booking._id,
       approvedAt: new Date(),
     };
 
+
     foodListing.bookings.push(embeddedBookingRequest);
     await foodListing.save({ session });
 
-    // --- THE FIX: Use { userId: userId } instead of { clerkId: userId } ---
-    const recipientUser = await UserProfile.findOne({ userId: userId }).session(
-      session
-    );
+    const recipientUser = await UserProfile.findOne({ userId: userId }).session(session);
     if (recipientUser) {
       await recipientUser.save({ session });
     } else {
@@ -134,6 +145,36 @@ export async function POST(request, { params }) {
 
     await session.commitTransaction();
 
+    // 📡 Send SSE notifications
+    const recipientSSEResult = sendSSENotification(userId, {
+      title: "Booking Confirmed! ✅",
+      message: `Your booking for "${foodListing.title}" has been confirmed. Show your QR code when collecting.`,
+      type: "success",
+      data: {
+        bookingId: booking._id.toString(),
+        listingId: id,
+        action: "booking_confirmed",
+        collectionCode: collectionCode,
+      },
+    });
+
+    const providerSSEResult = sendSSENotification(foodListing.providerId, {
+      title: "New Booking Received! 📋",
+      message: `${recipientName} has booked "${foodListing.title}" (${requestedQuantity} ${foodListing.unit || "items"})`,
+      type: "success",
+      data: {
+        bookingId: booking._id.toString(),
+        listingId: id,
+        recipientId: userId,
+        action: "new_booking",
+      },
+    });
+
+    console.log('📡 Recipient SSE result:', recipientSSEResult);
+    console.log('📡 Provider SSE result:', providerSSEResult);
+
+    // 📱 Send FCM + Firestore notifications
+    try {
     // 🔔 Send booking confirmation notification to recipient (FCM + Firestore)
     try {
       console.log("📢 Sending booking confirmation to recipient:", userId);
@@ -141,10 +182,13 @@ export async function POST(request, { params }) {
       const recipientNotificationResult = await sendCompleteNotification(
         userId,
         "Booking Confirmed! ✅",
+        "Booking Confirmed! ✅",
         `Your booking for "${foodListing.title}" has been confirmed. Show your QR code when collecting.`,
         {
           bookingId: booking._id.toString(),
           listingId: id,
+          action: "booking_confirmed",
+          collectionCode: collectionCode,
           action: "booking_confirmed",
           collectionCode: collectionCode,
         },
@@ -157,8 +201,12 @@ export async function POST(request, { params }) {
           quantity: requestedQuantity,
           unit: foodListing.unit || "items",
           collectionCode: collectionCode,
+          unit: foodListing.unit || "items",
+          collectionCode: collectionCode,
         }
       );
+      console.log('📨 Recipient FCM+Firestore result:', recipientNotificationResult);
+
 
       console.log(
         "📨 Recipient notification result:",
@@ -181,6 +229,8 @@ export async function POST(request, { params }) {
       const providerNotificationResult = await sendCompleteNotification(
         foodListing.providerId,
         "New Booking Received! 📋",
+        `${recipientName} has booked "${foodListing.title}" (${requestedQuantity} ${foodListing.unit || "items"})`,
+        "New Booking Received! 📋",
         `${recipientName} has booked "${
           foodListing.title
         }" (${requestedQuantity} ${foodListing.unit || "items"})`,
@@ -188,6 +238,7 @@ export async function POST(request, { params }) {
           bookingId: booking._id.toString(),
           listingId: id,
           recipientId: userId,
+          action: "new_booking",
           action: "new_booking",
         },
         {
@@ -200,14 +251,19 @@ export async function POST(request, { params }) {
           quantity: requestedQuantity,
           unit: foodListing.unit || "items",
           requestMessage: requestMessage,
+          unit: foodListing.unit || "items",
+          requestMessage: requestMessage,
         }
       );
+      console.log('📨 Provider FCM+Firestore result:', providerNotificationResult);
+      
 
       console.log(
         "📨 Provider notification result:",
         providerNotificationResult
       );
     } catch (notificationError) {
+      console.error("❌ Failed to send FCM+Firestore notifications:", notificationError);
       console.error(
         "❌ Failed to send provider notification:",
         notificationError
@@ -228,12 +284,46 @@ export async function POST(request, { params }) {
           "Collect your food and enjoy!",
         ],
       },
+      notifications: {
+        sseNotifications: {
+          recipient: recipientSSEResult,
+          provider: providerSSEResult
+        }
+      }
     };
 
     return NextResponse.json(bookingResponse, { status: 201 });
+    
   } catch (error) {
     await session.abortTransaction();
+    console.error("❌ Booking transaction error:", error);
+    return new NextResponse(
+      error.message || "Booking failed due to an unexpected error.",
+      {
+        status:
+          error.message.includes("Not enough quantity") ||
+          error.message.includes("expired")
+            ? 400
+            : 500,
+      }
+    );
     console.error("Booking transaction error:", error);
+    return new NextResponse(
+      error.message || "Booking failed due to an unexpected error.",
+      {
+        status:
+          error.message.includes("Not enough quantity") ||
+          error.message.includes("expired")
+            ? 400
+            : 500,
+      }
+    );
+  } finally {
+    session.endSession();
+  }
+} catch (error) {
+    await session.abortTransaction();
+    console.error("❌ Booking transaction error:", error);
     return new NextResponse(
       error.message || "Booking failed due to an unexpected error.",
       {

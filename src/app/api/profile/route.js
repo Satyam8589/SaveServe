@@ -43,11 +43,15 @@ export async function GET(request) {
       approvalStatus: profile.approvalStatus,
     });
 
-    return NextResponse.json({
-      success: true,
-      message: "Profile fetched successfully.",
-      profile: profile, // Changed from 'data' to 'profile' for consistency with frontend
-    });
+      // Add providerName to the response, mapped from fullName
+      return NextResponse.json({
+        success: true,
+        message: "Profile fetched successfully.",
+        profile: {
+          ...profile,
+          providerName: profile.fullName,
+        },
+      });
   } catch (error) {
     console.error("💥 GET /api/profile error:", error);
     return NextResponse.json(

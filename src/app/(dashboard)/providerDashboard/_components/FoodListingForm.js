@@ -120,6 +120,8 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
     imageUrl: "",
   });
 
+  console.log("Fetched userProfile:", userProfile);
+
   useEffect(() => {
     // Check if the userProfile data has been successfully fetched
     if (userProfile && userProfile.fullName) {
