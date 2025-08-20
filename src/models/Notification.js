@@ -17,7 +17,7 @@ const NotificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['new-food', 'expiring-soon', 'reminder', 'expired', 'report'],
+    enum: ['new-food','success', 'expiring-soon', 'reminder', 'expired', 'report','connection'],
     required: true,
   },
   read: {

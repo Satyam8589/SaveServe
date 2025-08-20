@@ -10,7 +10,6 @@ import {
   UserButton,
   useUser,
 } from "@clerk/nextjs";
-import NotificationBell from "@/hooks/NotificationBell"; // Adjust the import path as necessary
 
 export default function Header({ userData }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -125,11 +124,6 @@ export default function Header({ userData }) {
               </Link>
             ))}
           </nav>
-
-          <div className="flex items-center gap-4">
-            <NotificationBell />
-            {/* Your other header items (user menu, etc.) */}
-          </div>
 
           {/* Desktop Auth Section */}
           <div className="hidden md:flex items-center gap-4">

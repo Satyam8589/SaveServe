@@ -1,4 +1,4 @@
-// app/api/bookings/verify-collection/route.js (Enhanced with real-time QR auto-close support)
+// app/api/bookings/verify-collection/route.js (Updated with SSE notifications)
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { connectDB } from "@/lib/db";
@@ -10,42 +10,8 @@ import {
   sendCompleteNotification,
   NOTIFICATION_TYPES,
 } from "@/lib/firestoreNotificationService";
-import {
-  emitNotification,
-  emitQRCollectionUpdate,
-} from "@/lib/emitNotification";
+import { sendSSENotification } from "@/lib/sendSSENotification";
 import mongoose from "mongoose";
-
-// Optional: Enhanced real-time update service
-const sendRealTimeUpdate = async (recipientId, data) => {
-  try {
-    console.log(`📡 Sending real-time update to ${recipientId}:`, data);
-
-    // Send immediate notification that QR was scanned (this will be picked up by polling)
-    await sendCompleteNotification(
-      recipientId,
-      "QR Code Scanned! ✅",
-      "Your pickup has been confirmed. The QR window will close automatically.",
-      {
-        ...data,
-        action: "qr_scanned_realtime",
-        timestamp: new Date().toISOString(),
-        // Add flag to indicate this is for QR modal auto-close
-        autoCloseQR: true,
-      },
-      {
-        type: "QR_SCANNED",
-        bookingId: data.bookingId,
-        listingId: data.listingId,
-        status: data.status,
-        collectedAt: data.collectedAt,
-        autoCloseQR: true,
-      }
-    );
-  } catch (error) {
-    console.error("❌ Failed to send real-time update:", error);
-  }
-};
 
 export async function POST(request) {
   const { userId: providerClerkId } = await auth();
@@ -150,10 +116,6 @@ export async function POST(request) {
     if (embeddedBooking) {
       embeddedBooking.status = "collected";
       embeddedBooking.collectedAt = collectionTime;
-    } else {
-      console.warn(
-        `Could not find embedded booking ref ${booking._id} in listing ${listing._id}`
-      );
     }
 
     // Save both booking and listing
@@ -192,68 +154,41 @@ export async function POST(request) {
       userId: booking.recipientId,
     }).lean();
 
-    // 🎯 CRITICAL: Send immediate QR auto-close update
-    await emitQRCollectionUpdate(booking.recipientId, {
-      bookingId: booking._id.toString(),
-      listingId: listing._id.toString(),
-      status: "collected",
-      collectedAt: collectionTime.toISOString(),
-      action: "collection_verified",
+    // --- Start: Notifications Update ---
+
+    // 📡 Send SSE to recipient for QR modal auto-close and confirmation
+    sendSSENotification(booking.recipientId, {
+        title: "Food Collected! 🎉",
+        message: `You've successfully collected "${listing.title}". Enjoy your meal!`,
+        type: 'success',
+        data: {
+            bookingId: booking._id.toString(),
+            listingId: listing._id.toString(),
+            status: "collected",
+            collectedAt: collectionTime.toISOString(),
+            action: "collection_verified",
+            autoCloseQR: true, // For the frontend to auto-close the modal
+        }
     });
 
-    // 🎉 Notify recipient about successful collection
-    await emitNotification(booking.recipientId, {
-      title: "Food Collected Successfully! 🎉",
-      message: `You've successfully collected "${listing.title}". Enjoy your meal!`,
-      type: "success",
-      data: {
-        bookingId: booking._id.toString(),
-        listingId: listing._id.toString(),
-        action: "collection_confirmed",
-        collectedAt: collectionTime.toISOString(),
-      },
+    // 📡 Send SSE to provider for confirmation
+    sendSSENotification(providerClerkId, {
+        title: "Collection Verified! ✅",
+        message: `${recipient?.fullName || "A recipient"} has collected "${
+          listing.title
+        }".`,
+        type: 'success',
+        data: {
+            bookingId: booking._id.toString(),
+            listingId: listing._id.toString(),
+            recipientId: booking.recipientId,
+            action: "collection_completed_confirmation",
+        }
     });
 
-    // ✅ Notify provider about collection completion
-    await emitNotification(providerClerkId, {
-      title: "Food Collected Successfully! ✅",
-      message: `${recipient?.fullName || "A recipient"} has collected "${
-        listing.title
-      }". Thanks for sharing food!`,
-      type: "success",
-      data: {
-        bookingId: booking._id.toString(),
-        listingId: listing._id.toString(),
-        recipientId: booking.recipientId,
-        action: "collection_completed_confirmation",
-      },
-    });
-
-    // 🚀 CRITICAL: Send immediate real-time update for QR modal auto-close
-    const realTimeData = {
-      bookingId: booking._id.toString(),
-      listingId: listing._id.toString(),
-      status: "collected",
-      previousStatus,
-      collectedAt: collectionTime.toISOString(),
-      action: "collection_verified",
-      recipientId: booking.recipientId,
-    };
-
-    // Send real-time update immediately (non-blocking)
-    console.log("🚀 Sending immediate real-time update for QR auto-close...");
-    sendRealTimeUpdate(booking.recipientId, realTimeData).catch((error) => {
-      console.error("❌ Real-time update failed:", error);
-    });
-
-    // 🔔 Send detailed collection confirmation notification to recipient
+    // 🔔 Send detailed collection confirmation notification to recipient (FCM + Firestore)
     try {
-      console.log(
-        "📢 Sending collection confirmation to recipient:",
-        booking.recipientId
-      );
-
-      const recipientNotificationResult = await sendCompleteNotification(
+      await sendCompleteNotification(
         booking.recipientId,
         "Food Collected Successfully! 🎉",
         `You've successfully collected "${listing.title}". Enjoy your meal!`,
@@ -262,7 +197,6 @@ export async function POST(request) {
           listingId: listing._id.toString(),
           action: "collection_confirmed",
           collectedAt: collectionTime.toISOString(),
-          autoRefreshNeeded: true, // Flag to trigger page refresh
         },
         {
           type: NOTIFICATION_TYPES.COLLECTION_CONFIRMED,
@@ -273,13 +207,7 @@ export async function POST(request) {
           quantity: booking.approvedQuantity,
           unit: listing.unit || "items",
           collectedAt: collectionTime.toISOString(),
-          autoRefreshNeeded: true,
         }
-      );
-
-      console.log(
-        "📨 Collection confirmation result:",
-        recipientNotificationResult
       );
     } catch (notificationError) {
       console.error(
@@ -288,14 +216,9 @@ export async function POST(request) {
       );
     }
 
-    // 🔔 Send collection notification to provider
+    // 🔔 Send collection notification to provider (FCM + Firestore)
     try {
-      console.log(
-        "📢 Sending collection success confirmation to provider:",
-        providerClerkId
-      );
-
-      const providerNotificationResult = await sendCompleteNotification(
+      await sendCompleteNotification(
         providerClerkId,
         "Food Collected Successfully! ✅",
         `${recipient?.fullName || "A recipient"} has collected "${
@@ -319,17 +242,14 @@ export async function POST(request) {
           collectedAt: collectionTime.toISOString(),
         }
       );
-
-      console.log(
-        "📨 Provider collection confirmation result:",
-        providerNotificationResult
-      );
     } catch (notificationError) {
       console.error(
         "❌ Failed to send provider collection confirmation:",
         notificationError
       );
     }
+    
+    // --- End: Notifications Update ---
 
     return NextResponse.json({
       success: true,
@@ -347,12 +267,6 @@ export async function POST(request) {
         listing: {
           _id: listing._id,
           title: listing.title,
-        },
-        // Additional data for frontend processing
-        realTimeUpdate: {
-          sent: true,
-          timestamp: new Date().toISOString(),
-          recipientId: booking.recipientId,
         },
       },
     });

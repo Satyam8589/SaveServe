@@ -34,8 +34,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-// import NotificationPopup from "@/components/NotificationPopup";
-
+import NotificationBell from "@/hooks/NotificationBell";;
 const sidebarItems = [
   {
     href: "/providerDashboard/listings",
@@ -213,11 +212,7 @@ export default function ProviderDashboardLayout({ children }) {
                     onClick={handleBellClick}
                     className="text-gray-300 hover:text-gray-100 hover:bg-gray-700/50 transition-all duration-200 relative"
                   >
-                    <Bell className="h-5 w-5" />
-                    {/* Notification Badge */}
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center">
-                      3
-                    </span>
+                    <NotificationBell />
                   </Button>
                   
                   {/* <NotificationPopup

@@ -4,12 +4,59 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useUser } from '@clerk/nextjs';
 
 const useSSENotifications = () => {
+  // Helper to create a test notification
+  const createTestNotification = async () => {
+    if (!user?.id) return;
+    try {
+      const token = getToken ? await getToken() : null;
+      await fetch('/api/notification/store', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          title: 'Test Notification',
+          message: 'This is a test notification.',
+          type: 'reminder'
+        })
+      });
+    } catch (err) {
+      console.error('Failed to create test notification:', err);
+    }
+  };
+  // Fetch notifications from API on mount
+  const { getToken } = useAuth();
+  const { user } = useUser();
+  const userId = user?.id;
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const token = getToken ? await getToken() : null;
+        if (!userId) return; // Wait for user to be loaded
+        const res = await fetch(`/api/notification/store?userId=${userId}`, {
+          method: 'GET',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const result = await res.json();
+          if (Array.isArray(result.notifications)) {
+            setNotifications(result.notifications);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch notifications:', err);
+      }
+    };
+    fetchNotifications();
+  }, [getToken, userId]);
   const [notifications, setNotifications] = useState([]);
+  const firstNotificationSkippedRef = useRef(false);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   
-  const { getToken } = useAuth();
   const eventSourceRef = useRef(null);
 
   // Calculate unread count
@@ -42,7 +89,32 @@ const useSSENotifications = () => {
         try {
           const notification = JSON.parse(event.data);
           console.log('📩 New notification:', notification);
-          
+          // Skip the first notification after connecting
+          if (!firstNotificationSkippedRef.current) {
+            firstNotificationSkippedRef.current = true;
+            return;
+          }
+          // Store notification in DB via POST API
+          if (user?.id && notification.title && notification.message && notification.type) {
+            const storeNotification = async () => {
+              const token = getToken ? await getToken() : null;
+              await fetch('/api/notification/store', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(token ? { Authorization: `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({
+                  userId: user.id,
+                  title: notification.title,
+                  message: notification.message,
+                  type: notification.type,
+                  data: notification.data || {}
+                })
+              });
+            };
+            storeNotification();
+          }
           setNotifications(prev => {
             // Avoid duplicates
             const exists = prev.some(n => n.id === notification.id);
@@ -124,15 +196,16 @@ const useSSENotifications = () => {
   }, []);
 
   return {
-    notifications,
-    unreadCount,
-    isConnected,
-    connectionError,
-    markAsRead,
-    markAllAsRead,
-    clearAllNotifications,
-    reconnect: connect,
-    requestNotificationPermission
+  notifications,
+  unreadCount,
+  isConnected,
+  connectionError,
+  markAsRead,
+  markAllAsRead,
+  clearAllNotifications,
+  reconnect: connect,
+  requestNotificationPermission,
+  createTestNotification
   };
 };
 
