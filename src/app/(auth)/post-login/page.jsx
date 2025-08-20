@@ -16,7 +16,7 @@ export default function PostLogin() {
     const checkUserStatus = async () => {
       try {
         const hasOnboarded = user?.publicMetadata?.hasOnboarded;
-        const mainRole = user?.publicMetadata?.mainRole?.toLowerCase();
+        const mainRole = user?.publicMetadata?.mainRole;
 
         if (hasOnboarded === true) {
           // User has completed onboarding, now check approval status
@@ -28,15 +28,25 @@ export default function PostLogin() {
 
             if (profile) {
               // Admin users bypass approval system
-              if (mainRole === "admin") {
+              if (mainRole === "ADMIN") {
                 router.replace("/admin");
                 return;
               }
 
-              // For all other users, enforce approval system
-              switch (profile.approvalStatus) {
+              // For all other users, check user status (new system)
+              const userStatus = profile.userStatus || "ACTIVE"; // Default to ACTIVE for backward compatibility
+
+              switch (userStatus) {
+                case "BLOCKED":
+                  // User is blocked, redirect to blocked page
+                  router.replace("/blocked");
+                  break;
+
+                case "ACTIVE":
                 case "APPROVED":
-                  // User is approved, ensure session is fresh and redirect to dashboard
+                case "REJECTED":
+                default:
+                  // In new system, all non-blocked users can access dashboard
                   try {
                     // Ensure Clerk metadata is up to date
                     await fetch("/api/refresh-session", {
@@ -46,24 +56,13 @@ export default function PostLogin() {
                     console.warn("Failed to refresh session:", error);
                   }
 
-                  if (mainRole === "provider") {
+                  if (mainRole === "PROVIDER") {
                     router.replace("/providerDashboard");
-                  } else if (mainRole === "recipient") {
+                  } else if (mainRole === "RECIPIENT") {
                     router.replace("/recipientDashboard");
                   } else {
                     router.replace("/dashboard");
                   }
-                  break;
-
-                case "REJECTED":
-                  // User was rejected, redirect to pending approval page to see feedback
-                  router.replace("/pending-approval");
-                  break;
-
-                case "PENDING":
-                default:
-                  // User is pending approval
-                  router.replace("/pending-approval");
                   break;
               }
             } else {

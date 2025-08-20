@@ -1,8 +1,16 @@
-import React, { useState } from 'react';
-import { 
-  User, MapPin, Bell, Phone, Mail, Building, 
-  CheckCircle, AlertCircle, Users, Utensils
-} from 'lucide-react';
+import React, { useState } from "react";
+import {
+  User,
+  MapPin,
+  Bell,
+  Phone,
+  Mail,
+  Building,
+  CheckCircle,
+  AlertCircle,
+  Users,
+  Utensils,
+} from "lucide-react";
 
 const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
   const [formData, setFormData] = useState({
@@ -11,34 +19,34 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
     lastName: "",
     phoneNumber: "",
     profilePicture: "",
-    
+
     // Location
     address: "",
     latitude: "",
     longitude: "",
-    
+
     // Notifications
     emailNotifications: true,
     pushNotifications: true,
     smsNotifications: false,
     notificationRadius: 1000,
-    
+
     // Provider specific
     organizationName: "",
     licenseNumber: "",
     avgDailyCapacity: "",
-    
+
     // Recipient specific - Student/Staff
     campusId: "",
     department: "",
     yearOfStudy: "",
     hostel: "",
-    
+
     // Recipient specific - NGO
     ngoName: "",
     registrationNumber: "",
     maxPickupCapacity: "",
-    
+
     // Basic preferences
     dietaryRestrictions: "",
     emergencyContactName: "",
@@ -49,24 +57,24 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
   const [errors, setErrors] = useState({});
 
   // Get user type from userRoles
-  const isProvider = userRoles.mainRole === 'Provider';
-  const isNGO = userRoles.subRole === 'NGO';
-  const isStudent = userRoles.subRole === 'Student';
-  const isStaff = userRoles.subRole === 'Staff';
+  const isProvider = userRoles.mainRole === "PROVIDER";
+  const isNGO = userRoles.subRole === "NGO";
+  const isStudent = userRoles.subRole === "STUDENT";
+  const isStaff = userRoles.subRole === "STAFF";
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
 
     // Clear error when user starts typing
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
-        [name]: ""
+        [name]: "",
       }));
     }
   };
@@ -120,7 +128,7 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -129,13 +137,13 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
     try {
       const profileData = {
         ...formData,
-        userType: isProvider ? 'PROVIDER' : 'RECIPIENT',
-        subType: isNGO ? 'NGO' : (isStudent ? 'STUDENT' : 'STAFF'),
+        userType: isProvider ? "PROVIDER" : "RECIPIENT",
+        subType: isNGO ? "NGO" : isStudent ? "STUDENT" : "STAFF",
       };
-      
+
       await onProfileSubmit(profileData);
     } catch (error) {
-      console.error('Error saving profile:', error);
+      console.error("Error saving profile:", error);
     } finally {
       setLoading(false);
     }
@@ -147,7 +155,7 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
         <User className="w-6 h-6 text-emerald-400" />
         Personal Information
       </h2>
-      
+
       <div className="grid md:grid-cols-2 gap-6">
         <div>
           <label className="block text-gray-300 font-medium mb-2">
@@ -159,10 +167,10 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
             onChange={handleChange}
             className={`w-full bg-gray-900/50 border rounded-lg px-4 py-3 text-white 
                        focus:ring-2 focus:ring-emerald-500/20 transition-all ${
-              errors.firstName 
-                ? 'border-red-500 focus:border-red-500' 
-                : 'border-gray-600 focus:border-emerald-500'
-            }`}
+                         errors.firstName
+                           ? "border-red-500 focus:border-red-500"
+                           : "border-gray-600 focus:border-emerald-500"
+                       }`}
             placeholder="Enter your first name"
             required
           />
@@ -170,7 +178,7 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
             <p className="text-red-400 text-sm mt-1">{errors.firstName}</p>
           )}
         </div>
-        
+
         <div>
           <label className="block text-gray-300 font-medium mb-2">
             Last Name <span className="text-red-400">*</span>
@@ -181,10 +189,10 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
             onChange={handleChange}
             className={`w-full bg-gray-900/50 border rounded-lg px-4 py-3 text-white 
                        focus:ring-2 focus:ring-emerald-500/20 transition-all ${
-              errors.lastName 
-                ? 'border-red-500 focus:border-red-500' 
-                : 'border-gray-600 focus:border-emerald-500'
-            }`}
+                         errors.lastName
+                           ? "border-red-500 focus:border-red-500"
+                           : "border-gray-600 focus:border-emerald-500"
+                       }`}
             placeholder="Enter your last name"
             required
           />
@@ -204,10 +212,10 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
             onChange={handleChange}
             className={`w-full bg-gray-900/50 border rounded-lg px-4 py-3 text-white 
                        focus:ring-2 focus:ring-emerald-500/20 transition-all ${
-              errors.phoneNumber 
-                ? 'border-red-500 focus:border-red-500' 
-                : 'border-gray-600 focus:border-emerald-500'
-            }`}
+                         errors.phoneNumber
+                           ? "border-red-500 focus:border-red-500"
+                           : "border-gray-600 focus:border-emerald-500"
+                       }`}
             placeholder="+91 98765 43210"
             required
           />
@@ -217,7 +225,9 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
         </div>
 
         <div>
-          <label className="block text-gray-300 font-medium mb-2">Profile Picture URL</label>
+          <label className="block text-gray-300 font-medium mb-2">
+            Profile Picture URL
+          </label>
           <input
             name="profilePicture"
             value={formData.profilePicture}
@@ -237,10 +247,12 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
         <MapPin className="w-6 h-6 text-orange-400" />
         Location Details
       </h2>
-      
+
       <div className="grid md:grid-cols-2 gap-6">
         <div className="md:col-span-2">
-          <label className="block text-gray-300 font-medium mb-2">Address</label>
+          <label className="block text-gray-300 font-medium mb-2">
+            Address
+          </label>
           <input
             name="address"
             value={formData.address}
@@ -252,7 +264,9 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
         </div>
 
         <div>
-          <label className="block text-gray-300 font-medium mb-2">Latitude (Optional)</label>
+          <label className="block text-gray-300 font-medium mb-2">
+            Latitude (Optional)
+          </label>
           <input
             name="latitude"
             type="number"
@@ -266,7 +280,9 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
         </div>
 
         <div>
-          <label className="block text-gray-300 font-medium mb-2">Longitude (Optional)</label>
+          <label className="block text-gray-300 font-medium mb-2">
+            Longitude (Optional)
+          </label>
           <input
             name="longitude"
             type="number"
@@ -288,7 +304,7 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
         <Building className="w-6 h-6 text-blue-400" />
         Provider Details
       </h2>
-      
+
       <div className="grid md:grid-cols-2 gap-6">
         <div>
           <label className="block text-gray-300 font-medium mb-2">
@@ -300,20 +316,24 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
             onChange={handleChange}
             className={`w-full bg-gray-900/50 border rounded-lg px-4 py-3 text-white 
                        focus:ring-2 focus:ring-blue-500/20 transition-all ${
-              errors.organizationName 
-                ? 'border-red-500 focus:border-red-500' 
-                : 'border-gray-600 focus:border-blue-500'
-            }`}
+                         errors.organizationName
+                           ? "border-red-500 focus:border-red-500"
+                           : "border-gray-600 focus:border-blue-500"
+                       }`}
             placeholder="Organization/Restaurant name"
             required
           />
           {errors.organizationName && (
-            <p className="text-red-400 text-sm mt-1">{errors.organizationName}</p>
+            <p className="text-red-400 text-sm mt-1">
+              {errors.organizationName}
+            </p>
           )}
         </div>
 
         <div>
-          <label className="block text-gray-300 font-medium mb-2">License Number</label>
+          <label className="block text-gray-300 font-medium mb-2">
+            License Number
+          </label>
           <input
             name="licenseNumber"
             value={formData.licenseNumber}
@@ -325,7 +345,9 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
         </div>
 
         <div>
-          <label className="block text-gray-300 font-medium mb-2">Average Daily Capacity (portions)</label>
+          <label className="block text-gray-300 font-medium mb-2">
+            Average Daily Capacity (portions)
+          </label>
           <input
             name="avgDailyCapacity"
             type="number"
@@ -338,7 +360,9 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
         </div>
 
         <div>
-          <label className="block text-gray-300 font-medium mb-2">Dietary Information</label>
+          <label className="block text-gray-300 font-medium mb-2">
+            Dietary Information
+          </label>
           <input
             name="dietaryRestrictions"
             value={formData.dietaryRestrictions}
@@ -356,9 +380,9 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
     <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700">
       <h2 className="text-2xl font-semibold text-white mb-6 flex items-center gap-3">
         <Utensils className="w-6 h-6 text-purple-400" />
-        {isStudent ? 'Student' : 'Staff'} Details
+        {isStudent ? "Student" : "Staff"} Details
       </h2>
-      
+
       <div className="grid md:grid-cols-2 gap-6">
         <div>
           <label className="block text-gray-300 font-medium mb-2">
@@ -370,10 +394,10 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
             onChange={handleChange}
             className={`w-full bg-gray-900/50 border rounded-lg px-4 py-3 text-white 
                        focus:ring-2 focus:ring-purple-500/20 transition-all ${
-              errors.campusId 
-                ? 'border-red-500 focus:border-red-500' 
-                : 'border-gray-600 focus:border-purple-500'
-            }`}
+                         errors.campusId
+                           ? "border-red-500 focus:border-red-500"
+                           : "border-gray-600 focus:border-purple-500"
+                       }`}
             placeholder="Your campus ID"
             required
           />
@@ -392,10 +416,10 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
             onChange={handleChange}
             className={`w-full bg-gray-900/50 border rounded-lg px-4 py-3 text-white 
                        focus:ring-2 focus:ring-purple-500/20 transition-all ${
-              errors.department 
-                ? 'border-red-500 focus:border-red-500' 
-                : 'border-gray-600 focus:border-purple-500'
-            }`}
+                         errors.department
+                           ? "border-red-500 focus:border-red-500"
+                           : "border-gray-600 focus:border-purple-500"
+                       }`}
             placeholder="Department name"
             required
           />
@@ -406,7 +430,9 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
 
         {isStudent && (
           <div>
-            <label className="block text-gray-300 font-medium mb-2">Year of Study</label>
+            <label className="block text-gray-300 font-medium mb-2">
+              Year of Study
+            </label>
             <select
               name="yearOfStudy"
               value={formData.yearOfStudy}
@@ -425,7 +451,9 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
         )}
 
         <div>
-          <label className="block text-gray-300 font-medium mb-2">Hostel/Building</label>
+          <label className="block text-gray-300 font-medium mb-2">
+            Hostel/Building
+          </label>
           <input
             name="hostel"
             value={formData.hostel}
@@ -437,7 +465,9 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
         </div>
 
         <div>
-          <label className="block text-gray-300 font-medium mb-2">Dietary Preferences</label>
+          <label className="block text-gray-300 font-medium mb-2">
+            Dietary Preferences
+          </label>
           <input
             name="dietaryRestrictions"
             value={formData.dietaryRestrictions}
@@ -457,7 +487,7 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
         <Users className="w-6 h-6 text-green-400" />
         NGO Details
       </h2>
-      
+
       <div className="grid md:grid-cols-2 gap-6">
         <div>
           <label className="block text-gray-300 font-medium mb-2">
@@ -469,10 +499,10 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
             onChange={handleChange}
             className={`w-full bg-gray-900/50 border rounded-lg px-4 py-3 text-white 
                        focus:ring-2 focus:ring-green-500/20 transition-all ${
-              errors.ngoName 
-                ? 'border-red-500 focus:border-red-500' 
-                : 'border-gray-600 focus:border-green-500'
-            }`}
+                         errors.ngoName
+                           ? "border-red-500 focus:border-red-500"
+                           : "border-gray-600 focus:border-green-500"
+                       }`}
             placeholder="NGO name"
             required
           />
@@ -491,20 +521,24 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
             onChange={handleChange}
             className={`w-full bg-gray-900/50 border rounded-lg px-4 py-3 text-white 
                        focus:ring-2 focus:ring-green-500/20 transition-all ${
-              errors.registrationNumber 
-                ? 'border-red-500 focus:border-red-500' 
-                : 'border-gray-600 focus:border-green-500'
-            }`}
+                         errors.registrationNumber
+                           ? "border-red-500 focus:border-red-500"
+                           : "border-gray-600 focus:border-green-500"
+                       }`}
             placeholder="Registration number"
             required
           />
           {errors.registrationNumber && (
-            <p className="text-red-400 text-sm mt-1">{errors.registrationNumber}</p>
+            <p className="text-red-400 text-sm mt-1">
+              {errors.registrationNumber}
+            </p>
           )}
         </div>
 
         <div>
-          <label className="block text-gray-300 font-medium mb-2">Max Pickup Capacity (kg)</label>
+          <label className="block text-gray-300 font-medium mb-2">
+            Max Pickup Capacity (kg)
+          </label>
           <input
             name="maxPickupCapacity"
             type="number"
@@ -525,10 +559,12 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
         <Phone className="w-6 h-6 text-red-400" />
         Emergency Contact
       </h2>
-      
+
       <div className="grid md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-gray-300 font-medium mb-2">Contact Name</label>
+          <label className="block text-gray-300 font-medium mb-2">
+            Contact Name
+          </label>
           <input
             name="emergencyContactName"
             value={formData.emergencyContactName}
@@ -540,7 +576,9 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
         </div>
 
         <div>
-          <label className="block text-gray-300 font-medium mb-2">Contact Phone</label>
+          <label className="block text-gray-300 font-medium mb-2">
+            Contact Phone
+          </label>
           <input
             name="emergencyContactPhone"
             value={formData.emergencyContactPhone}
@@ -560,15 +598,30 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
         <Bell className="w-6 h-6 text-blue-400" />
         Notification Preferences
       </h2>
-      
+
       <div className="space-y-6">
         <div className="grid md:grid-cols-3 gap-6">
           {[
-            { key: "emailNotifications", label: "Email Notifications", icon: Mail },
-            { key: "pushNotifications", label: "Push Notifications", icon: Bell },
-            { key: "smsNotifications", label: "SMS Notifications", icon: Phone },
+            {
+              key: "emailNotifications",
+              label: "Email Notifications",
+              icon: Mail,
+            },
+            {
+              key: "pushNotifications",
+              label: "Push Notifications",
+              icon: Bell,
+            },
+            {
+              key: "smsNotifications",
+              label: "SMS Notifications",
+              icon: Phone,
+            },
           ].map(({ key, label, icon: Icon }) => (
-            <label key={key} className="flex items-center gap-3 p-4 bg-gray-900/30 rounded-lg border border-gray-600 hover:border-blue-500 transition-colors cursor-pointer">
+            <label
+              key={key}
+              className="flex items-center gap-3 p-4 bg-gray-900/30 rounded-lg border border-gray-600 hover:border-blue-500 transition-colors cursor-pointer"
+            >
               <input
                 type="checkbox"
                 name={key}
@@ -597,12 +650,18 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
               onChange={handleChange}
               className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
               style={{
-                background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${((formData.notificationRadius - 100) / 4900) * 100}%, #374151 ${((formData.notificationRadius - 100) / 4900) * 100}%, #374151 100%)`
+                background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${
+                  ((formData.notificationRadius - 100) / 4900) * 100
+                }%, #374151 ${
+                  ((formData.notificationRadius - 100) / 4900) * 100
+                }%, #374151 100%)`,
               }}
             />
             <div className="flex justify-between text-sm text-gray-400 mt-2">
               <span>100m</span>
-              <span className="text-blue-400 font-semibold">{formData.notificationRadius}m</span>
+              <span className="text-blue-400 font-semibold">
+                {formData.notificationRadius}m
+              </span>
               <span>5km</span>
             </div>
           </div>
@@ -639,12 +698,12 @@ const ProfileForm = ({ onProfileSubmit, userRoles = {} }) => {
         {/* Common fields for all users */}
         {renderCommonFields()}
         {renderLocationFields()}
-        
+
         {/* Role-specific fields */}
         {isProvider && renderProviderFields()}
         {(isStudent || isStaff) && renderStudentStaffFields()}
         {isNGO && renderNGOFields()}
-        
+
         {/* Emergency contact and notifications for all users */}
         {renderEmergencyContact()}
         {renderNotificationFields()}

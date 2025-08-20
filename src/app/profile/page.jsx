@@ -153,6 +153,7 @@ const UserProfileForm = ({
     isProfileComplete: false,
     isActive: true,
     verificationDocuments: [], // Add documents array
+    foodPreference: "BOTH", // Default to both veg and non-veg
   });
 
   const [status, setStatus] = useState({
@@ -308,6 +309,7 @@ const UserProfileForm = ({
         description: formData.description ? formData.description.trim() : "",
         verificationDocuments: formData.verificationDocuments || [],
         isActive: formData.isActive !== undefined ? formData.isActive : true,
+        foodPreference: formData.foodPreference || "BOTH",
       };
 
       const response = await fetch("/api/profile", {
@@ -337,11 +339,11 @@ const UserProfileForm = ({
         onProfileSaved(data.data);
       }
 
-      // If this is a new profile, redirect to pending approval
+      // If this is a new profile, redirect to pending verification (new flow)
       if (data.isNew) {
         setTimeout(() => {
           setStatus({ loading: false, message: "", type: "" });
-          window.location.href = "/pending-approval";
+          window.location.href = "/pending-verification";
         }, 1500);
       } else {
         setTimeout(() => {
@@ -521,6 +523,53 @@ const UserProfileForm = ({
                   {(formData.description || "").length}/500
                 </div>
               </div>
+            </div>
+
+            {/* Food Preference Field */}
+            <div className="group">
+              <label
+                htmlFor="foodPreference"
+                className="block text-xs font-semibold text-gray-300 mb-1"
+              >
+                Food Preference
+              </label>
+              <div className="relative">
+                <select
+                  name="foodPreference"
+                  id="foodPreference"
+                  value={formData.foodPreference || "BOTH"}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2.5 border-2 border-gray-600/50 rounded-lg bg-gray-700/50 text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200 hover:border-gray-500 text-sm appearance-none cursor-pointer"
+                >
+                  <option value="BOTH" className="bg-gray-800">
+                    🌱🍖 Both Vegetarian & Non-Vegetarian
+                  </option>
+                  <option value="VEG" className="bg-gray-800">
+                    🌱 Vegetarian Only
+                  </option>
+                  <option value="NON_VEG" className="bg-gray-800">
+                    🍖 Non-Vegetarian Only
+                  </option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <svg
+                    className="w-4 h-4 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
+                This helps us show you relevant food options
+              </p>
             </div>
 
             {/* Document Upload Section */}
@@ -727,18 +776,8 @@ const ProfilePage = () => {
       // Small delay to ensure metadata propagation
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Redirect to appropriate dashboard based on role
-      const userMainRole =
-        user?.publicMetadata?.mainRole || user?.unsafeMetadata?.mainRole;
-      const role = userMainRole?.toLowerCase();
-
-      if (role === "provider") {
-        router.push("/providerDashboard");
-      } else if (role === "recipient") {
-        router.push("/recipientDashboard");
-      } else {
-        router.push("/dashboard");
-      }
+      // Redirect to pending verification page for new profile completion
+      router.push("/pending-verification");
     } catch (error) {
       console.error("Error updating profile completion:", error);
       // Still allow the profile to be saved locally even if metadata update fails

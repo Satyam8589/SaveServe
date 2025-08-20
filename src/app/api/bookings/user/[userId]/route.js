@@ -1,9 +1,10 @@
 // File: app/api/bookings/user/[userId]/route.js
-import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import { connectDB } from '@/lib/db';
-import Booking from '@/models/Booking';
-import FoodListing from '@/models/FoodListing';
+import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+import { connectDB } from "@/lib/db";
+import Booking from "@/models/Booking";
+import FoodListing from "@/models/FoodListing";
+import UserProfile from "@/models/UserProfile";
 
 export async function GET(request, { params }) {
   const { userId } = await params;
@@ -11,7 +12,7 @@ export async function GET(request, { params }) {
 
   if (!authUserId) {
     return NextResponse.json(
-      { success: false, message: 'Unauthorized' },
+      { success: false, message: "Unauthorized" },
       { status: 401 }
     );
   }
@@ -19,7 +20,7 @@ export async function GET(request, { params }) {
   // Users can only view their own bookings
   if (authUserId !== userId) {
     return NextResponse.json(
-      { success: false, message: 'Not authorized to view these bookings' },
+      { success: false, message: "Not authorized to view these bookings" },
       { status: 403 }
     );
   }
@@ -29,9 +30,9 @@ export async function GET(request, { params }) {
   try {
     // Get URL search params for filtering
     const url = new URL(request.url);
-    const status = url.searchParams.get('status');
-    const limit = parseInt(url.searchParams.get('limit')) || 50;
-    const page = parseInt(url.searchParams.get('page')) || 1;
+    const status = url.searchParams.get("status");
+    const limit = parseInt(url.searchParams.get("limit")) || 50;
+    const page = parseInt(url.searchParams.get("page")) || 1;
     const skip = (page - 1) * limit;
 
     // Build query
@@ -40,13 +41,13 @@ export async function GET(request, { params }) {
       query.status = status;
     }
 
-    console.log('🔍 Fetching user bookings:', { userId, query, limit, skip });
+    console.log("🔍 Fetching user bookings:", { userId, query, limit, skip });
 
     // Fetch bookings with populated food listing data
     const bookings = await Booking.find(query)
       .populate({
-        path: 'listingId',
-        select: 'title description location providerId images'
+        path: "listingId",
+        select: "title description location providerId images",
       })
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -58,20 +59,21 @@ export async function GET(request, { params }) {
 
     // Transform the data to match frontend expectations
     const transformedBookings = await Promise.all(
-      bookings.map(async booking => ({
+      bookings.map(async (booking) => ({
         ...booking,
         foodListing: booking.listingId, // Alias for consistency
         // Ensure QR code image is available for approved bookings
-        qrCodeImage: booking.status === 'approved' && booking.qrCode
-          ? booking.qrCodeImage || await generateQRCodeImage(booking.qrCode)
-          : null
+        qrCodeImage:
+          booking.status === "approved" && booking.qrCode
+            ? booking.qrCodeImage || (await generateQRCodeImage(booking.qrCode))
+            : null,
       }))
     );
 
-    console.log('✅ Successfully fetched bookings:', {
+    console.log("✅ Successfully fetched bookings:", {
       count: transformedBookings.length,
       totalCount,
-      page
+      page,
     });
 
     return NextResponse.json({
@@ -81,17 +83,19 @@ export async function GET(request, { params }) {
         page,
         limit,
         total: totalCount,
-        pages: Math.ceil(totalCount / limit)
-      }
+        pages: Math.ceil(totalCount / limit),
+      },
     });
-
   } catch (error) {
-    console.error('❌ Get user bookings error:', error);
+    console.error("❌ Get user bookings error:", error);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: 'Failed to fetch bookings',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      {
+        success: false,
+        message: "Failed to fetch bookings",
+        error:
+          process.env.NODE_ENV === "development"
+            ? error.message
+            : "Internal server error",
       },
       { status: 500 }
     );
@@ -101,10 +105,10 @@ export async function GET(request, { params }) {
 // Helper function to generate QR code image if missing
 async function generateQRCodeImage(qrData) {
   try {
-    const { QRCodeService } = await import('@/lib/qrCodeService');
+    const { QRCodeService } = await import("@/lib/qrCodeService");
     return await QRCodeService.generateQRCode(qrData);
   } catch (error) {
-    console.error('Failed to generate QR code image:', error);
+    console.error("Failed to generate QR code image:", error);
     return null;
   }
 }

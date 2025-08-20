@@ -14,14 +14,9 @@ import {
   CheckCircle,
   RefreshCw,
   Camera,
-  User
+  User,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -30,10 +25,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import QRScanner from "./QRScanner";
-import { 
-  useFoodListingBookings, 
-  useUpdateBookingStatus, 
-  useVerifyCollection 
+import {
+  useFoodListingBookings,
+  useUpdateBookingStatus,
+  useVerifyCollection,
 } from "@/hooks/useBookings";
 
 const ProviderDashboard = ({ listingId }) => {
@@ -51,7 +46,7 @@ const ProviderDashboard = ({ listingId }) => {
     data: bookingsData,
     isLoading,
     error,
-    refetch
+    refetch,
   } = useFoodListingBookings(listingId, user?.id);
 
   // Mutations
@@ -78,12 +73,12 @@ const ProviderDashboard = ({ listingId }) => {
   };
 
   const formatTime = (date) => {
-    return new Date(date).toLocaleString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(date).toLocaleString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -112,7 +107,7 @@ const ProviderDashboard = ({ listingId }) => {
       await updateBookingMutation.mutateAsync({
         bookingId: selectedBooking._id,
         status: "approved",
-        approvedQuantity
+        approvedQuantity,
       });
 
       toast({
@@ -139,7 +134,7 @@ const ProviderDashboard = ({ listingId }) => {
       await updateBookingMutation.mutateAsync({
         bookingId: selectedBooking._id,
         status: "rejected",
-        response: rejectReason.trim()
+        response: rejectReason.trim(),
       });
 
       toast({
@@ -167,10 +162,14 @@ const ProviderDashboard = ({ listingId }) => {
   const handleScanSuccess = (collectionData) => {
     setCollectionSuccess(collectionData);
     setShowQRScanner(false);
-    
+
     toast({
       title: "Collection Verified!",
-      description: `Successfully verified collection for ${collectionData.booking.recipientName}`,
+      description: `Successfully verified collection${
+        collectionData?.booking?.recipientName
+          ? ` for ${collectionData.booking.recipientName}`
+          : ""
+      }`,
     });
 
     // Refresh bookings to show updated status
@@ -181,15 +180,17 @@ const ProviderDashboard = ({ listingId }) => {
     setShowQRScanner(false);
   };
 
-  const pendingBookings = bookings.filter(b => b.status === 'pending');
-  const approvedBookings = bookings.filter(b => b.status === 'approved');
-  const completedBookings = bookings.filter(b => b.status === 'collected');
+  const pendingBookings = bookings.filter((b) => b.status === "pending");
+  const approvedBookings = bookings.filter((b) => b.status === "approved");
+  const completedBookings = bookings.filter((b) => b.status === "collected");
 
   if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="text-center">
-          <h3 className="text-xl font-bold text-gray-100">Loading bookings...</h3>
+          <h3 className="text-xl font-bold text-gray-100">
+            Loading bookings...
+          </h3>
         </div>
         <div className="grid gap-4">
           {[1, 2, 3].map((i) => (
@@ -220,7 +221,10 @@ const ProviderDashboard = ({ listingId }) => {
         <p className="text-gray-400 mb-4">
           {error.message || "Something went wrong"}
         </p>
-        <Button onClick={() => refetch()} className="bg-emerald-600 hover:bg-emerald-700">
+        <Button
+          onClick={() => refetch()}
+          className="bg-emerald-600 hover:bg-emerald-700"
+        >
           <RefreshCw className="h-4 w-4 mr-2" />
           Try Again
         </Button>
@@ -229,158 +233,243 @@ const ProviderDashboard = ({ listingId }) => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h3 className="text-xl font-bold text-gray-100">Manage Bookings</h3>
-          <p className="text-gray-400">Review and manage food collection requests</p>
-        </div>
-        <div className="flex items-center space-x-3">
-          <Badge className="bg-yellow-600 text-white">
-            {pendingBookings.length} Pending
-          </Badge>
-          <Badge className="bg-emerald-600 text-white">
-            {approvedBookings.length} Ready
-          </Badge>
-          <Button
-            onClick={handleOpenScanner}
-            className="bg-emerald-600 hover:bg-emerald-700"
-          >
-            <QrCode className="h-4 w-4 mr-2" />
-            Scan QR Code
-          </Button>
-        </div>
-      </div>
-
-      {/* Collection Success Message */}
-      {collectionSuccess && (
-        <Card className="bg-green-900/20 border-green-500/20">
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-3">
-              <CheckCircle className="h-8 w-8 text-green-400" />
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Enhanced Header */}
+        <div className="bg-gradient-to-r from-gray-800 to-gray-700 rounded-xl shadow-2xl border border-gray-600 p-6">
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+            <div className="flex items-center space-x-4">
+              <div className="bg-gradient-to-r from-emerald-600 to-green-600 p-3 rounded-xl shadow-lg">
+                <Package className="w-8 h-8 text-white" />
+              </div>
               <div>
-                <h4 className="text-green-400 font-semibold">Collection Completed!</h4>
-                <p className="text-gray-300 text-sm">
-                  {collectionSuccess.booking.recipientName} collected {collectionSuccess.booking.approvedQuantity} items
+                <h1 className="text-3xl font-bold text-white">
+                  Booking Management
+                </h1>
+                <p className="text-gray-300 mt-1">
+                  Review and manage food collection requests
                 </p>
-                <p className="text-gray-400 text-xs">
-                  Verified at {formatTime(collectionSuccess.collectionSummary.verificationTime)}
-                </p>
+                <div className="flex items-center mt-2 text-sm text-gray-400">
+                  <User className="w-4 h-4 mr-1" />
+                  <span>Provider: {user?.fullName || user?.firstName}</span>
+                </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex items-center space-x-3">
+                <Badge className="bg-yellow-600 text-white px-3 py-1 text-sm font-medium shadow-lg">
+                  {pendingBookings.length} Pending
+                </Badge>
+                <Badge className="bg-emerald-600 text-white px-3 py-1 text-sm font-medium shadow-lg">
+                  {approvedBookings.length} Ready
+                </Badge>
+                <Badge className="bg-blue-600 text-white px-3 py-1 text-sm font-medium shadow-lg">
+                  {completedBookings.length} Completed
+                </Badge>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => refetch()}
+                  variant="outline"
+                  className="border-gray-500 text-gray-300 hover:bg-gray-700 hover:text-white"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh
+                </Button>
+                <Button
+                  onClick={handleOpenScanner}
+                  className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white shadow-lg"
+                >
+                  <QrCode className="h-4 w-4 mr-2" />
+                  Scan QR Code
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
 
-      {/* Pending Requests */}
-      {pendingBookings.length > 0 && (
-        <div className="space-y-4">
-          <h4 className="text-lg font-semibold text-gray-200">Pending Requests</h4>
-          {pendingBookings.map((booking) => (
-            <Card key={booking._id} className="bg-gray-800 border-gray-700">
-              <CardHeader className="pb-4">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <User className="h-4 w-4 text-emerald-400" />
-                      <span className="text-gray-100 font-medium">
-                        {booking.recipientName || "Anonymous User"}
-                      </span>
-                      <Badge className={getStatusColor(booking.status)}>
-                        Pending Review
-                      </Badge>
-                    </div>
-                    <div className="flex items-center space-x-4 text-sm text-gray-400">
-                      <div className="flex items-center space-x-1">
-                        <Package className="h-4 w-4" />
-                        <span>Requested: {booking.requestedQuantity}</span>
+        {/* Collection Success Message */}
+        {collectionSuccess && (
+          <div className="bg-gradient-to-r from-green-900/30 to-emerald-900/30 border border-green-500/30 rounded-xl p-6 shadow-xl">
+            <div className="flex items-center space-x-4">
+              <div className="bg-green-600 p-3 rounded-full shadow-lg">
+                <CheckCircle className="h-8 w-8 text-white" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-green-400 font-bold text-lg">
+                  Collection Completed Successfully!
+                </h4>
+                <p className="text-gray-300 text-sm mt-1">
+                  {collectionSuccess.booking?.recipientName || 'Recipient'} collected{" "}
+                  {collectionSuccess.booking?.approvedQuantity || 'N/A'} items
+                </p>
+                <p className="text-gray-400 text-xs mt-1">
+                  Verified at{" "}
+                  {collectionSuccess.collectionSummary?.verificationTime
+                    ? formatTime(collectionSuccess.collectionSummary.verificationTime)
+                    : new Date().toLocaleTimeString()
+                  }
+                </p>
+              </div>
+              <Button
+                onClick={() => setCollectionSuccess(null)}
+                variant="outline"
+                size="sm"
+                className="border-green-500 text-green-400 hover:bg-green-600 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Pending Requests */}
+        {pendingBookings.length > 0 && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-white flex items-center">
+                <AlertTriangle className="w-6 h-6 mr-2 text-yellow-500" />
+                Pending Requests
+                <Badge className="ml-3 bg-yellow-600 text-white">
+                  {pendingBookings.length}
+                </Badge>
+              </h2>
+            </div>
+            <div className="grid gap-6">
+              {pendingBookings.map((booking) => (
+                <div key={booking._id} className="bg-gradient-to-r from-gray-800 to-gray-700 border border-gray-600 rounded-xl shadow-xl overflow-hidden">
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-3">
+                          <div className="bg-emerald-600 p-2 rounded-full">
+                            <User className="h-5 w-5 text-white" />
+                          </div>
+                          <div>
+                            <span className="text-white font-semibold text-lg">
+                              {booking.recipientName || "Anonymous User"}
+                            </span>
+                            <Badge className="ml-3 bg-yellow-600 text-white px-3 py-1">
+                              Pending Review
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                          <div className="flex items-center space-x-2 text-gray-300">
+                            <Package className="h-4 w-4 text-emerald-400" />
+                            <span>Requested Quantity: <strong className="text-white">{booking.requestedQuantity}</strong></span>
+                          </div>
+                          <div className="flex items-center space-x-2 text-gray-300">
+                            <Clock className="h-4 w-4 text-blue-400" />
+                            <span>Requested {formatTime(booking.requestedAt)}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <Clock className="h-4 w-4" />
-                        <span>Requested {formatTime(booking.requestedAt)}</span>
-                      </div>
                     </div>
-                  </div>
-                </div>
-              </CardHeader>
 
               <CardContent className="pt-0">
-                {booking.requestMessage && (
-                  <div className="mb-4 p-3 bg-gray-700/50 rounded-lg">
-                    <p className="text-gray-300 text-sm">
-                      <strong>Message:</strong> {booking.requestMessage}
-                    </p>
-                  </div>
-                )}
+                    {booking.requestMessage && (
+                      <div className="mb-4 p-4 bg-gradient-to-r from-blue-900/30 to-indigo-900/30 border border-blue-500/30 rounded-lg">
+                        <div className="flex items-start space-x-2">
+                          <MessageCircle className="h-4 w-4 text-blue-400 mt-0.5" />
+                          <div>
+                            <p className="text-blue-400 font-medium text-sm mb-1">Recipient Message:</p>
+                            <p className="text-gray-300 text-sm leading-relaxed">
+                              {booking.requestMessage}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
-                <div className="flex space-x-2">
-                  <Button
-                    size="sm"
-                    onClick={() => handleApproveBooking(booking)}
-                    className="bg-emerald-600 hover:bg-emerald-700"
-                    disabled={updateBookingMutation.isPending}
-                  >
-                    <Check className="h-4 w-4 mr-2" />
-                    Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleRejectBooking(booking)}
-                    className="border-red-600 text-red-400 hover:bg-red-900/20"
-                    disabled={updateBookingMutation.isPending}
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Reject
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Approved Bookings */}
-      {approvedBookings.length > 0 && (
-        <div className="space-y-4">
-          <h4 className="text-lg font-semibold text-gray-200">Ready for Collection</h4>
-          {approvedBookings.map((booking) => (
-            <Card key={booking._id} className="bg-gray-800 border-gray-700">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center space-x-3">
-                    <User className="h-5 w-5 text-emerald-400" />
-                    <div>
-                      <p className="text-gray-100 font-medium">
-                        {booking.recipientName || "Anonymous User"}
-                      </p>
-                      <p className="text-gray-400 text-sm">
-                        Approved: {booking.approvedQuantity || booking.requestedQuantity} items
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge className={getStatusColor(booking.status)}>
-                      Ready for Pickup
-                    </Badge>
-                    <div className="text-xs text-gray-400">
-                      {booking.scheduledPickupTime && (
-                        <span>Pickup: {formatTime(booking.scheduledPickupTime)}</span>
-                      )}
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Button
+                        onClick={() => handleApproveBooking(booking)}
+                        className="flex-1 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white shadow-lg"
+                        disabled={updateBookingMutation.isPending}
+                      >
+                        <Check className="h-4 w-4 mr-2" />
+                        Approve Request
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={() => handleRejectBooking(booking)}
+                        className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 shadow-lg"
+                        disabled={updateBookingMutation.isPending}
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Reject Request
+                      </Button>
                     </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Approved Bookings */}
+        {approvedBookings.length > 0 && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-white flex items-center">
+                <CheckCircle className="w-6 h-6 mr-2 text-emerald-500" />
+                Ready for Collection
+                <Badge className="ml-3 bg-emerald-600 text-white">
+                  {approvedBookings.length}
+                </Badge>
+              </h2>
+            </div>
+            <div className="grid gap-6">
+              {approvedBookings.map((booking) => (
+                <div key={booking._id} className="bg-gradient-to-r from-emerald-900/30 to-green-900/30 border border-emerald-500/30 rounded-xl shadow-xl p-6">
+                  <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+                    <div className="flex items-center space-x-4">
+                      <div className="bg-emerald-600 p-3 rounded-full shadow-lg">
+                        <User className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-white font-bold text-lg">
+                          {booking.recipientName || "Anonymous User"}
+                        </h3>
+                        <div className="flex items-center space-x-4 text-sm text-gray-300 mt-1">
+                          <div className="flex items-center space-x-1">
+                            <Package className="h-4 w-4 text-emerald-400" />
+                            <span>Approved: <strong className="text-white">{booking.approvedQuantity || booking.requestedQuantity}</strong> items</span>
+                          </div>
+                          {booking.scheduledPickupTime && (
+                            <div className="flex items-center space-x-1">
+                              <Clock className="h-4 w-4 text-blue-400" />
+                              <span>Pickup: {formatTime(booking.scheduledPickupTime)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <Badge className="bg-emerald-600 text-white px-4 py-2 text-sm font-medium shadow-lg">
+                        Ready for Pickup
+                      </Badge>
+                      <div className="text-xs text-gray-400 text-center">
+                        <div>Collection Code:</div>
+                        <div className="font-mono text-emerald-400 font-bold">
+                          {booking.collectionCode || 'N/A'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
       {/* Completed Collections */}
       {completedBookings.length > 0 && (
         <div className="space-y-4">
-          <h4 className="text-lg font-semibold text-gray-200">Recently Completed</h4>
+          <h4 className="text-lg font-semibold text-gray-200">
+            Recently Completed
+          </h4>
           {completedBookings.slice(0, 3).map((booking) => (
             <Card key={booking._id} className="bg-gray-800 border-gray-700">
               <CardContent className="p-4">
@@ -392,7 +481,9 @@ const ProviderDashboard = ({ listingId }) => {
                         {booking.recipientName || "Anonymous User"}
                       </p>
                       <p className="text-gray-400 text-sm">
-                        Collected: {booking.approvedQuantity || booking.requestedQuantity} items
+                        Collected:{" "}
+                        {booking.approvedQuantity || booking.requestedQuantity}{" "}
+                        items
                       </p>
                     </div>
                   </div>
@@ -458,7 +549,8 @@ const ProviderDashboard = ({ listingId }) => {
                   <strong>Recipient:</strong> {selectedBooking.recipientName}
                 </p>
                 <p className="text-gray-300 text-sm">
-                  <strong>Requested:</strong> {selectedBooking.requestedQuantity} items
+                  <strong>Requested:</strong>{" "}
+                  {selectedBooking.requestedQuantity} items
                 </p>
               </div>
 
@@ -471,7 +563,9 @@ const ProviderDashboard = ({ listingId }) => {
                   min="1"
                   max={selectedBooking.requestedQuantity}
                   value={approvedQuantity}
-                  onChange={(e) => setApprovedQuantity(parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    setApprovedQuantity(parseInt(e.target.value) || 0)
+                  }
                   className="bg-gray-700 border-gray-600 text-gray-100 mt-2"
                   placeholder="Enter quantity to approve"
                 />
@@ -489,7 +583,9 @@ const ProviderDashboard = ({ listingId }) => {
                 <Button
                   onClick={confirmApproval}
                   className="flex-1 bg-emerald-600 hover:bg-emerald-700"
-                  disabled={approvedQuantity <= 0 || updateBookingMutation.isPending}
+                  disabled={
+                    approvedQuantity <= 0 || updateBookingMutation.isPending
+                  }
                 >
                   {updateBookingMutation.isPending ? (
                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -527,7 +623,8 @@ const ProviderDashboard = ({ listingId }) => {
                   <strong>Recipient:</strong> {selectedBooking.recipientName}
                 </p>
                 <p className="text-gray-300 text-sm">
-                  <strong>Requested:</strong> {selectedBooking.requestedQuantity} items
+                  <strong>Requested:</strong>{" "}
+                  {selectedBooking.requestedQuantity} items
                 </p>
               </div>
 
@@ -571,6 +668,7 @@ const ProviderDashboard = ({ listingId }) => {
           </Card>
         </div>
       )}
+      </div>
     </div>
   );
 };

@@ -105,6 +105,7 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
     title: "",
     description: "",
     category: "",
+    foodType: "", // Add food type field
     quantity: "",
     unit: "",
     freshnessStatus: "Fresh",
@@ -122,19 +123,23 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
   console.log("Fetched userProfile:", userProfile);
 
   useEffect(() => {
-
-    
-    // This effect runs when the user profile is loaded or the user changes.
-    if (userProfile) {
-      // Pre-fill the form with data from the user's profile.
+    // Check if the userProfile data has been successfully fetched
+    if (userProfile && userProfile.fullName) {
+      console.log("🔄 Setting provider info from profile:", {
+        fullName: userProfile.fullName,
+        campusLocation: userProfile.campusLocation,
+      });
       setFormData((prev) => ({
         ...prev,
-        providerName: userProfile.providerName || userProfile.fullName || "",
+        // Set the providerName from the fullName in the profile
+        providerName: userProfile.fullName || "Provider",
+        // Set the location from the campusLocation in the profile
         location: userProfile.campusLocation || "",
-        providerId: userId || "", // Ensure providerId is set from the authenticated user
+        // Also ensure providerId is set
+        providerId: userId || prev.providerId,
       }));
     }
-  }, [userProfile, userId]); // FIX: Dependency array ensures this runs when data is ready.
+  }, [userProfile, userId]);
 
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -289,6 +294,7 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
         title: formData.title,
         description: formData.description,
         category: formData.category,
+        foodType: formData.foodType, // Add food type to payload
         quantity: parseInt(formData.quantity, 10),
         unit: formData.unit,
         freshnessStatus: formData.freshnessStatus,
@@ -296,7 +302,8 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
         availabilityWindow: formData.availabilityWindow,
         location: formData.location,
         providerId: formData.providerId,
-        providerName: formData.providerName,
+        providerName:
+          formData.providerName || userProfile?.fullName || "Provider", // Ensure providerName is never empty
         imageUrl: finalImageUrl, // ✅ Always include imageUrl
         expiryTime: expiryTime.toISOString(),
         bookedBy: [],
@@ -316,6 +323,7 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
         title: "",
         description: "",
         category: "",
+        foodType: "", // Reset food type
         quantity: "",
         unit: "",
         freshnessStatus: "Fresh",
@@ -501,6 +509,37 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
                 Examples: {selectedCategory.examples}
               </p>
             )}
+          </div>
+        </div>
+
+        {/* Food Type Selection */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-amber-400 mb-2">
+              Food Type *
+            </label>
+            <select
+              name="foodType"
+              value={formData.foodType}
+              onChange={handleInputChange}
+              required
+              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+            >
+              <option value="">Select Food Type</option>
+              <option value="VEG" className="bg-gray-700">
+                🌱 Vegetarian
+              </option>
+              <option value="NON_VEG" className="bg-gray-700">
+                🍖 Non-Vegetarian
+              </option>
+            </select>
+            <p className="text-xs text-gray-400 mt-1">
+              This helps recipients find food that matches their preferences
+            </p>
+          </div>
+
+          <div>
+            {/* Placeholder for future field or keep empty for layout */}
           </div>
         </div>
 

@@ -169,69 +169,117 @@ export default clerkMiddleware(async (auth, req) => {
         return NextResponse.next();
       }
 
-      // For non-admin users, check approval status for dashboard access
+      // For non-admin users, check user status for blocked users
+      let userStatus = metadata.userStatus;
+
+      // If user status is not in Clerk metadata, check database as fallback
+      if (!userStatus) {
+        try {
+          const response = await fetch(
+            `${req.nextUrl.origin}/api/user-status/${userId}`
+          );
+          if (response.ok) {
+            const data = await response.json();
+            userStatus = data.userStatus?.userStatus;
+
+            // Update Clerk metadata with the database status
+            if (userStatus) {
+              try {
+                await client.users.updateUserMetadata(userId, {
+                  publicMetadata: {
+                    ...metadata,
+                    userStatus: userStatus,
+                  },
+                });
+              } catch (updateError) {
+                console.warn("Failed to update Clerk metadata:", updateError);
+              }
+            }
+          }
+        } catch (dbError) {
+          console.error("Error checking database for user status:", dbError);
+        }
+      }
+
+      // Check if user is blocked - redirect to blocked page
+      if (userStatus === "BLOCKED") {
+        console.log("User is blocked, redirecting to blocked page");
+        if (currentPath !== "/blocked") {
+          return NextResponse.redirect(new URL("/blocked", req.url));
+        }
+        return NextResponse.next();
+      }
+
+      // Allow blocked users to access only the blocked page
+      if (currentPath === "/blocked" && userStatus !== "BLOCKED") {
+        // If user is not blocked but trying to access blocked page, redirect to dashboard
+        if (mainRole === "PROVIDER") {
+          return NextResponse.redirect(new URL("/providerDashboard", req.url));
+        } else {
+          return NextResponse.redirect(new URL("/recipientDashboard", req.url));
+        }
+      }
+
+      // In the new system, users can access dashboard immediately (no approval required)
+      // Only blocked users are restricted
       const isDashboardRoute =
         currentPath.includes("Dashboard") || currentPath === "/dashboard";
 
       if (isDashboardRoute) {
-        // Check user's approval status from Clerk metadata
-        let approvalStatus = metadata.approvalStatus;
+        console.log(
+          "User accessing dashboard, status:",
+          userStatus || "ACTIVE"
+        );
+        return NextResponse.next();
+      }
 
-        // If approval status is not in Clerk metadata, check database as fallback
-        if (!approvalStatus) {
-          try {
-            const response = await fetch(
-              `${req.nextUrl.origin}/api/profile?userId=${userId}`
-            );
-            if (response.ok) {
-              const data = await response.json();
-              approvalStatus = data.profile?.approvalStatus;
+      // Redirect users to their correct dashboard based on role
+      console.log("DEBUG: Checking dashboard redirects...");
+      console.log("DEBUG: currentPath:", currentPath);
+      console.log("DEBUG: mainRole:", mainRole);
 
-              // Update Clerk metadata with the database status
-              if (approvalStatus) {
-                try {
-                  await client.users.updateUserMetadata(userId, {
-                    publicMetadata: {
-                      ...metadata,
-                      approvalStatus: approvalStatus,
-                    },
-                  });
-                } catch (updateError) {
-                  console.warn("Failed to update Clerk metadata:", updateError);
-                }
-              }
-            }
-          } catch (dbError) {
-            console.error(
-              "Error checking database for approval status:",
-              dbError
-            );
-          }
-        }
+      if (currentPath === "/recipientDashboard" && mainRole === "PROVIDER") {
+        console.log(
+          "DEBUG: Redirecting PROVIDER from recipient dashboard to provider dashboard"
+        );
+        return NextResponse.redirect(new URL("/providerDashboard", req.url));
+      }
 
-        if (approvalStatus === "APPROVED") {
-          console.log("User is approved, allowing dashboard access");
-          return NextResponse.next();
-        } else {
-          // Block access for PENDING, REJECTED, or undefined status
-          console.log(
-            "User not approved, blocking dashboard access. Status:",
-            approvalStatus || "undefined"
-          );
-          return NextResponse.redirect(new URL("/pending-approval", req.url));
-        }
+      if (currentPath === "/providerDashboard" && mainRole === "RECIPIENT") {
+        console.log(
+          "DEBUG: Redirecting RECIPIENT from provider dashboard to recipient dashboard"
+        );
+        return NextResponse.redirect(new URL("/recipientDashboard", req.url));
       }
 
       // Block access to onboarding once completed
       if (isOnboardingRoute(req)) {
+        console.log("Blocking onboarding access - redirecting to dashboard");
         console.log(
-          "Blocking onboarding access - redirecting to pending approval"
+          "DEBUG: mainRole value:",
+          mainRole,
+          "type:",
+          typeof mainRole
         );
-        return NextResponse.redirect(new URL("/pending-approval", req.url));
+        console.log("DEBUG: mainRole === 'PROVIDER':", mainRole === "PROVIDER");
+        if (mainRole === "PROVIDER") {
+          console.log("DEBUG: Redirecting PROVIDER to /providerDashboard");
+          return NextResponse.redirect(new URL("/providerDashboard", req.url));
+        } else {
+          console.log(
+            "DEBUG: Redirecting to /recipientDashboard, mainRole:",
+            mainRole
+          );
+          return NextResponse.redirect(new URL("/recipientDashboard", req.url));
+        }
       }
 
-      // Allow access to pending approval page and profile page
-      if (isPendingApprovalRoute(req) || isProfileRoute(req)) {
+      // Allow access to profile page, pending verification, and blocked page
+      if (
+        isProfileRoute(req) ||
+        currentPath === "/pending-verification" ||
+        currentPath === "/blocked"
+      ) {
         return NextResponse.next();
       }
     }
