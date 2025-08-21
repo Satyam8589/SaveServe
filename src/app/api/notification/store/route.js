@@ -13,12 +13,15 @@ export async function POST(request) {
     if (!userId || !title || !message) {
       return NextResponse.json({ success: false, message: "Missing required fields." }, { status: 400 });
     }
+    // Coerce/validate notification type to schema enum
+    const allowedTypes = ['new-food','success', 'expiring-soon', 'reminder', 'expired', 'report','connection'];
+    const safeType = allowedTypes.includes(type) ? type : 'reminder';
     // Create and save notification
     const notification = new Notification({
       userId,
       title,
       message,
-      type: type || "reminder", // Use a valid default type
+      type: safeType, // ensure valid enum
       data: data || {},
       read: false,
       createdAt: new Date(),
@@ -27,6 +30,10 @@ export async function POST(request) {
     return NextResponse.json({ success: true, notification });
   } catch (error) {
     console.error("Error storing notification:", error);
+    // Surface validation errors to client for easier debugging
+    if (error?.name === 'ValidationError') {
+      return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+    }
     return NextResponse.json({ success: false, message: "Internal server error." }, { status: 500 });
   }
 }
