@@ -7,7 +7,6 @@ import Header from "@/components/header";
 import { Providers } from "./providers";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import NotificationsInitializer from "@/components/NotificationsInitializer";
 
 const inter = Inter({ subsets: ["latin"] });
 
