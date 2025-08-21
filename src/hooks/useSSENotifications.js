@@ -85,34 +85,72 @@ const useSSENotifications = () => {
       };
 
       eventSource.onmessage = (event) => {
+        console.log('🔥 SSE MESSAGE RECEIVED - Raw event data:', event.data);
         try {
           const notification = JSON.parse(event.data);
-          console.log('📩 New notification:', notification);
-          // No need to skip any initial message since server no longer sends one
+          console.log('📩 Parsed notification:', notification);
+          console.log('🔍 Notification structure check:', {
+            hasTitle: !!notification.title,
+            titleValue: notification.title,
+            hasMessage: !!notification.message,
+            messageValue: notification.message,
+            hasType: !!notification.type,
+            typeValue: notification.type,
+            hasData: !!notification.data,
+            dataValue: notification.data
+          });
+          console.log('🔍 User check:', {
+            hasUser: !!user,
+            userIdFromHook: userId,
+            userObject: user
+          });
+
           // Store notification in DB via POST API and update the notification with DB ID
-          if (user?.id && notification.title && notification.message && notification.type) {
+          console.log('🔍 Checking conditions for DB storage:', {
+            hasUserId: !!userId,
+            userIdValue: userId,
+            hasTitle: !!notification.title,
+            hasMessage: !!notification.message,
+            hasType: !!notification.type,
+            conditionResult: !!(userId && notification.title && notification.message && notification.type)
+          });
+
+          if (userId && notification.title && notification.message && notification.type) {
+            console.log('✅ ALL CONDITIONS MET - Starting database storage...');
+
             (async () => {
+              console.log('🚀 ASYNC FUNCTION STARTED - Inside database storage function');
               try {
+                console.log('🔑 Getting authentication token...');
                 const token = getToken ? await getToken() : null;
+                console.log('🔑 Token obtained:', !!token);
+
+                const requestBody = {
+                  userId: userId,
+                  title: notification.title,
+                  message: notification.message,
+                  type: notification.type,
+                  data: notification.data || {}
+                };
+                console.log('📤 Request body prepared:', requestBody);
+
+                console.log('🌐 Making fetch request to /api/notification/store...');
                 const res = await fetch('/api/notification/store', {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
                     ...(token ? { Authorization: `Bearer ${token}` } : {})
                   },
-                  body: JSON.stringify({
-                    userId: user.id,
-                    title: notification.title,
-                    message: notification.message,
-                    type: notification.type,
-                    data: notification.data || {}
-                  })
+                  body: JSON.stringify(requestBody)
                 });
+                console.log('📥 Fetch response received:', res.status, res.ok);
+
                 if (!res.ok) {
                   const errorText = await res.text().catch(() => '');
                   console.error('❌ Failed to store notification:', res.status, errorText);
                 } else {
                   const result = await res.json();
+
                   if (result.success && result.notification) {
                     // Update the notification in state with the database ID
                     setNotifications(prev =>
@@ -123,12 +161,25 @@ const useSSENotifications = () => {
                       )
                     );
                     console.log('✅ Notification stored in DB with ID:', result.notification.id);
+                  } else {
+                    console.error('❌ Store notification failed:', result);
                   }
                 }
               } catch (e) {
                 console.error('❌ Error while storing notification:', e);
               }
             })();
+          } else {
+            console.log('❌ Cannot store notification - missing required data:', {
+              hasUserId: !!userId,
+              hasTitle: !!notification.title,
+              hasMessage: !!notification.message,
+              hasType: !!notification.type,
+              userIdValue: userId,
+              titleValue: notification.title,
+              messageValue: notification.message,
+              typeValue: notification.type
+            });
           }
           setNotifications(prev => {
             // Avoid duplicates
@@ -183,9 +234,11 @@ const useSSENotifications = () => {
 
   // Connect when user is available
   useEffect(() => {
-    connect();
+    if (userId) {
+      connect();
+    }
     return disconnect;
-  }, [connect, disconnect]);
+  }, [connect, disconnect, userId]);
 
   // Notification actions
   const markAsRead = useCallback(async (notificationId) => {
