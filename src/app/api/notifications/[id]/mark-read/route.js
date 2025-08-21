@@ -1,7 +1,7 @@
 // app/api/notifications/[id]/mark-read/route.js
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { markNotificationAsRead } from '@/lib/firestoreNotificationService';
+import { markNotificationAsRead } from '@/lib/mongoNotificationService';
 
 export async function POST(request, { params }) {
   try {

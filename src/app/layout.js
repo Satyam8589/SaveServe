@@ -3,12 +3,10 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
-import { Toaster } from "sonner";
 import Header from "@/components/header";
 import { Providers } from "./providers";
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
-import NotificationsInitializer from "@/components/NotificationsInitializer";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -40,7 +38,6 @@ export default async function RootLayout({ children }) {
             disableTransitionOnChange
           >
             <Providers>
-              <NotificationsInitializer />
               {/* Header Section */}
               <Header />
 
@@ -49,7 +46,6 @@ export default async function RootLayout({ children }) {
                 <SpeedInsights />
                 <Analytics />
               </main>
-              <Toaster richColors />
             </Providers>
           </ThemeProvider>
         </body>

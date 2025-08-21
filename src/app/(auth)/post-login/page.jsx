@@ -15,68 +15,97 @@ export default function PostLogin() {
 
     const checkUserStatus = async () => {
       try {
-        const hasOnboarded = user?.publicMetadata?.hasOnboarded;
+        let hasOnboarded = user?.publicMetadata?.hasOnboarded;
+        let hasCompleteProfile = user?.publicMetadata?.hasCompleteProfile;
         const mainRole = user?.publicMetadata?.mainRole;
 
-        if (hasOnboarded === true) {
-          // User has completed onboarding, now check approval status
-          const response = await fetch(`/api/profile?userId=${user.id}`);
+        console.log("Post-login check:", {
+          hasOnboarded,
+          hasCompleteProfile,
+          mainRole,
+          userId: user?.id
+        });
 
-          if (response.ok) {
-            const data = await response.json();
-            const profile = data.profile;
+        // Step 0: Initialize new users if they have no metadata
+        if (hasOnboarded === undefined && hasCompleteProfile === undefined && !mainRole) {
+          console.log("New user detected - initializing...");
+          try {
+            const response = await fetch("/api/initialize-user", {
+              method: "POST",
+            });
 
-            if (profile) {
-              // Admin users bypass approval system
-              if (mainRole === "ADMIN") {
-                router.replace("/admin");
+            if (response.ok) {
+              const result = await response.json();
+              console.log("User initialized:", result);
+              // Reload user to get updated metadata
+              await user?.reload();
+              hasOnboarded = user?.publicMetadata?.hasOnboarded;
+              hasCompleteProfile = user?.publicMetadata?.hasCompleteProfile;
+            }
+          } catch (initError) {
+            console.error("Failed to initialize user:", initError);
+            // Continue with default behavior
+          }
+        }
+
+        // Step 1: Check if user needs onboarding (role selection)
+        if (hasOnboarded !== "true" && hasOnboarded !== true) {
+          console.log("User needs onboarding - redirecting to onboarding");
+          router.replace("/onboarding");
+          return;
+        }
+
+        // Step 2: Check if user needs profile completion
+        if ((hasOnboarded === "true" || hasOnboarded === true) &&
+            (hasCompleteProfile !== "true" && hasCompleteProfile !== true)) {
+          console.log("User onboarded but needs profile completion - redirecting to profile");
+          router.replace("/profile");
+          return;
+        }
+
+        // Step 3: User has completed both onboarding and profile - check their status and redirect to dashboard
+        if ((hasOnboarded === "true" || hasOnboarded === true) &&
+            (hasCompleteProfile === "true" || hasCompleteProfile === true)) {
+          console.log("User has completed onboarding and profile - checking status and redirecting to dashboard");
+
+          // Admin users go to admin dashboard
+          if (mainRole === "ADMIN") {
+            router.replace("/admin");
+            return;
+          }
+
+          // Check if user is blocked (optional - you can remove this if not needed)
+          try {
+            const response = await fetch(`/api/profile?userId=${user.id}`);
+            if (response.ok) {
+              const data = await response.json();
+              const profile = data.profile;
+
+              if (profile?.userStatus === "BLOCKED") {
+                router.replace("/blocked");
                 return;
               }
-
-              // For all other users, check user status (new system)
-              const userStatus = profile.userStatus || "ACTIVE"; // Default to ACTIVE for backward compatibility
-
-              switch (userStatus) {
-                case "BLOCKED":
-                  // User is blocked, redirect to blocked page
-                  router.replace("/blocked");
-                  break;
-
-                case "ACTIVE":
-                case "APPROVED":
-                case "REJECTED":
-                default:
-                  // In new system, all non-blocked users can access dashboard
-                  try {
-                    // Ensure Clerk metadata is up to date
-                    await fetch("/api/refresh-session", {
-                      method: "POST",
-                    });
-                  } catch (error) {
-                    console.warn("Failed to refresh session:", error);
-                  }
-
-                  if (mainRole === "PROVIDER") {
-                    router.replace("/providerDashboard");
-                  } else if (mainRole === "RECIPIENT") {
-                    router.replace("/recipientDashboard");
-                  } else {
-                    router.replace("/dashboard");
-                  }
-                  break;
-              }
-            } else {
-              // No profile found, redirect to onboarding
-              router.replace("/onboarding");
             }
-          } else {
-            // Error fetching profile, redirect to onboarding
-            router.replace("/onboarding");
+          } catch (error) {
+            console.warn("Could not check user status:", error);
+            // Continue to dashboard even if status check fails
           }
-        } else {
-          // Not onboarded → force onboarding
-          router.replace("/onboarding");
+
+          // Redirect to appropriate dashboard based on role
+          if (mainRole === "PROVIDER") {
+            router.replace("/providerDashboard");
+          } else if (mainRole === "RECIPIENT") {
+            router.replace("/recipientDashboard");
+          } else {
+            router.replace("/dashboard");
+          }
+          return;
         }
+
+        // Fallback: If we reach here, something is wrong - send to onboarding
+        console.log("Fallback: Redirecting to onboarding");
+        router.replace("/onboarding");
+
       } catch (error) {
         console.error("Error checking user status:", error);
         // On error, redirect to onboarding as fallback

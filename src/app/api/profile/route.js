@@ -47,6 +47,10 @@ export async function GET(request) {
       return NextResponse.json({
         success: true,
         message: "Profile fetched successfully.",
+        data: {
+          ...profile,
+          providerName: profile.fullName,
+        },
         profile: {
           ...profile,
           providerName: profile.fullName,

@@ -6,11 +6,11 @@ import {
   sendNotificationToRole,
 } from "@/lib/notificationService";
 import {
-  createFirestoreNotification,
+  createMongoNotification,
   sendCompleteNotification,
   sendCompleteNotificationToRole,
   NOTIFICATION_TYPES,
-} from "@/lib/firestoreNotificationService";
+} from "@/lib/mongoNotificationService";
 
 // GET - Retrieve listings with pagination and filtering
 export async function GET(request) {
@@ -34,9 +34,41 @@ export async function GET(request) {
 
     const total = await FoodListing.countDocuments(query);
 
+    // Transform listings to include computed available quantity while keeping other fields
+    const transformed = listings.map((doc) => {
+      const plain = doc.toObject();
+      const totalBooked = plain.totalBookedQuantity || 0;
+      const available = Math.max(0, (plain.quantity || 0) - totalBooked);
+      return {
+        _id: plain._id,
+        title: plain.title,
+        description: plain.description,
+        category: plain.category,
+        foodType: plain.foodType,
+        quantity: plain.quantity,
+        unit: plain.unit,
+        freshnessStatus: plain.freshnessStatus,
+        freshnessHours: plain.freshnessHours,
+        availabilityWindow: plain.availabilityWindow,
+        location: plain.location,
+        expiryTime: plain.expiryTime,
+        isActive: plain.isActive,
+        providerId: plain.providerId,
+        providerName: plain.providerName,
+        imageUrl: plain.imageUrl,
+        bookings: plain.bookings,
+        totalBookedQuantity: plain.totalBookedQuantity,
+        listingStatus: plain.listingStatus,
+        contactInfo: plain.contactInfo,
+        createdAt: plain.createdAt,
+        updatedAt: plain.updatedAt,
+        available,
+      };
+    });
+
     return NextResponse.json({
       success: true,
-      data: listings,
+      data: transformed,
       pagination: {
         current: page,
         pages: Math.ceil(total / limit),
@@ -52,7 +84,7 @@ export async function GET(request) {
   }
 }
 
-// POST - Create new listing with SSE + FCM + Firestore notifications
+// POST - Create new listing with SSE + FCM + MongoDB notifications
 export async function POST(request) {
   try {
     await connectDB();
@@ -225,7 +257,7 @@ export async function POST(request) {
       });
       console.log("📡 Recipients SSE notification result:", sseResult);
 
-      // For Firestore notifications to recipients, you'd need to implement
+      // For MongoDB notifications to recipients, you'd need to implement
       // a way to get all recipient user IDs. For now, we'll focus on
       // individual notifications (provider confirmation and booking notifications)
     } catch (notificationError) {
@@ -239,7 +271,7 @@ export async function POST(request) {
     try {
       console.log("📢 Sending listing confirmation to provider:", providerId);
 
-      // 📱 Send complete notification (FCM + Firestore)
+      // 📱 Send complete notification (FCM + MongoDB)
       console.log("📢 Sending listing confirmation to provider:", providerId);
 
       const providerNotificationResult = await sendCompleteNotification(
@@ -258,7 +290,7 @@ export async function POST(request) {
         }
       );
       console.log(
-        "📨 Provider FCM+Firestore result:",
+        "📨 Provider FCM+MongoDB result:",
         providerNotificationResult
       );
 
