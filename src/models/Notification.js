@@ -20,6 +20,11 @@ const NotificationSchema = new mongoose.Schema({
     enum: ['new-food','success', 'expiring-soon', 'reminder', 'expired', 'report','connection'],
     required: true,
   },
+  data: {
+    type: Object,
+    default: {},
+    required: false,
+  },
   read: {
     type: Boolean,
     default: false,

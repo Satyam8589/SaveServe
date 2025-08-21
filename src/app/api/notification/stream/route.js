@@ -30,19 +30,6 @@ export async function GET(request) {
     const stream = new ReadableStream({
       start(controller) {
         console.log(`📡 Starting SSE stream for user: ${userId}`);
-        
-        // Send initial connection message
-        const connectionData = {
-          id: `conn_${Date.now()}`,
-          type: 'connection',
-          title: 'Connected',
-          message: 'Real-time notifications active',
-          timestamp: new Date().toISOString(),
-          read: false
-        };
-        
-        const data = `data: ${JSON.stringify(connectionData)}\n\n`;
-        controller.enqueue(encoder.encode(data));
 
         // Set up periodic heartbeat
         const heartbeat = setInterval(() => {

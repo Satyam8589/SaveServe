@@ -52,7 +52,6 @@ const useSSENotifications = () => {
     fetchNotifications();
   }, [getToken, userId]);
   const [notifications, setNotifications] = useState([]);
-  const firstNotificationSkippedRef = useRef(false);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -89,31 +88,36 @@ const useSSENotifications = () => {
         try {
           const notification = JSON.parse(event.data);
           console.log('📩 New notification:', notification);
-          // Skip the first notification after connecting
-          if (!firstNotificationSkippedRef.current) {
-            firstNotificationSkippedRef.current = true;
-            return;
-          }
+          // No need to skip any initial message since server no longer sends one
           // Store notification in DB via POST API
           if (user?.id && notification.title && notification.message && notification.type) {
-            const storeNotification = async () => {
-              const token = getToken ? await getToken() : null;
-              await fetch('/api/notification/store', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  ...(token ? { Authorization: `Bearer ${token}` } : {})
-                },
-                body: JSON.stringify({
-                  userId: user.id,
-                  title: notification.title,
-                  message: notification.message,
-                  type: notification.type,
-                  data: notification.data || {}
-                })
-              });
-            };
-            storeNotification();
+            (async () => {
+              try {
+                const token = getToken ? await getToken() : null;
+                const res = await fetch('/api/notification/store', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {})
+                  },
+                  body: JSON.stringify({
+                    userId: user.id,
+                    title: notification.title,
+                    message: notification.message,
+                    type: notification.type,
+                    data: notification.data || {}
+                  })
+                });
+                if (!res.ok) {
+                  const errorText = await res.text().catch(() => '');
+                  console.error('❌ Failed to store notification:', res.status, errorText);
+                } else {
+                  console.log('✅ Notification stored in DB');
+                }
+              } catch (e) {
+                console.error('❌ Error while storing notification:', e);
+              }
+            })();
           }
           setNotifications(prev => {
             // Avoid duplicates
