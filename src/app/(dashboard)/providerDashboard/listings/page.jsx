@@ -26,14 +26,27 @@ const DynamicFoodListingForm = dynamic(() => import('../_components/FoodListingF
 
 function ListingsContent() {
   const [showForm, setShowForm] = useState(false);
+  const [editingListing, setEditingListing] = useState(null);
   const { userId } = useAuth(); // Get the current user's Clerk ID
 
   const handleFormSuccess = () => {
     setShowForm(false);
+    setEditingListing(null);
   };
 
   const handleFormCancel = () => {
     setShowForm(false);
+    setEditingListing(null);
+  };
+
+  const handleEditListing = (listing) => {
+    setEditingListing(listing);
+    setShowForm(true);
+  };
+
+  const handleCreateNew = () => {
+    setEditingListing(null);
+    setShowForm(true);
   };
 
   return (
@@ -52,7 +65,7 @@ function ListingsContent() {
             </div>
             
             <button
-              onClick={() => setShowForm(true)}
+              onClick={handleCreateNew}
               className="group flex items-center px-8 py-4 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-900 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
             >
               <Plus className="w-5 h-5 mr-2 transition-transform group-hover:rotate-90 duration-300" />
@@ -66,9 +79,10 @@ function ListingsContent() {
           <div className="mb-12">
             <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl shadow-2xl p-1">
               <div className="bg-gray-800 rounded-xl">
-                <DynamicFoodListingForm 
+                <DynamicFoodListingForm
                   onSuccess={handleFormSuccess}
                   onCancel={handleFormCancel}
+                  editingListing={editingListing}
                 />
               </div>
             </div>
@@ -77,7 +91,7 @@ function ListingsContent() {
 
         {/* Listings Table */}
         <div className="mb-12">
-          <FoodListingTable providerId={userId} />
+          <FoodListingTable providerId={userId} onEditListing={handleEditListing} />
         </div>
 
         {/* Stats Section */}

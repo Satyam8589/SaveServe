@@ -7,6 +7,7 @@ import Header from "@/components/header";
 import { Providers } from "./providers";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import LocationPermissionService from "@/components/LocationPermissionService";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -26,6 +27,8 @@ export default async function RootLayout({ children }) {
       <html lang="en" suppressHydrationWarning>
         <head>
           <link rel="icon" href="/logo.svg" />
+          {/* Leaflet Routing Machine CSS and JS */}
+        
         </head>
         <body className={`${inter.className}`}>
           <ThemeProvider
@@ -43,6 +46,9 @@ export default async function RootLayout({ children }) {
                 <SpeedInsights />
                 <Analytics />
               </main>
+
+              {/* Location Permission Service - Uses native browser prompts */}
+              <LocationPermissionService />
             </Providers>
           </ThemeProvider>
         </body>

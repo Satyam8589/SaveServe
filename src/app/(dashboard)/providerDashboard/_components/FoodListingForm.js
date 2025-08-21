@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useCreateListing } from "@/hooks/useListings";
+import { useCreateListing, useUpdateListing } from "@/hooks/useListings";
 import { useUserProfile } from "@/hooks/useProfile";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
 import { useAuth } from "@clerk/nextjs";
@@ -94,13 +94,15 @@ const FOOD_CATEGORIES = [
   },
 ];
 
-export default function FoodListingForm({ onSuccess, onCancel }) {
+export default function FoodListingForm({ onSuccess, onCancel, editingListing = null }) {
   const { userId } = useAuth(); // Get the current user's Clerk ID
   const {
     data: userProfile,
     isLoading: isProfileLoading,
     error: profileError,
   } = useUserProfile();
+
+  const isEditMode = !!editingListing;
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -141,12 +143,52 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
     }
   }, [userProfile, userId]);
 
+  // Effect to populate form when editing
+  useEffect(() => {
+    if (isEditMode && editingListing) {
+      console.log("🔄 Populating form for editing:", editingListing);
+
+      // Convert availability window dates to local datetime format
+      const formatForDateTimeLocal = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+        return date.toISOString().slice(0, 16);
+      };
+
+      setFormData({
+        title: editingListing.title || "",
+        description: editingListing.description || "",
+        category: editingListing.category || "",
+        foodType: editingListing.foodType || "",
+        quantity: editingListing.quantity?.toString() || "",
+        unit: editingListing.unit || "",
+        freshnessStatus: editingListing.freshnessStatus || "Fresh",
+        freshnessHours: editingListing.freshnessHours || 24,
+        availabilityWindow: {
+          startTime: formatForDateTimeLocal(editingListing.availabilityWindow?.startTime),
+          endTime: formatForDateTimeLocal(editingListing.availabilityWindow?.endTime),
+        },
+        location: editingListing.location || "",
+        providerName: editingListing.providerName || userProfile?.fullName || "Provider",
+        providerId: editingListing.providerId || userId || "",
+        imageUrl: editingListing.imageUrl || "",
+      });
+
+      // Set image preview if editing listing has an image
+      if (editingListing.imageUrl) {
+        setImagePreview(editingListing.imageUrl);
+      }
+    }
+  }, [isEditMode, editingListing, userProfile, userId]);
+
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef(null);
 
   const createListingMutation = useCreateListing();
+  const updateListingMutation = useUpdateListing();
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -315,8 +357,17 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
       console.log("🔍 imageUrl in payload:", listingPayload.imageUrl);
       console.log("📋 Full payload:", JSON.stringify(listingPayload, null, 2));
 
-      const result = await createListingMutation.mutateAsync(listingPayload);
-      console.log("✅ API response:", result);
+      let result;
+      if (isEditMode) {
+        result = await updateListingMutation.mutateAsync({
+          id: editingListing._id,
+          data: listingPayload
+        });
+        console.log("✅ Update API response:", result);
+      } else {
+        result = await createListingMutation.mutateAsync(listingPayload);
+        console.log("✅ Create API response:", result);
+      }
 
       // Reset form
       setFormData({
@@ -368,7 +419,7 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
           <span className="bg-gradient-to-r from-emerald-400 to-orange-400 bg-clip-text text-transparent mr-3">
             🍽️
           </span>
-          Create Food Listing
+          {isEditMode ? 'Edit Food Listing' : 'Create Food Listing'}
         </h2>
         {onCancel && (
           <button
@@ -681,10 +732,10 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
           )}
           <button
             type="submit"
-            disabled={createListingMutation.isPending || uploadingImage}
+            disabled={createListingMutation.isPending || updateListingMutation.isPending || uploadingImage}
             className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-orange-500 text-white rounded-lg hover:from-emerald-600 hover:to-orange-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
           >
-            {createListingMutation.isPending || uploadingImage ? (
+            {createListingMutation.isPending || updateListingMutation.isPending || uploadingImage ? (
               <span className="flex items-center">
                 <svg
                   className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
@@ -706,15 +757,15 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   ></path>
                 </svg>
-                {uploadingImage ? "Uploading Image..." : "Creating..."}
+                {uploadingImage ? "Uploading Image..." : (isEditMode ? "Updating..." : "Creating...")}
               </span>
             ) : (
-              "Create Listing"
+              isEditMode ? "Update Listing" : "Create Listing"
             )}
           </button>
         </div>
 
-        {createListingMutation.isError && (
+        {(createListingMutation.isError || updateListingMutation.isError) && (
           <div className="mt-4 p-4 bg-red-900/50 border border-red-700 rounded-lg">
             <p className="text-red-400 flex items-center">
               <svg
@@ -731,7 +782,8 @@ export default function FoodListingForm({ onSuccess, onCancel }) {
                 />
               </svg>
               {createListingMutation.error?.message ||
-                "Failed to create listing"}
+               updateListingMutation.error?.message ||
+               `Failed to ${isEditMode ? 'update' : 'create'} listing`}
             </p>
           </div>
         )}

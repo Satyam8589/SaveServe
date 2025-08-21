@@ -49,15 +49,15 @@ const sidebarItems = [
     badge: null,
   },
   {
-    href: "/providerDashboard/recipients",
-    icon: Users,
-    label: "Recipients",
-    badge: null,
-  },
-  {
     href: "/providerDashboard/schedule",
     icon: Calendar,
     label: "Schedule",
+    badge: null,
+  },
+  {
+    href: "/providerDashboard/recipients",
+    icon: Users,
+    label: "Recipients",
     badge: null,
   },
   {
