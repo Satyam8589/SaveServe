@@ -113,6 +113,15 @@ export default function BrowseFoodPage() {
     fetchFavorites();
   }, [userId]); // Re-fetch favorites if the user ID changes
 
+  // Auto-refresh listings every 30 seconds to show updated quantities
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchFoodListings();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
   const fetchFoodListings = async () => {
     try {
       setLoading(true);
@@ -202,6 +211,17 @@ export default function BrowseFoodPage() {
       return;
     }
 
+    // Validate requested quantity against available quantity
+    if (requestedQuantity > (selectedFood.availableNumeric || 0)) {
+      alert(`Only ${selectedFood.availableNumeric || 0} ${selectedFood.quantity?.split(' ')[1] || 'units'} available. Please reduce your requested quantity.`);
+      return;
+    }
+
+    if (requestedQuantity <= 0) {
+      alert("Please enter a valid quantity.");
+      return;
+    }
+
     try {
       const bookingData = {
         listingId: selectedFood.id,
@@ -223,7 +243,9 @@ export default function BrowseFoodPage() {
       setSelectedFood(null);
       setRequestedQuantity(1); // Reset quantity
       setRequestMessage(""); // Reset message
-      fetchFoodListings(); // Refresh listings
+
+      // Refresh listings to show updated quantities
+      await fetchFoodListings();
     } catch (error) {
       console.error("Error claiming food:", error);
 
@@ -528,7 +550,12 @@ export default function BrowseFoodPage() {
                     <div className="space-y-2 text-sm text-gray-400">
                       <div className="flex items-center space-x-2">
                         <Package className="h-4 w-4" />
-                        <span>{food.quantity}</span>
+                        <span className={food.availableNumeric <= 2 ? "text-orange-400" : ""}>
+                          {food.quantity}
+                          {food.availableNumeric <= 2 && food.availableNumeric > 0 && (
+                            <span className="text-orange-400 ml-1">⚠️ Low stock</span>
+                          )}
+                        </span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <MapPin className="h-4 w-4" />
@@ -750,7 +777,7 @@ export default function BrowseFoodPage() {
                 <div className="grid grid-cols-2 gap-2 text-sm text-gray-400">
                   <div className="flex items-center space-x-1">
                     <Package className="h-3 w-3" />
-                    <span>{selectedFood.quantity}</span>
+                    <span>{selectedFood.quantity} available</span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <MapPin className="h-3 w-3" />
@@ -789,13 +816,16 @@ export default function BrowseFoodPage() {
                   id="requestedQuantity"
                   type="number"
                   min="1"
-                  max={selectedFood?.quantity || 1}
+                  max={selectedFood?.availableNumeric || 1}
                   value={requestedQuantity}
                   onChange={(e) =>
                     setRequestedQuantity(parseInt(e.target.value) || 1)
                   }
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 />
+                <p className="text-xs text-gray-400 mt-1">
+                  Available: {selectedFood?.availableNumeric || 0} {selectedFood?.quantity?.split(' ')[1] || 'units'}
+                </p>
               </div>
 
               <div className="space-y-2">

@@ -169,8 +169,8 @@ Create an admin user in Clerk:
 ### 3. Environment Variables
 Ensure these are set for notifications:
 ```
-FIREBASE_SERVICE_ACCOUNT_KEY=<your-firebase-service-account>
-FIREBASE_PROJECT_ID=<your-project-id>
+FCM_SERVER_KEY=<your-fcm-server-key>
+MONGODB_URI=<your-mongodb-connection-string>
 ```
 
 ### 4. Test Data

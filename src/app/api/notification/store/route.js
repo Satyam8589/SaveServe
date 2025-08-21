@@ -6,28 +6,76 @@ import Notification from "@/models/Notification";
 // POST /api/notification/store
 export async function POST(request) {
   try {
+    console.log('� POST /api/notification/store - Processing notification...');
+
     await connectDB();
+    console.log('✅ Database connected');
+
     const body = await request.json();
+
     // Validate required fields
     const { userId, title, message, type, data } = body;
+
     if (!userId || !title || !message) {
       return NextResponse.json({ success: false, message: "Missing required fields." }, { status: 400 });
     }
+
+    // Coerce/validate notification type to schema enum
+    const allowedTypes = ['new-food','success', 'expiring-soon', 'reminder', 'expired', 'report','connection'];
+    const safeType = allowedTypes.includes(type) ? type : 'reminder';
+
     // Create and save notification
-    const notification = new Notification({
+    const notificationData = {
       userId,
       title,
       message,
-      type: type || "reminder", // Use a valid default type
+      type: safeType, // ensure valid enum
       data: data || {},
       read: false,
       createdAt: new Date(),
-    });
-    await notification.save();
-    return NextResponse.json({ success: true, notification });
+    };
+    const notification = new Notification(notificationData);
+    const savedNotification = await notification.save();
+    console.log('✅ Notification saved to database with ID:', savedNotification._id);
+
+    // Transform _id to id for frontend compatibility
+    const transformedNotification = {
+      ...savedNotification.toObject(),
+      id: savedNotification._id.toString(),
+      _id: undefined
+    };
+
+    return NextResponse.json({ success: true, notification: transformedNotification });
   } catch (error) {
-    console.error("Error storing notification:", error);
-    return NextResponse.json({ success: false, message: "Internal server error." }, { status: 500 });
+    console.error("❌ Error storing notification:", error);
+    console.error("❌ Error name:", error?.name);
+    console.error("❌ Error message:", error?.message);
+    console.error("❌ Error stack:", error?.stack);
+
+    // Surface validation errors to client for easier debugging
+    if (error?.name === 'ValidationError') {
+      console.error("❌ Validation Error Details:", error.errors);
+      return NextResponse.json({
+        success: false,
+        message: error.message,
+        validationErrors: error.errors
+      }, { status: 400 });
+    }
+
+    if (error?.name === 'MongoError' || error?.name === 'MongoServerError') {
+      console.error("❌ MongoDB Error:", error);
+      return NextResponse.json({
+        success: false,
+        message: "Database error",
+        error: error.message
+      }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      success: false,
+      message: "Internal server error",
+      error: error.message
+    }, { status: 500 });
   }
 }
 
@@ -41,7 +89,15 @@ export async function GET(request) {
       return NextResponse.json({ success: false, message: "Missing userId." }, { status: 400 });
     }
     const notifications = await Notification.find({ userId }).sort({ createdAt: -1 }).lean();
-    return NextResponse.json({ success: true, notifications });
+
+    // Transform _id to id for frontend compatibility
+    const transformedNotifications = notifications.map(notification => ({
+      ...notification,
+      id: notification._id.toString(),
+      _id: undefined // Remove _id to avoid confusion
+    }));
+
+    return NextResponse.json({ success: true, notifications: transformedNotifications });
   } catch (error) {
     console.error("Error fetching notifications:", error);
     return NextResponse.json({ success: false, message: "Internal server error." }, { status: 500 });

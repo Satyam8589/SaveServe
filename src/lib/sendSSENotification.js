@@ -20,7 +20,7 @@ export const sendSSENotification = (userId, notification) => {
       userId,
       title: notification.title,
       message: notification.message,
-      type: notification.type || 'info',
+      type: notification.type || 'reminder',
       data: notification.data || {},
       timestamp: new Date().toISOString(),
       read: false

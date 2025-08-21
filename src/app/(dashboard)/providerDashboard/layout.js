@@ -141,10 +141,13 @@ export default function ProviderDashboardLayout({ children }) {
                             : ""
                         )}
                       >
-                        <item.icon className="h-5 w-5 flex-shrink-0" />
+                        <item.icon className={cn(
+                          "h-5 w-5 flex-shrink-0",
+                          isActiveRoute(item.href) ? "text-white" : "text-orange-400"
+                        )} />
                         <span className="font-medium truncate">{item.label}</span>
                         {item.badge && (
-                          <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                          <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md">
                             {item.badge}
                           </span>
                         )}

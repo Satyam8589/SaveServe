@@ -1,11 +1,11 @@
 // public/firebase-messaging-sw.js
-// Firebase service worker for handling background notifications
+// Firebase Messaging Service Worker for background notifications
 
-// Import Firebase scripts using importScripts (required for service workers)
+// Import Firebase scripts
 importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js');
 
-// Firebase configuration - same as client
+// Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyAvxSwi3t0G7aZ1mgzRMcbemPF-6smC4n8",
   authDomain: "saveserve-f9fb5.firebaseapp.com",
@@ -15,108 +15,136 @@ const firebaseConfig = {
   appId: "1:220940003803:web:9d7a44660981023541dffe"
 };
 
-// Initialize Firebase in service worker
+// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 
-// Initialize Firebase Cloud Messaging and get a reference to the service
+// Initialize Firebase Messaging
 const messaging = firebase.messaging();
 
 // Handle background messages
 messaging.onBackgroundMessage((payload) => {
-  console.log('[firebase-messaging-sw.js] Received background message:', payload);
-  
-  const notificationTitle = payload.notification?.title || 'New Food Available';
+  console.log('📱 Background message received:', payload);
+
+  const notificationTitle = payload.notification?.title || 'SaveServe Notification';
   const notificationOptions = {
-    body: payload.notification?.body || 'Check out new food listings in your area',
-    icon: '/icons/food-icon-192x192.png', // Add your app icon
-    badge: '/icons/food-badge-72x72.png', // Add a small badge icon
-    tag: 'food-notification',
+    body: payload.notification?.body || 'You have a new notification',
+    icon: '/icon-192x192.png', // Add your app icon
+    badge: '/badge-72x72.png', // Add your badge icon
+    tag: payload.data?.notificationId || 'saveserve-notification',
     data: payload.data,
     actions: [
       {
         action: 'view',
-        title: 'View Listing'
+        title: 'View',
+        icon: '/action-view.png'
       },
       {
         action: 'dismiss',
-        title: 'Dismiss'
+        title: 'Dismiss',
+        icon: '/action-dismiss.png'
       }
     ],
     requireInteraction: true, // Keep notification visible until user interacts
-    vibrate: [200, 100, 200], // Vibration pattern for mobile
+    vibrate: [200, 100, 200], // Vibration pattern
+    timestamp: Date.now()
   };
 
+  // Show notification
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
-// Handle notification clicks
+// Handle notification click events
 self.addEventListener('notificationclick', (event) => {
-  console.log('[firebase-messaging-sw.js] Notification click received.');
+  console.log('🔔 Notification clicked:', event);
 
-  event.notification.close();
-
+  const notification = event.notification;
   const action = event.action;
-  const data = event.notification.data;
+  const data = notification.data;
 
-  if (action === 'view') {
-    // Open the app to the relevant page
-    const urlToOpen = data?.listingId 
-      ? `/listings/${data.listingId}` 
-      : '/listings';
-    
-    event.waitUntil(
-      clients.matchAll({ type: 'window', includeUncontrolled: true })
-        .then((clientList) => {
-          // Check if app is already open
-          for (const client of clientList) {
-            if (client.url.includes(self.location.origin) && 'focus' in client) {
-              client.focus();
-              client.postMessage({
-                type: 'NOTIFICATION_CLICKED',
-                data: data,
-                url: urlToOpen
-              });
-              return;
-            }
+  // Close the notification
+  notification.close();
+
+  if (action === 'dismiss') {
+    // Just close the notification
+    return;
+  }
+
+  // Handle view action or notification click
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Try to focus existing window
+      for (const client of clientList) {
+        if (client.url.includes('localhost:3000') || client.url.includes('saveserve')) {
+          // Navigate to specific page if data contains URL
+          if (data?.url) {
+            client.navigate(data.url);
           }
-          
-          // If app is not open, open it
-          if (clients.openWindow) {
-            return clients.openWindow(self.location.origin + urlToOpen);
-          }
-        })
-    );
-  } else if (action === 'dismiss') {
-    // Just close the notification (already handled above)
-    console.log('Notification dismissed');
-  } else {
-    // Default action (clicking the notification body)
-    event.waitUntil(
-      clients.matchAll({ type: 'window', includeUncontrolled: true })
-        .then((clientList) => {
-          if (clientList.length > 0) {
-            const client = clientList[0];
-            client.focus();
-            client.postMessage({
-              type: 'NOTIFICATION_CLICKED',
-              data: data
-            });
-          } else if (clients.openWindow) {
-            return clients.openWindow(self.location.origin);
-          }
-        })
-    );
+          return client.focus();
+        }
+      }
+
+      // Open new window if no existing window found
+      const urlToOpen = data?.url || '/notifications';
+      return clients.openWindow(urlToOpen);
+    })
+  );
+});
+
+// Handle notification close events
+self.addEventListener('notificationclose', (event) => {
+  console.log('🔔 Notification closed:', event);
+  
+  // Optional: Track notification dismissal
+  const data = event.notification.data;
+  if (data?.notificationId) {
+    // You could send analytics or mark as dismissed
+    console.log('Notification dismissed:', data.notificationId);
   }
 });
 
-// Handle service worker installation
+// Handle push events (alternative to onBackgroundMessage)
+self.addEventListener('push', (event) => {
+  console.log('📱 Push event received:', event);
+
+  if (!event.data) {
+    console.log('Push event has no data');
+    return;
+  }
+
+  try {
+    const payload = event.data.json();
+    console.log('Push payload:', payload);
+
+    // This will be handled by onBackgroundMessage, but keeping as fallback
+    if (!payload.notification) {
+      const notificationTitle = payload.data?.title || 'SaveServe';
+      const notificationOptions = {
+        body: payload.data?.body || 'You have a new notification',
+        icon: '/icon-192x192.png',
+        badge: '/badge-72x72.png',
+        tag: 'saveserve-push',
+        data: payload.data
+      };
+
+      event.waitUntil(
+        self.registration.showNotification(notificationTitle, notificationOptions)
+      );
+    }
+  } catch (error) {
+    console.error('Error handling push event:', error);
+  }
+});
+
+// Service worker installation
 self.addEventListener('install', (event) => {
-  console.log('[firebase-messaging-sw.js] Service worker installing...');
+  console.log('🔧 Firebase messaging service worker installed');
   self.skipWaiting();
 });
 
-// Handle service worker activation
+// Service worker activation
 self.addEventListener('activate', (event) => {
-  console.log('[firebase-messaging-sw.js] Service worker activating...');
+  console.log('🔧 Firebase messaging service worker activated');
   event.waitUntil(self.clients.claim());
 });
+
+console.log('🔥 Firebase messaging service worker loaded');
