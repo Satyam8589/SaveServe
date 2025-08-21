@@ -5,20 +5,19 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import Header from "@/components/header";
 import { Providers } from "./providers";
-import { Analytics } from '@vercel/analytics/next';
-import { SpeedInsights } from '@vercel/speed-insights/next';
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
+import NotificationsInitializer from "@/components/NotificationsInitializer";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "Smart food",
-  description: "Connect with doctors anytime, anywhere",
+  title: "SaveServe",
+  description:
+    "SaveServe is a smart food redistribution platform that connects food providers with recipients in need, reducing food waste and supporting communities.",
 };
 
-
 export default async function RootLayout({ children }) {
- 
-
   return (
     <ClerkProvider
       appearance={{
@@ -28,7 +27,6 @@ export default async function RootLayout({ children }) {
       <html lang="en" suppressHydrationWarning>
         <head>
           <link rel="icon" href="/logo.svg" />
-        
         </head>
         <body className={`${inter.className}`}>
           <ThemeProvider
