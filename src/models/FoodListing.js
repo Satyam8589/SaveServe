@@ -201,9 +201,9 @@ const foodListingSchema = new mongoose.Schema(
   }
 );
 
-// Virtual field for available quantity
+// Virtual field for available quantity (now just returns the current quantity since it's permanently reduced)
 foodListingSchema.virtual("availableQuantity").get(function () {
-  return Math.max(0, this.quantity - this.totalBookedQuantity);
+  return Math.max(0, this.quantity);
 });
 
 // Index for efficient querying
@@ -213,20 +213,21 @@ foodListingSchema.index({ category: 1 });
 foodListingSchema.index({ listingStatus: 1 });
 foodListingSchema.index({ providerId: 1 });
 
-// Middleware to update listing status based on bookings
+// Middleware to update listing status based on quantity and bookings
 foodListingSchema.pre("save", function (next) {
-  // Calculate total booked quantity from approved bookings
+  // Calculate total booked quantity from approved bookings (for tracking purposes)
   this.totalBookedQuantity = this.bookings
     .filter((booking) => booking.status === "approved")
     .reduce((total, booking) => total + booking.approvedQuantity, 0);
 
-  // Update listing status
+  // Update listing status based on current quantity (since it's permanently reduced)
   if (this.expiryTime <= new Date()) {
     this.listingStatus = "expired";
     this.isActive = false;
-  } else if (this.totalBookedQuantity >= this.quantity) {
+  } else if (this.quantity <= 0) {
     this.listingStatus = "fully_booked";
-  } else if (this.totalBookedQuantity > 0) {
+    this.isActive = false;
+  } else if (this.bookings.length > 0) {
     this.listingStatus = "partially_booked";
   } else {
     this.listingStatus = "active";

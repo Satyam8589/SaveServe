@@ -8,6 +8,7 @@ export async function GET(request) {
     const foodListings = await FoodListing.find({
       isActive: true,
       expiryTime: { $gte: new Date() },
+      quantity: { $gt: 0 }, // Only get listings with quantity > 0
     }).sort({ createdAt: -1 });
 
     // Compute available quantity per listing and filter out fully booked
@@ -27,8 +28,8 @@ export async function GET(request) {
       const timeLeftDisplay =
         hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 
-      const approvedTotal = listing.totalBookedQuantity || 0;
-      const available = Math.max(0, (listing.quantity || 0) - approvedTotal);
+      // Since quantity is now permanently reduced when booked, available = current quantity
+      const available = Math.max(0, listing.quantity || 0);
 
       return {
         id: listing._id.toString(),

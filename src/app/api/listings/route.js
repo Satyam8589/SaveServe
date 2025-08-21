@@ -34,11 +34,10 @@ export async function GET(request) {
 
     const total = await FoodListing.countDocuments(query);
 
-    // Transform listings to include computed available quantity while keeping other fields
+    // Transform listings - quantity is now permanently reduced, so available = current quantity
     const transformed = listings.map((doc) => {
       const plain = doc.toObject();
-      const totalBooked = plain.totalBookedQuantity || 0;
-      const available = Math.max(0, (plain.quantity || 0) - totalBooked);
+      const available = Math.max(0, plain.quantity || 0);
       return {
         _id: plain._id,
         title: plain.title,
