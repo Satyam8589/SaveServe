@@ -52,7 +52,6 @@ const useSSENotifications = () => {
     fetchNotifications();
   }, [getToken, userId]);
   const [notifications, setNotifications] = useState([]);
-  const firstNotificationSkippedRef = useRef(false);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -89,11 +88,7 @@ const useSSENotifications = () => {
         try {
           const notification = JSON.parse(event.data);
           console.log('📩 New notification:', notification);
-          // Skip the first notification after connecting
-          if (!firstNotificationSkippedRef.current) {
-            firstNotificationSkippedRef.current = true;
-            return;
-          }
+          // No need to skip any initial message since server no longer sends one
           // Store notification in DB via POST API
           if (user?.id && notification.title && notification.message && notification.type) {
             const storeNotification = async () => {
