@@ -27,7 +27,15 @@ export async function POST(request) {
       createdAt: new Date(),
     });
     await notification.save();
-    return NextResponse.json({ success: true, notification });
+
+    // Transform _id to id for frontend compatibility
+    const transformedNotification = {
+      ...notification.toObject(),
+      id: notification._id.toString(),
+      _id: undefined
+    };
+
+    return NextResponse.json({ success: true, notification: transformedNotification });
   } catch (error) {
     console.error("Error storing notification:", error);
     // Surface validation errors to client for easier debugging
@@ -48,7 +56,15 @@ export async function GET(request) {
       return NextResponse.json({ success: false, message: "Missing userId." }, { status: 400 });
     }
     const notifications = await Notification.find({ userId }).sort({ createdAt: -1 }).lean();
-    return NextResponse.json({ success: true, notifications });
+
+    // Transform _id to id for frontend compatibility
+    const transformedNotifications = notifications.map(notification => ({
+      ...notification,
+      id: notification._id.toString(),
+      _id: undefined // Remove _id to avoid confusion
+    }));
+
+    return NextResponse.json({ success: true, notifications: transformedNotifications });
   } catch (error) {
     console.error("Error fetching notifications:", error);
     return NextResponse.json({ success: false, message: "Internal server error." }, { status: 500 });

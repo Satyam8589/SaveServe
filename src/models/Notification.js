@@ -29,6 +29,10 @@ const NotificationSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  readAt: {
+    type: Date,
+    default: null,
+  },
   foodId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'FoodListing',
