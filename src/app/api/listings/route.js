@@ -38,6 +38,7 @@ export async function GET(request) {
     const transformed = listings.map((doc) => {
       const plain = doc.toObject();
       const available = Math.max(0, plain.quantity || 0);
+
       return {
         _id: plain._id,
         title: plain.title,
