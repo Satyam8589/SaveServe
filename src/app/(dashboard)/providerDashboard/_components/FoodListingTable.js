@@ -3,11 +3,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useListings } from '@/hooks/useListings';
-import { MapPin, Clock, User, Search, Filter, ChevronDown, Eye, Package, Calendar, Star } from 'lucide-react';
+import { useListings, useUpdateListing, useDeleteListing } from '@/hooks/useListings';
+import { MapPin, Clock, User, Search, Filter, ChevronDown, Eye, Package, Calendar, Star, MoreVertical, Edit, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 
-export default function FoodListingTable({ providerId }) {
+export default function FoodListingTable({ providerId, onEditListing }) {
   const router = useRouter();
   const [filters, setFilters] = useState({
     location: '',
@@ -15,6 +15,11 @@ export default function FoodListingTable({ providerId }) {
     limit: 20,
     providerId: providerId // Pass providerId to filters
   });
+  const [openDropdown, setOpenDropdown] = useState(null);
+
+  // Mutation hooks for edit and delete
+  const updateListingMutation = useUpdateListing();
+  const deleteListingMutation = useDeleteListing();
 
   // Keep filters in sync when providerId becomes available/changes
   useEffect(() => {
@@ -61,6 +66,44 @@ export default function FoodListingTable({ providerId }) {
       page: 1
     }));
   };
+
+  const handleEditListing = (listing, e) => {
+    e.stopPropagation(); // Prevent card click
+    setOpenDropdown(null);
+    if (onEditListing) {
+      onEditListing(listing);
+    }
+  };
+
+  const handleDeleteListing = async (listingId, e) => {
+    e.stopPropagation(); // Prevent card click
+    if (window.confirm('Are you sure you want to delete this listing? This action cannot be undone.')) {
+      try {
+        await deleteListingMutation.mutateAsync(listingId);
+        setOpenDropdown(null);
+      } catch (error) {
+        console.error('Failed to delete listing:', error);
+        alert('Failed to delete listing. Please try again.');
+      }
+    }
+  };
+
+  const toggleDropdown = (listingId, e) => {
+    e.stopPropagation();
+    setOpenDropdown(openDropdown === listingId ? null : listingId);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenDropdown(null);
+    };
+
+    if (openDropdown) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [openDropdown]);
 
   if (isLoading) {
     return (
@@ -193,7 +236,7 @@ export default function FoodListingTable({ providerId }) {
                     )}
                     
                     {/* Status Badge */}
-                    <div className="absolute top-2 sm:top-4 left-2 sm:left-4">
+                    <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4">
                       <span className={getStatusBadge(listing.freshnessStatus)}>
                         <Star className="w-3 h-3 mr-1" />
                         {listing.freshnessStatus}
@@ -212,6 +255,40 @@ export default function FoodListingTable({ providerId }) {
                       </div>
                     </div>
                     
+                    {/* Three-dot Menu */}
+                    <div className="absolute top-2 sm:top-4 left-2 sm:left-4 z-10">
+                      <div className="relative">
+                        <button
+                          onClick={(e) => toggleDropdown(listing._id, e)}
+                          className="bg-gray-800/80 backdrop-blur-sm hover:bg-gray-700/80 text-white rounded-full p-2 transition-colors duration-200 border border-gray-600/50"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+
+                        {openDropdown === listing._id && (
+                          <div
+                            className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-20 min-w-[120px]"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              onClick={(e) => handleEditListing(listing, e)}
+                              className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 hover:text-emerald-400 transition-colors duration-200 flex items-center gap-2 rounded-t-lg"
+                            >
+                              <Edit className="w-3 h-3" />
+                              Edit
+                            </button>
+                            <button
+                              onClick={(e) => handleDeleteListing(listing._id, e)}
+                              className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 hover:text-red-400 transition-colors duration-200 flex items-center gap-2 rounded-b-lg"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                     {/* View Button */}
                     <div className="absolute bottom-2 sm:bottom-4 right-2 sm:right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <div className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl p-2 transition-colors duration-200">
