@@ -173,47 +173,47 @@ export default function ProviderDashboardLayout({ children }) {
           {/* Main Content */}
           <SidebarInset className="flex-1 h-full flex flex-col bg-gray-900">
             {/* Header */}
-            <header className="h-16 border-b border-gray-700 bg-gray-800 flex items-center px-6">
-              <div className="flex items-center gap-4">
+            <header className="h-14 sm:h-16 border-b border-gray-700 bg-gray-800 flex items-center px-3 sm:px-6">
+              <div className="flex items-center gap-2 sm:gap-4">
                 <SidebarTrigger className="text-gray-300" />
                 <Link href="/providerDashboard" passHref prefetch={true}>
-                  <h1 className="text-xl font-semibold text-gray-100 cursor-pointer hover:text-orange-400 transition-colors">
+                  <h1 className="text-lg sm:text-xl font-semibold text-gray-100 cursor-pointer hover:text-orange-400 transition-colors truncate">
                     {getCurrentPageLabel()}
                   </h1>
                 </Link>
               </div>
 
               {/* Header Actions */}
-              <div className="flex items-center gap-3 ml-auto">
+              <div className="flex items-center gap-2 sm:gap-3 ml-auto">
                 {/* Search */}
-                <div className="relative w-64">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <div className="relative w-32 sm:w-48 md:w-64">
+                  <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-3 w-3 sm:h-4 sm:w-4" />
                   <Input
                     placeholder="Search..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 bg-gray-700/50 border-gray-600/50 text-gray-100 text-sm focus:bg-gray-700 focus:border-orange-500 transition-all duration-200"
+                    className="pl-7 sm:pl-10 bg-gray-700/50 border-gray-600/50 text-gray-100 text-xs sm:text-sm focus:bg-gray-700 focus:border-orange-500 transition-all duration-200 h-8 sm:h-10"
                   />
                 </div>
 
                 {/* Profile Button */}
                 <Link href="/profile" passHref prefetch={true}>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="text-gray-300 hover:text-gray-100 hover:bg-gray-700/50 transition-all duration-200"
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-gray-300 hover:text-gray-100 hover:bg-gray-700/50 transition-all duration-200 h-8 w-8 sm:h-10 sm:w-10"
                   >
-                    <User className="h-5 w-5" />
+                    <User className="h-4 w-4 sm:h-5 sm:w-5" />
                   </Button>
                 </Link>
-                
+
                 {/* Notifications */}
                 <div className="relative">
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={handleBellClick}
-                    className="text-gray-300 hover:text-gray-100 hover:bg-gray-700/50 transition-all duration-200 relative"
+                    className="text-gray-300 hover:text-gray-100 hover:bg-gray-700/50 transition-all duration-200 relative h-8 w-8 sm:h-10 sm:w-10"
                   >
                     <NotificationBell />
                   </Button>
