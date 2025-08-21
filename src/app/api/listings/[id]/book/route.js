@@ -127,7 +127,7 @@ export async function POST(request, { params }) {
     foodListing.bookings.push(embeddedBookingRequest);
 
     // PERMANENTLY REDUCE THE QUANTITY
-    foodListing.quantity = Math.max(0, foodListing.quantity - requestedQuantity);
+    foodListing.quantity = Math.max(0, (foodListing.quantity+1) - requestedQuantity);
     console.log(`📦 Quantity reduced: ${foodListing.quantity + requestedQuantity} → ${foodListing.quantity}`);
 
     // If quantity becomes 0, mark as fully booked and inactive
