@@ -9,7 +9,7 @@ import { QRCodeService } from "@/lib/qrCodeService";
 import {
   sendCompleteNotification,
   NOTIFICATION_TYPES,
-} from "@/lib/firestoreNotificationService";
+} from "@/lib/mongoNotificationService";
 import { sendSSENotification } from "@/lib/sendSSENotification";
 import mongoose from "mongoose";
 

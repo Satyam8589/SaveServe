@@ -8,9 +8,12 @@ export async function GET(request) {
     const foodListings = await FoodListing.find({
       isActive: true,
       expiryTime: { $gte: new Date() },
+      quantity: { $gt: 0 }, // Only get listings with quantity > 0
     }).sort({ createdAt: -1 });
 
-    const transformedListings = foodListings.map((listing) => {
+    // Compute available quantity per listing and filter out fully booked
+    const transformedListings = foodListings
+      .map((listing) => {
       const now = new Date();
       const timeLeft = Math.max(
         0,
@@ -25,13 +28,16 @@ export async function GET(request) {
       const timeLeftDisplay =
         hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 
+      // Since quantity is now permanently reduced when booked, available = current quantity
+      const available = Math.max(0, listing.quantity || 0);
+
       return {
         id: listing._id.toString(),
         title: listing.title,
         description: listing.description,
         category: listing.category,
         foodType: listing.foodType, // Add food type
-        quantity: `${listing.quantity} ${listing.unit}`,
+        quantity: `${available} ${listing.unit}`,
         location: listing.location,
         provider: listing.providerName,
         timeLeft: timeLeftDisplay,
@@ -47,8 +53,10 @@ export async function GET(request) {
         expiryTime: listing.expiryTime,
         availabilityWindow: listing.availabilityWindow,
         providerId: listing.providerId,
+        availableNumeric: available,
       };
-    });
+    })
+    .filter((l) => (l.availableNumeric ?? 0) > 0);
 
     return new Response(
       JSON.stringify({

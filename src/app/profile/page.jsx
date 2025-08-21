@@ -684,11 +684,12 @@ const ProfilePage = () => {
 
         if (result.success && result.data) {
           setProfileData(result.data);
-          setShowModal(false);
+          setShowModal(false); // Don't show modal if profile exists
+          console.log("✅ Profile data loaded, showing profile view");
         } else {
           console.log("No profile data in successful response");
           setProfileData(null);
-          setShowModal(true);
+          setShowModal(true); // Show modal only if no profile exists
         }
       } else if (response.status === 404) {
         console.log(
@@ -776,8 +777,15 @@ const ProfilePage = () => {
       // Small delay to ensure metadata propagation
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Redirect to pending verification page for new profile completion
-      router.push("/pending-verification");
+      // Redirect to appropriate dashboard based on user role
+      const userRole = user?.publicMetadata?.mainRole;
+      if (userRole === "PROVIDER") {
+        router.push("/providerDashboard");
+      } else if (userRole === "RECIPIENT") {
+        router.push("/recipientDashboard");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (error) {
       console.error("Error updating profile completion:", error);
       // Still allow the profile to be saved locally even if metadata update fails
@@ -923,8 +931,37 @@ const ProfilePage = () => {
               <p className="text-gray-300 mt-2 text-lg">
                 Manage your information and preferences
               </p>
+              {/* Debug info - remove in production */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="mt-2 text-xs text-gray-500">
+                  Profile Status: {profileData ? 'Complete' : 'Incomplete'} |
+                  Clerk Complete: {user?.publicMetadata?.hasCompleteProfile ? 'Yes' : 'No'} |
+                  Show Modal: {showModal ? 'Yes' : 'No'}
+                </div>
+              )}
             </div>
             <div className="flex items-center space-x-3">
+              {profileData && (
+                <button
+                  onClick={() => {
+                    const userRole = user?.publicMetadata?.mainRole;
+                    if (userRole === "PROVIDER") {
+                      router.push("/providerDashboard");
+                    } else if (userRole === "RECIPIENT") {
+                      router.push("/recipientDashboard");
+                    } else {
+                      router.push("/dashboard");
+                    }
+                  }}
+                  className="flex items-center space-x-2 px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-700/50 rounded-lg transition-all duration-200 border border-gray-700/50 transform hover:scale-105"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z" />
+                  </svg>
+                  <span>Go to Dashboard</span>
+                </button>
+              )}
               <button
                 onClick={handleRefresh}
                 className="flex items-center space-x-2 px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-700/50 rounded-lg transition-all duration-200 border border-gray-700/50 transform hover:scale-105"

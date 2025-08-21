@@ -125,6 +125,18 @@ export async function POST(request, { params }) {
 
 
     foodListing.bookings.push(embeddedBookingRequest);
+
+    // PERMANENTLY REDUCE THE QUANTITY
+    foodListing.quantity = Math.max(0, foodListing.quantity - requestedQuantity);
+    console.log(`📦 Quantity reduced: ${foodListing.quantity + requestedQuantity} → ${foodListing.quantity}`);
+
+    // If quantity becomes 0, mark as fully booked and inactive
+    if (foodListing.quantity <= 0) {
+      foodListing.listingStatus = "fully_booked";
+      foodListing.isActive = false;
+      console.log("🚫 Food listing is now fully booked and inactive");
+    }
+
     await foodListing.save({ session });
 
     const recipientUser = await UserProfile.findOne({ userId: userId }).session(session);

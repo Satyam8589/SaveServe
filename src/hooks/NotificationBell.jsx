@@ -168,7 +168,7 @@ const NotificationBell = () => {
                 <CheckCheck size={12} />
                 Mark all read
               </button>
-              
+
               <button
                 onClick={clearAllNotifications}
                 className="text-xs text-gray-500 hover:text-gray-700"

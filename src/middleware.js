@@ -185,7 +185,8 @@ export default clerkMiddleware(async (auth, req) => {
             // Update Clerk metadata with the database status
             if (userStatus) {
               try {
-                await client.users.updateUserMetadata(userId, {
+                const clerkClientInstance = await clerkClient();
+                await clerkClientInstance.users.updateUserMetadata(userId, {
                   publicMetadata: {
                     ...metadata,
                     userStatus: userStatus,
