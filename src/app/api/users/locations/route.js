@@ -27,9 +27,54 @@ async function connectToDatabase() {
 }
 
 /**
+ * Format address and coordinates to fit within database constraints
+ * @param {string} address - The full address string
+ * @param {number} latitude - Latitude coordinate
+ * @param {number} longitude - Longitude coordinate
+ * @returns {string} - Formatted area string within 100 character limit
+ */
+function formatAreaString(address, latitude, longitude) {
+  const coordinatesPart = `(Lat: ${latitude}, Lon: ${longitude})`;
+  const maxTotalLength = 100;
+
+  if (!address) {
+    return `Lat: ${latitude}, Lon: ${longitude}`;
+  }
+
+  // Calculate available space for address
+  const maxAddressLength = maxTotalLength - coordinatesPart.length - 1; // -1 for space
+
+  if (address.length <= maxAddressLength) {
+    return `${address} ${coordinatesPart}`;
+  }
+
+  // Truncate address intelligently
+  let truncatedAddress = address.substring(0, maxAddressLength - 3);
+
+  // Try to break at a comma or space to avoid cutting words
+  const lastComma = truncatedAddress.lastIndexOf(',');
+  const lastSpace = truncatedAddress.lastIndexOf(' ');
+
+  if (lastComma > maxAddressLength * 0.7) {
+    truncatedAddress = address.substring(0, lastComma);
+  } else if (lastSpace > maxAddressLength * 0.7) {
+    truncatedAddress = address.substring(0, lastSpace);
+  }
+
+  const result = `${truncatedAddress}... ${coordinatesPart}`;
+
+  // Final safety check
+  if (result.length > maxTotalLength) {
+    return `Lat: ${latitude}, Lon: ${longitude}`;
+  }
+
+  return result;
+}
+
+/**
  * Parse area string to extract latitude and longitude coordinates
  * Expected format: "Lat: 22.5151549, Lon: 88.4104219"
- * 
+ *
  * @param {string} areaString - The area string containing coordinates
  * @returns {object} - Object with latitude and longitude or null values
  */
@@ -143,16 +188,146 @@ export async function GET() {
 }
 
 /**
+ * PUT /api/users/locations
+ * Updates user location in the area field
+ */
+export async function PUT(request) {
+  try {
+    await connectToDatabase();
+
+    const body = await request.json();
+    const { userId, latitude, longitude, address } = body;
+
+    console.log('📍 PUT /api/users/locations - Updating location for user:', userId);
+    console.log('📍 Coordinates:', { latitude, longitude });
+    console.log('📍 Address:', address);
+
+    // Validate required fields
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: 'User ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Handle clearing location data
+    if (latitude === null || longitude === null) {
+      const updatedUser = await UserProfile.findOneAndUpdate(
+        { userId },
+        {
+          area: '',
+          lastLoginAt: new Date()
+        },
+        { new: true, runValidators: true }
+      );
+
+      if (!updatedUser) {
+        return NextResponse.json(
+          { success: false, error: 'User profile not found' },
+          { status: 404 }
+        );
+      }
+
+      console.log('✅ Location cleared successfully for user:', userId);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Location cleared successfully',
+        data: {
+          userId: updatedUser.userId,
+          area: '',
+          coordinates: null,
+          address: null
+        }
+      });
+    }
+
+    // Validate coordinate ranges for non-null values
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+
+    if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid coordinate values' },
+        { status: 400 }
+      );
+    }
+
+    // Format the area string with coordinates and optional address
+    const areaString = formatAreaString(address, lat, lon);
+    console.log(`📝 Formatted area string (${areaString.length} chars):`, areaString);
+
+    if (address && address.length > areaString.length) {
+      console.log(`⚠️ Address truncated from ${address.length} to fit database constraints`);
+    }
+
+    // Update user profile with location data
+    console.log(`💾 Updating user profile with area: "${areaString}"`);
+
+    const updatedUser = await UserProfile.findOneAndUpdate(
+      { userId },
+      {
+        area: areaString,
+        lastLoginAt: new Date()
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedUser) {
+      console.error(`❌ User profile not found for userId: ${userId}`);
+      return NextResponse.json(
+        { success: false, error: 'User profile not found' },
+        { status: 404 }
+      );
+    }
+
+    console.log('✅ Location updated successfully for user:', userId);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Location updated successfully',
+      data: {
+        userId: updatedUser.userId,
+        area: updatedUser.area,
+        coordinates: { latitude: lat, longitude: lon },
+        address: address || null
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ PUT /api/users/locations error:', error);
+
+    // Handle specific validation errors
+    let errorMessage = 'Failed to update user location';
+    let statusCode = 500;
+
+    if (error.name === 'ValidationError') {
+      errorMessage = 'Validation failed: ' + Object.values(error.errors).map(e => e.message).join(', ');
+      statusCode = 400;
+    } else if (error.name === 'CastError') {
+      errorMessage = 'Invalid data format provided';
+      statusCode = 400;
+    }
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? {
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        } : undefined
+      },
+      { status: statusCode }
+    );
+  }
+}
+
+/**
  * Handle unsupported HTTP methods
  */
 export async function POST() {
-  return NextResponse.json(
-    { error: 'Method not allowed' },
-    { status: 405 }
-  );
-}
-
-export async function PUT() {
   return NextResponse.json(
     { error: 'Method not allowed' },
     { status: 405 }
