@@ -1,6 +1,8 @@
-// 2. lib/sendSSENotification.js (Updated)
+// lib/sendSSENotification.js - Updated to use MongoDB ObjectIds
 // ==========================================
-export const sendSSENotification = (userId, notification) => {
+import { createMongoNotification } from './mongoNotificationService';
+
+export const sendSSENotification = async (userId, notification) => {
   try {
     if (!global.sseConnections) {
       console.log('📭 No SSE connections initialized');
@@ -8,19 +10,34 @@ export const sendSSENotification = (userId, notification) => {
     }
 
     const controller = global.sseConnections.get(userId);
-    
+
     if (!controller) {
       console.log(`📭 No SSE connection found for user: ${userId}`);
       console.log(`📊 Available connections: ${Array.from(global.sseConnections.keys()).join(', ')}`);
       return false;
     }
 
+    // First, create the notification in MongoDB to get a proper ObjectId
+    const mongoResult = await createMongoNotification(
+      userId,
+      notification.title,
+      notification.message,
+      notification.type || 'general',
+      notification.data || {}
+    );
+
+    if (!mongoResult.success) {
+      console.error('❌ Failed to create MongoDB notification for SSE:', mongoResult.error);
+      return false;
+    }
+
+    // Use the MongoDB ObjectId for the SSE notification
     const notificationData = {
-      id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: mongoResult.notification._id.toString(), // Use MongoDB ObjectId instead of custom string
       userId,
       title: notification.title,
       message: notification.message,
-      type: notification.type || 'reminder',
+      type: notification.type || 'general',
       data: notification.data || {},
       timestamp: new Date().toISOString(),
       read: false

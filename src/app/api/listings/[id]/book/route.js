@@ -146,11 +146,11 @@ export async function POST(request, { params }) {
 
     await session.commitTransaction();
 
-    // 📡 Send SSE notifications
-    const recipientSSEResult = sendSSENotification(userId, {
+    // 📡 Send SSE notifications (now creates MongoDB notifications with ObjectIds)
+    const recipientSSEResult = await sendSSENotification(userId, {
       title: "Booking Confirmed! ✅",
       message: `Your booking for "${foodListing.title}" has been confirmed. Show your QR code when collecting.`,
-      type: "success",
+      type: "booking_confirmed",
       data: {
         bookingId: booking._id.toString(),
         listingId: id,
@@ -159,10 +159,10 @@ export async function POST(request, { params }) {
       },
     });
 
-    const providerSSEResult = sendSSENotification(foodListing.providerId, {
+    const providerSSEResult = await sendSSENotification(foodListing.providerId, {
       title: "New Booking Received! 📋",
       message: `${recipientName} has booked "${foodListing.title}" (${requestedQuantity} ${foodListing.unit || "items"})`,
-      type: "success",
+      type: "new_booking",
       data: {
         bookingId: booking._id.toString(),
         listingId: id,
