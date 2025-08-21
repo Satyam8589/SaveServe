@@ -89,7 +89,7 @@ const useSSENotifications = () => {
           const notification = JSON.parse(event.data);
           console.log('📩 New notification:', notification);
           // No need to skip any initial message since server no longer sends one
-          // Store notification in DB via POST API
+          // Store notification in DB via POST API and update the notification with DB ID
           if (user?.id && notification.title && notification.message && notification.type) {
             (async () => {
               try {
@@ -112,7 +112,18 @@ const useSSENotifications = () => {
                   const errorText = await res.text().catch(() => '');
                   console.error('❌ Failed to store notification:', res.status, errorText);
                 } else {
-                  console.log('✅ Notification stored in DB');
+                  const result = await res.json();
+                  if (result.success && result.notification) {
+                    // Update the notification in state with the database ID
+                    setNotifications(prev =>
+                      prev.map(n =>
+                        n.id === notification.id
+                          ? { ...n, id: result.notification.id }
+                          : n
+                      )
+                    );
+                    console.log('✅ Notification stored in DB with ID:', result.notification.id);
+                  }
                 }
               } catch (e) {
                 console.error('❌ Error while storing notification:', e);
@@ -177,15 +188,74 @@ const useSSENotifications = () => {
   }, [connect, disconnect]);
 
   // Notification actions
-  const markAsRead = useCallback((notificationId) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
-    );
-  }, []);
+  const markAsRead = useCallback(async (notificationId) => {
+    try {
+      // Update UI immediately (optimistic update)
+      setNotifications(prev =>
+        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+      );
 
-  const markAllAsRead = useCallback(() => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  }, []);
+      // Call API to update database
+      const token = getToken ? await getToken() : null;
+      const response = await fetch('/api/notification/mark-read', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ notificationId })
+      });
+
+      if (!response.ok) {
+        // Revert optimistic update on error
+        setNotifications(prev =>
+          prev.map(n => n.id === notificationId ? { ...n, read: false } : n)
+        );
+        console.error('Failed to mark notification as read:', response.statusText);
+      } else {
+        console.log('✅ Notification marked as read in database');
+      }
+    } catch (error) {
+      // Revert optimistic update on error
+      setNotifications(prev =>
+        prev.map(n => n.id === notificationId ? { ...n, read: false } : n)
+      );
+      console.error('Error marking notification as read:', error);
+    }
+  }, [getToken]);
+
+  const markAllAsRead = useCallback(async () => {
+    try {
+      // Store previous state for potential rollback
+      const previousNotifications = notifications;
+
+      // Update UI immediately (optimistic update)
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+
+      // Call API to update database
+      const token = getToken ? await getToken() : null;
+      const response = await fetch('/api/notification/mark-all-read', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+
+      if (!response.ok) {
+        // Revert optimistic update on error
+        setNotifications(previousNotifications);
+        console.error('Failed to mark all notifications as read:', response.statusText);
+      } else {
+        const result = await response.json();
+        console.log(`✅ ${result.count} notifications marked as read in database`);
+      }
+    } catch (error) {
+      // Revert optimistic update on error
+      setNotifications(notifications);
+      console.error('Error marking all notifications as read:', error);
+    }
+  }, [getToken, notifications]);
 
   const clearAllNotifications = useCallback(() => {
     setNotifications([]);
