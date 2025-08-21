@@ -14,6 +14,8 @@ import { Input } from "@/components/ui/input";
 import { useClerk } from "@clerk/nextjs";
 // --- 1. IMPORT the context provider and hook ---
 import { NotificationProvider, useNotifications } from "@/contexts/NotificationContext";
+import NotificationBell from "@/hooks/NotificationBell";
+
 
 const sidebarItems = [
   { icon: Search, label: "Browse Food", id: "browse", href: "/recipientDashboard" },
@@ -88,11 +90,12 @@ const LayoutContent = ({ children }) => {
           </SidebarFooter>
         </Sidebar>
         <SidebarInset className="flex-1 h-full flex flex-col bg-gray-900">
-          <header className="h-16 border-b border-gray-700 bg-gray-800 flex items-center px-6">
+          <header className="h-16 border-b border-gray-700 bg-gray-800 flex items-center px-6 justify-between">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="text-gray-300" />
               <h1 className="text-xl font-semibold text-gray-100">{getPageTitle()}</h1>
             </div>
+            <NotificationBell />
           </header>
           <main className="bg-slate-900 flex-1 overflow-y-auto p-6">{children}</main>
         </SidebarInset>

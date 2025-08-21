@@ -1,7 +1,65 @@
 // lib/notificationService.js
-import admin from './firebaseAdmin';
+// Updated to use direct FCM API instead of Firebase Admin SDK
 import { connectDB } from './db';
 import UserProfile from '@/models/UserProfile';
+
+// FCM Server Key - you'll need to get this from Firebase Console
+const FCM_SERVER_KEY = process.env.FCM_SERVER_KEY;
+
+/**
+ * Send FCM notification using direct HTTP API
+ * @param {string|string[]} tokens - FCM token(s)
+ * @param {object} notification - Notification payload
+ * @param {object} data - Data payload
+ */
+async function sendFCMNotification(tokens, notification, data = {}) {
+  if (!FCM_SERVER_KEY) {
+    console.warn('⚠️ FCM_SERVER_KEY not configured, skipping FCM notification');
+    return { success: false, error: 'FCM not configured' };
+  }
+
+  try {
+    const isMultiple = Array.isArray(tokens);
+    const payload = {
+      notification,
+      data,
+      ...(isMultiple
+        ? { registration_ids: tokens }
+        : { to: tokens }
+      )
+    };
+
+    const response = await fetch('https://fcm.googleapis.com/fcm/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `key=${FCM_SERVER_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(`FCM API error: ${result.error || response.statusText}`);
+    }
+
+    return {
+      success: true,
+      result,
+      successCount: result.success || (result.results?.filter(r => r.message_id).length || 0),
+      failureCount: result.failure || (result.results?.filter(r => r.error).length || 0),
+    };
+  } catch (error) {
+    console.error('❌ FCM API error:', error);
+    return {
+      success: false,
+      error: error.message,
+      successCount: 0,
+      failureCount: isMultiple ? tokens.length : 1,
+    };
+  }
+}
 
 /**
  * Send notification to a specific user by their userId
@@ -26,26 +84,25 @@ export const sendNotificationToUser = async (userId, title, body, data = {}) => 
       };
     }
 
-    const message = {
-      notification: {
-        title,
-        body,
-      },
-      data: {
-        ...data,
-        userId,
-        timestamp: new Date().toISOString(),
-      },
-      token: user.fcmToken,
+    const notification = {
+      title,
+      body,
     };
 
-    const response = await admin.messaging().send(message);
+    const fcmData = {
+      ...data,
+      userId,
+      timestamp: new Date().toISOString(),
+    };
+
+    const response = await sendFCMNotification(user.fcmToken, notification, fcmData);
     console.log('Successfully sent notification to user:', userId, response);
 
     return {
-      success: true,
-      messageId: response,
-      sentTo: user.fullName || userId
+      success: response.success,
+      messageId: response.result?.message_id || response.result,
+      sentTo: user.fullName || userId,
+      fcmResult: response.result
     };
 
   } catch (error) {
@@ -104,32 +161,30 @@ export const sendNotificationToRole = async (role, title, body, data = {}) => {
     }
 
     const tokens = users.map(user => user.fcmToken);
-    
-    const message = {
-      notification: {
-        title,
-        body,
-      },
-      data: {
-        ...data,
-        role,
-        timestamp: new Date().toISOString(),
-      },
-      tokens,
+
+    const notification = {
+      title,
+      body,
     };
 
-    const response = await admin.messaging().sendEachForMulticast(message);
+    const fcmData = {
+      ...data,
+      role,
+      timestamp: new Date().toISOString(),
+    };
+
+    const response = await sendFCMNotification(tokens, notification, fcmData);
     
     console.log(`Successfully sent ${response.successCount} notifications to ${role}s`);
     console.log(`Failed to send ${response.failureCount} notifications`);
 
     // Handle failed tokens (remove invalid ones)
-    if (response.failureCount > 0) {
+    if (response.failureCount > 0 && response.result?.results) {
       const invalidTokens = [];
-      response.responses.forEach((result, index) => {
-        if (!result.success && 
-            (result.error.code === 'messaging/invalid-registration-token' ||
-             result.error.code === 'messaging/registration-token-not-registered')) {
+      response.result.results.forEach((result, index) => {
+        if (result.error &&
+            (result.error.includes('InvalidRegistration') ||
+             result.error.includes('NotRegistered'))) {
           invalidTokens.push(tokens[index]);
         }
       });
@@ -144,7 +199,7 @@ export const sendNotificationToRole = async (role, title, body, data = {}) => {
     }
 
     return {
-      success: true,
+      success: response.success,
       sentCount: response.successCount,
       failedCount: response.failureCount,
       totalFound: users.length,
@@ -187,30 +242,28 @@ export const sendNotificationToUsers = async (userIds, title, body, data = {}) =
     }
 
     const tokens = users.map(user => user.fcmToken);
-    
-    const message = {
-      notification: {
-        title,
-        body,
-      },
-      data: {
-        ...data,
-        timestamp: new Date().toISOString(),
-      },
-      tokens,
+
+    const notification = {
+      title,
+      body,
     };
 
-    const response = await admin.messaging().sendEachForMulticast(message);
+    const fcmData = {
+      ...data,
+      timestamp: new Date().toISOString(),
+    };
+
+    const response = await sendFCMNotification(tokens, notification, fcmData);
     
     console.log(`Successfully sent ${response.successCount} notifications to users`);
 
     // Handle failed tokens
-    if (response.failureCount > 0) {
+    if (response.failureCount > 0 && response.result?.results) {
       const invalidTokens = [];
-      response.responses.forEach((result, index) => {
-        if (!result.success && 
-            (result.error.code === 'messaging/invalid-registration-token' ||
-             result.error.code === 'messaging/registration-token-not-registered')) {
+      response.result.results.forEach((result, index) => {
+        if (result.error &&
+            (result.error.includes('InvalidRegistration') ||
+             result.error.includes('NotRegistered'))) {
           invalidTokens.push(tokens[index]);
         }
       });
@@ -225,7 +278,7 @@ export const sendNotificationToUsers = async (userIds, title, body, data = {}) =
     }
 
     return {
-      success: true,
+      success: response.success,
       sentCount: response.successCount,
       failedCount: response.failureCount,
       totalFound: users.length

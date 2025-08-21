@@ -17,17 +17,44 @@ const NotificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['new-food', 'expiring-soon', 'reminder', 'expired', 'report'],
+    enum: [
+      'new-food', 'success', 'expiring-soon', 'reminder', 'expired', 'report', 'connection',
+      'new_listing', 'listing_created_confirmation', 'booking_confirmed', 'new_booking',
+      'collection_confirmed', 'collection_completed_confirmation', 'general'
+    ],
     required: true,
   },
   read: {
     type: Boolean,
     default: false,
   },
+  readAt: {
+    type: Date,
+    default: null,
+  },
   foodId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'FoodListing',
     required: false,
+  },
+  // Additional metadata fields for different notification types
+  listingId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'FoodListing',
+    required: false,
+  },
+  bookingId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Booking',
+    required: false,
+  },
+  providerId: {
+    type: String,
+    required: false,
+  },
+  metadata: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {},
   },
   createdAt: {
     type: Date,

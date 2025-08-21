@@ -1,7 +1,7 @@
 // File: /components/FoodListingTable.js
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useListings } from '@/hooks/useListings';
 import { MapPin, Clock, User, Search, Filter, ChevronDown, Eye, Package, Calendar, Star } from 'lucide-react';
@@ -15,6 +15,13 @@ export default function FoodListingTable({ providerId }) {
     limit: 20,
     providerId: providerId // Pass providerId to filters
   });
+
+  // Keep filters in sync when providerId becomes available/changes
+  useEffect(() => {
+    if (providerId) {
+      setFilters(prev => ({ ...prev, providerId }));
+    }
+  }, [providerId]);
 
   const { data, isLoading, isError, error } = useListings(filters);
 
@@ -102,7 +109,8 @@ export default function FoodListingTable({ providerId }) {
     );
   }
 
-  const listings = data?.data || [];
+  // Ensure only the current provider's listings are shown even if the first fetch lacks providerId
+  const listings = (data?.data || []).filter(listing => !providerId || listing.providerId === providerId);
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -233,7 +241,10 @@ export default function FoodListingTable({ providerId }) {
                           <div className="text-xs text-gray-500 uppercase tracking-wide font-medium sm:hidden">Quantity</div>
                         </div>
                         <div className="sm:hidden">:</div>
-                        <div className="text-emerald-400 font-semibold text-sm sm:text-base flex-1 sm:flex-none">{listing.quantity}</div>
+                        <div className="text-emerald-400 font-semibold text-sm sm:text-base flex-1 sm:flex-none">
+                          {typeof listing.available === 'number' ? listing.available : listing.quantity}
+                          {listing.unit ? ` ${listing.unit}` : ''}
+                        </div>
                         <div className="hidden sm:block text-xs text-gray-500 uppercase tracking-wide font-medium">Quantity</div>
                       </div>
                       

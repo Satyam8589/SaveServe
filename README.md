@@ -8,6 +8,7 @@
   <img src="./public/logo.png" alt="SaveServe Logo" width="140"/>
 </p>
 
+
 > **SaveServe** – *Smart Food Redistribution Platform*  
 > Helping reduce food waste by connecting providers with those in need.  
 
@@ -65,7 +66,7 @@ Our mission is simple:
 - 🔐 **Authentication System** – Secure sign-up, sign-in, and post-login flow.  
 - 📦 **Provider Dashboard** – Manage food listings with forms & tables.  
 - 📊 **Analytics Dashboard** – Track contributions and distribution metrics.  
-- 📱 **Firebase Notifications** – Stay updated on food requests & status.  
+- 📱 **Push Notifications** – Stay updated on food requests & status.
 - 🎨 **Responsive UI** – Built with Next.js and modern Tailwind CSS.  
 - 🌍 **Community Impact** – Built to reduce waste and serve society.  
 
@@ -74,7 +75,7 @@ Our mission is simple:
 ## 🛠️ Tech Stack  
 - ⚡ [Next.js](https://nextjs.org/) – React framework  
 - 🎨 [Tailwind CSS](https://tailwindcss.com/) – Modern styling  
-- 🔥 [Firebase](https://firebase.google.com/) – Authentication & notifications  
+- 🗄️ [MongoDB](https://mongodb.com/) – Database & notifications
 - ✅ [ESLint](https://eslint.org/) – Code linting & standards  
 - 📦 Node.js & npm  
 

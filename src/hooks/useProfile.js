@@ -12,10 +12,9 @@ const fetchUserProfile = async (userId) => {
   
   // Making a GET request to your API endpoint
   const { data } = await axios.get(`/api/profile?userId=${userId}`);
-  
   // The 'data' from axios corresponds to the JSON response from your API
-  // which is { success: true, message: '...', data: profile }
-  return data.data; // We return the actual profile object
+  // which is { success: true, message: '...', profile: profile }
+  return data.profile || null; // Fix: use 'profile' key, fallback to null
 };
 
 // The React Query custom hook

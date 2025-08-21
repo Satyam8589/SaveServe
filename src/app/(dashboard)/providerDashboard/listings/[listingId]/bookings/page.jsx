@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
-import { useFoodListing } from '@/hooks/useFoodListings';
-import { useFoodListingBookings } from '@/hooks/useBookings';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useAuth } from '@clerk/nextjs';
-import { Button } from '@/components/ui/button';
-import QRScanner from '@/components/QRScanner';
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import { useFoodListing } from "@/hooks/useFoodListings";
+import { useFoodListingBookings } from "@/hooks/useBookings";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@clerk/nextjs";
+import { Button } from "@/components/ui/button";
+import QRScanner from "@/components/QRScanner";
 import {
   Calendar,
   Clock,
@@ -29,21 +29,31 @@ import {
   MoreVertical,
   ChevronDown,
   ChevronUp,
-} from 'lucide-react';
+} from "lucide-react";
 
 export default function ListingBookingsPage() {
   const params = useParams();
   const listingId = params.listingId;
   const { userId } = useAuth();
 
-  const { data: listing, isLoading: isListingLoading, isError: isListingError, error: listingError } = useFoodListing(listingId);
-  const { data: bookingData, isLoading: isBookingsLoading, isError: isBookingsError, error: bookingsError } = useFoodListingBookings(listingId, userId);
+  const {
+    data: listing,
+    isLoading: isListingLoading,
+    isError: isListingError,
+    error: listingError,
+  } = useFoodListing(listingId);
+  const {
+    data: bookingData,
+    isLoading: isBookingsLoading,
+    isError: isBookingsError,
+    error: bookingsError,
+  } = useFoodListingBookings(listingId, userId);
 
   const [bookings, setBookings] = useState([]);
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [expandedBookings, setExpandedBookings] = useState(new Set());
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -59,32 +69,42 @@ export default function ListingBookingsPage() {
 
     // Apply search filter
     if (searchTerm) {
-      filtered = filtered.filter(booking =>
-        booking.recipientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        booking.recipientId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        booking.requestMessage?.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(
+        (booking) =>
+          booking.recipientName
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          booking.recipientId
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          booking.requestMessage
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase())
       );
     }
 
     // Apply status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(booking => booking.status === statusFilter);
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((booking) => booking.status === statusFilter);
     }
 
     setFilteredBookings(filtered);
   }, [bookings, searchTerm, statusFilter]);
 
   const handleScanSuccess = (verifiedBooking) => {
-    setBookings(currentBookings =>
-      currentBookings.map(b =>
-        b._id === verifiedBooking._id ? { ...b, status: 'collected' } : b
-      )
-    );
+    // Safety check to ensure verifiedBooking has an _id
+    if (verifiedBooking && verifiedBooking._id) {
+      setBookings((currentBookings) =>
+        currentBookings.map((b) =>
+          b._id === verifiedBooking._id ? { ...b, status: "collected" } : b
+        )
+      );
+    }
     setIsScannerOpen(false);
   };
 
   const toggleBookingExpansion = (bookingId) => {
-    setExpandedBookings(prev => {
+    setExpandedBookings((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(bookingId)) {
         newSet.delete(bookingId);
@@ -97,13 +117,15 @@ export default function ListingBookingsPage() {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'approved':
+      case "approved":
         return <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />;
-      case 'pending':
-        return <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />;
-      case 'rejected':
+      case "pending":
+        return (
+          <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
+        );
+      case "rejected":
         return <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />;
-      case 'collected':
+      case "collected":
         return <BadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-400" />;
       default:
         return <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />;
@@ -111,15 +133,16 @@ export default function ListingBookingsPage() {
   };
 
   const getStatusBadge = (status) => {
-    const baseClasses = "inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-semibold";
+    const baseClasses =
+      "inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-semibold";
     switch (status) {
-      case 'approved':
+      case "approved":
         return `${baseClasses} bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border border-green-500/30`;
-      case 'pending':
+      case "pending":
         return `${baseClasses} bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-400 border border-yellow-500/30`;
-      case 'rejected':
+      case "rejected":
         return `${baseClasses} bg-gradient-to-r from-red-500/20 to-pink-500/20 text-red-400 border border-red-500/30`;
-      case 'collected':
+      case "collected":
         return `${baseClasses} bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-400 border border-indigo-500/30`;
       default:
         return `${baseClasses} bg-gradient-to-r from-gray-500/20 to-gray-400/20 text-gray-400 border border-gray-500/30`;
@@ -129,10 +152,10 @@ export default function ListingBookingsPage() {
   const getStatusStats = () => {
     const stats = {
       all: bookings.length,
-      pending: bookings.filter(b => b.status === 'pending').length,
-      approved: bookings.filter(b => b.status === 'approved').length,
-      collected: bookings.filter(b => b.status === 'collected').length,
-      rejected: bookings.filter(b => b.status === 'rejected').length,
+      pending: bookings.filter((b) => b.status === "pending").length,
+      approved: bookings.filter((b) => b.status === "approved").length,
+      collected: bookings.filter((b) => b.status === "collected").length,
+      rejected: bookings.filter((b) => b.status === "rejected").length,
     };
     return stats;
   };
@@ -148,7 +171,7 @@ export default function ListingBookingsPage() {
               <div className="h-3 sm:h-4 bg-gray-700/50 rounded w-full sm:w-1/3"></div>
             </div>
           </div>
-          
+
           {/* Table Skeleton */}
           <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm border border-gray-700/50 rounded-xl sm:rounded-2xl overflow-hidden">
             <div className="p-4 sm:p-6 border-b border-gray-700/50">
@@ -178,14 +201,20 @@ export default function ListingBookingsPage() {
         <div className="max-w-7xl mx-auto">
           <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm border border-red-500/30 rounded-xl sm:rounded-2xl shadow-2xl p-4 sm:p-6 lg:p-8 text-center">
             <XCircle className="w-6 h-6 sm:w-8 sm:h-8 text-red-400 mx-auto mb-4" />
-            <h2 className="text-lg sm:text-2xl font-bold text-gray-100 mb-2">Error Loading Data</h2>
-            <p className="text-sm sm:text-base text-gray-400">{listingError?.message || bookingsError?.message || 'Failed to load listing or bookings.'}</p>
+            <h2 className="text-lg sm:text-2xl font-bold text-gray-100 mb-2">
+              Error Loading Data
+            </h2>
+            <p className="text-sm sm:text-base text-gray-400">
+              {listingError?.message ||
+                bookingsError?.message ||
+                "Failed to load listing or bookings."}
+            </p>
           </div>
         </div>
       </div>
     );
   }
-  
+
   if (!listing) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
@@ -219,23 +248,33 @@ export default function ListingBookingsPage() {
                   Bookings for "{listing.title}"
                 </h1>
                 <p className="text-gray-400 text-sm sm:text-base lg:text-lg mt-2">
-                  Listing ID: <span className="font-mono text-emerald-400 break-all">{listing._id}</span>
+                  Listing ID:{" "}
+                  <span className="font-mono text-emerald-400 break-all">
+                    {listing._id}
+                  </span>
                 </p>
-                
+
                 {/* Status Stats - Mobile Optimized */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 mt-4">
                   {Object.entries(stats).map(([status, count]) => (
-                    <div key={status} className="bg-gray-700/30 rounded-lg p-2 sm:p-3 text-center">
-                      <div className="text-lg sm:text-xl font-bold text-white">{count}</div>
-                      <div className="text-xs sm:text-sm text-gray-400 capitalize">{status}</div>
+                    <div
+                      key={status}
+                      className="bg-gray-700/30 rounded-lg p-2 sm:p-3 text-center"
+                    >
+                      <div className="text-lg sm:text-xl font-bold text-white">
+                        {count}
+                      </div>
+                      <div className="text-xs sm:text-sm text-gray-400 capitalize">
+                        {status}
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
-              
+
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 lg:flex-shrink-0">
-                <Button 
-                  onClick={() => setIsScannerOpen(true)} 
+                <Button
+                  onClick={() => setIsScannerOpen(true)}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold w-full sm:w-auto"
                   size="sm"
                 >
@@ -263,7 +302,7 @@ export default function ListingBookingsPage() {
                   />
                 </div>
               </div>
-              
+
               {/* Status Filter */}
               <div className="relative">
                 <select
@@ -302,51 +341,92 @@ export default function ListingBookingsPage() {
                   <table className="w-full">
                     <thead className="bg-gray-900/50">
                       <tr>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Recipient</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Quantity</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Requested At</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Details</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Action</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                          Recipient
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                          Quantity
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                          Requested At
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                          Details
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                          Action
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-700/50">
                       {filteredBookings.map((booking) => (
-                        <tr key={booking._id} className="hover:bg-gray-700/20 transition-colors duration-200">
+                        <tr
+                          key={booking._id}
+                          className="hover:bg-gray-700/20 transition-colors duration-200"
+                        >
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="font-semibold text-gray-100">{booking.recipientName ?? 'N/A'}</div>
-                            <div className="text-xs text-gray-400 font-mono">{booking.recipientId ?? 'N/A'}</div>
+                            <div className="font-semibold text-gray-100">
+                              {booking.recipientName ?? "N/A"}
+                            </div>
+                            <div className="text-xs text-gray-400 font-mono">
+                              {booking.recipientId ?? "N/A"}
+                            </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-emerald-400 font-semibold">
-                            {booking.approvedQuantity ?? booking.requestedQuantity ?? 'N/A'}
+                            {booking.approvedQuantity ??
+                              booking.requestedQuantity ??
+                              "N/A"}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className={getStatusBadge(booking.status ?? 'unknown')}>
-                              {getStatusIcon(booking.status ?? 'unknown')}
-                              <span className="ml-2">{(booking.status ?? 'UNKNOWN').toUpperCase()}</span>
+                            <div
+                              className={getStatusBadge(
+                                booking.status ?? "unknown"
+                              )}
+                            >
+                              {getStatusIcon(booking.status ?? "unknown")}
+                              <span className="ml-2">
+                                {(booking.status ?? "UNKNOWN").toUpperCase()}
+                              </span>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-gray-300 text-sm">
-                              {booking.requestedAt ? new Date(booking.requestedAt).toLocaleDateString() : 'N/A'}
+                              {booking.requestedAt
+                                ? new Date(
+                                    booking.requestedAt
+                                  ).toLocaleDateString()
+                                : "N/A"}
                             </div>
                             <div className="text-gray-400 text-xs">
-                              {booking.requestedAt ? new Date(booking.requestedAt).toLocaleTimeString() : 'N/A'}
+                              {booking.requestedAt
+                                ? new Date(
+                                    booking.requestedAt
+                                  ).toLocaleTimeString()
+                                : "N/A"}
                             </div>
                           </td>
                           <td className="px-6 py-4 max-w-xs">
                             {booking.requestMessage && (
-                              <div className="text-sm text-gray-300 truncate">{booking.requestMessage}</div>
+                              <div className="text-sm text-gray-300 truncate">
+                                {booking.requestMessage}
+                              </div>
                             )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            {booking.status === 'approved' && (
-                              <Button onClick={() => setIsScannerOpen(true)} size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+                            {booking.status === "approved" && (
+                              <Button
+                                onClick={() => setIsScannerOpen(true)}
+                                size="sm"
+                                className="bg-emerald-600 hover:bg-emerald-700"
+                              >
                                 <QrCode className="w-4 h-4 mr-2" />
                                 Verify
                               </Button>
                             )}
-                            {booking.status === 'collected' && (
+                            {booking.status === "collected" && (
                               <div className="flex items-center text-indigo-400 font-semibold">
                                 <BadgeCheck className="w-5 h-5 mr-2" />
                                 Collected
@@ -371,25 +451,38 @@ export default function ListingBookingsPage() {
                             <div className="flex items-start justify-between">
                               <div className="flex-1 min-w-0">
                                 <div className="font-semibold text-gray-100 truncate">
-                                  {booking.recipientName ?? 'N/A'}
+                                  {booking.recipientName ?? "N/A"}
                                 </div>
                                 <div className="text-xs text-gray-400 font-mono">
-                                  {booking.recipientId ?? 'N/A'}
+                                  {booking.recipientId ?? "N/A"}
                                 </div>
                               </div>
-                              <div className={getStatusBadge(booking.status ?? 'unknown')}>
-                                {getStatusIcon(booking.status ?? 'unknown')}
-                                <span className="ml-2">{(booking.status ?? 'UNKNOWN').toUpperCase()}</span>
+                              <div
+                                className={getStatusBadge(
+                                  booking.status ?? "unknown"
+                                )}
+                              >
+                                {getStatusIcon(booking.status ?? "unknown")}
+                                <span className="ml-2">
+                                  {(booking.status ?? "UNKNOWN").toUpperCase()}
+                                </span>
                               </div>
                             </div>
 
                             {/* Key Info Row */}
                             <div className="flex items-center justify-between text-sm">
                               <div className="text-emerald-400 font-semibold">
-                                Qty: {booking.approvedQuantity ?? booking.requestedQuantity ?? 'N/A'}
+                                Qty:{" "}
+                                {booking.approvedQuantity ??
+                                  booking.requestedQuantity ??
+                                  "N/A"}
                               </div>
                               <div className="text-gray-400">
-                                {booking.requestedAt ? new Date(booking.requestedAt).toLocaleDateString() : 'N/A'}
+                                {booking.requestedAt
+                                  ? new Date(
+                                      booking.requestedAt
+                                    ).toLocaleDateString()
+                                  : "N/A"}
                               </div>
                             </div>
 
@@ -397,7 +490,9 @@ export default function ListingBookingsPage() {
                             {(booking.requestMessage || isExpanded) && (
                               <>
                                 <button
-                                  onClick={() => toggleBookingExpansion(booking._id)}
+                                  onClick={() =>
+                                    toggleBookingExpansion(booking._id)
+                                  }
                                   className="flex items-center text-gray-400 hover:text-gray-300 text-sm transition-colors"
                                 >
                                   {isExpanded ? (
@@ -412,17 +507,26 @@ export default function ListingBookingsPage() {
                                     </>
                                   )}
                                 </button>
-                                
+
                                 {isExpanded && (
                                   <div className="space-y-2 pt-2 border-t border-gray-700/50">
                                     {booking.requestMessage && (
                                       <div>
-                                        <div className="text-xs text-gray-400 mb-1">Message:</div>
-                                        <div className="text-sm text-gray-300">{booking.requestMessage}</div>
+                                        <div className="text-xs text-gray-400 mb-1">
+                                          Message:
+                                        </div>
+                                        <div className="text-sm text-gray-300">
+                                          {booking.requestMessage}
+                                        </div>
                                       </div>
                                     )}
                                     <div className="text-xs text-gray-400">
-                                      Requested: {booking.requestedAt ? new Date(booking.requestedAt).toLocaleString() : 'N/A'}
+                                      Requested:{" "}
+                                      {booking.requestedAt
+                                        ? new Date(
+                                            booking.requestedAt
+                                          ).toLocaleString()
+                                        : "N/A"}
                                     </div>
                                   </div>
                                 )}
@@ -431,17 +535,17 @@ export default function ListingBookingsPage() {
 
                             {/* Action Row */}
                             <div className="flex items-center justify-end pt-2">
-                              {booking.status === 'approved' && (
-                                <Button 
-                                  onClick={() => setIsScannerOpen(true)} 
-                                  size="sm" 
+                              {booking.status === "approved" && (
+                                <Button
+                                  onClick={() => setIsScannerOpen(true)}
+                                  size="sm"
                                   className="bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto"
                                 >
                                   <QrCode className="w-4 h-4 mr-2" />
                                   Verify Collection
                                 </Button>
                               )}
-                              {booking.status === 'collected' && (
+                              {booking.status === "collected" && (
                                 <div className="flex items-center text-indigo-400 font-semibold justify-center w-full sm:w-auto">
                                   <BadgeCheck className="w-5 h-5 mr-2" />
                                   Collected
@@ -459,18 +563,20 @@ export default function ListingBookingsPage() {
               <div className="p-8 sm:p-12 text-center">
                 <UserCheck className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-xl sm:text-2xl font-semibold text-gray-100 mb-2">
-                  {searchTerm || statusFilter !== 'all' ? 'No matching bookings' : 'No bookings found'}
+                  {searchTerm || statusFilter !== "all"
+                    ? "No matching bookings"
+                    : "No bookings found"}
                 </h3>
                 <p className="text-gray-400 text-sm sm:text-base lg:text-lg">
-                  {searchTerm || statusFilter !== 'all'
-                    ? 'Try adjusting your search or filter criteria.'
-                    : 'No booking requests have been made for this listing yet.'}
+                  {searchTerm || statusFilter !== "all"
+                    ? "Try adjusting your search or filter criteria."
+                    : "No booking requests have been made for this listing yet."}
                 </p>
-                {(searchTerm || statusFilter !== 'all') && (
+                {(searchTerm || statusFilter !== "all") && (
                   <Button
                     onClick={() => {
-                      setSearchTerm('');
-                      setStatusFilter('all');
+                      setSearchTerm("");
+                      setStatusFilter("all");
                     }}
                     variant="outline"
                     className="mt-4 border-gray-600 text-gray-300 hover:bg-gray-700"

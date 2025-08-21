@@ -251,4 +251,3 @@ export default function Header({ userData }) {
     </header>
   );
 }
-
