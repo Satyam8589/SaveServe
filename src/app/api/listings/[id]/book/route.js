@@ -123,7 +123,7 @@ export async function POST(request, { params }) {
     foodListing.bookings.push(embeddedBookingRequest);
 
     // PERMANENTLY REDUCE THE QUANTITY
-    foodListing.quantity = Math.max(0, (foodListing.quantity+1) - requestedQuantity);
+    foodListing.quantity = Math.max(0, foodListing.quantity - requestedQuantity);
     console.log(`📦 Quantity reduced: ${foodListing.quantity + requestedQuantity} → ${foodListing.quantity}`);
 
     // The pre-save hook in the model will automatically update the listingStatus.
