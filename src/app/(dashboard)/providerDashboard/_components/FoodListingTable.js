@@ -3,8 +3,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useListings, useUpdateListing, useDeleteListing } from '@/hooks/useListings';
-import { MapPin, Clock, User, Search, Filter, ChevronDown, Eye, Package, Calendar, Star, MoreVertical, Edit, Trash2 } from 'lucide-react';
+import { MapPin, Clock, User, Search, Filter, ChevronDown, Eye, Package, Calendar, Star, MoreVertical, Edit, Trash2, History } from 'lucide-react';
 import Image from 'next/image';
 
 export default function FoodListingTable({ providerId, onEditListing }) {
@@ -152,8 +153,15 @@ export default function FoodListingTable({ providerId, onEditListing }) {
     );
   }
 
-  // Ensure only the current provider's listings are shown even if the first fetch lacks providerId
-  const listings = (data?.data || []).filter(listing => !providerId || listing.providerId === providerId);
+  // Ensure only the current provider's listings are shown and filter out expired listings
+  const allListings = (data?.data || []).filter(listing => !providerId || listing.providerId === providerId);
+
+  // Filter out expired listings - only show active listings
+  const listings = allListings.filter(listing => {
+    const now = new Date();
+    const expiry = new Date(listing.expiryTime);
+    return expiry > now; // Only show non-expired listings
+  });
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -162,10 +170,10 @@ export default function FoodListingTable({ providerId, onEditListing }) {
         <div className="flex flex-col gap-4 sm:gap-6">
           <div className="space-y-2">
             <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-400 to-green-300 bg-clip-text text-transparent">
-              Available Food Listings
+              Active Food Listings
             </h2>
             <p className="text-gray-400 text-base sm:text-lg">
-              {data?.pagination?.total || 0} listings found
+              {listings.length} active listings • {allListings.length - listings.length} expired (moved to history)
             </p>
           </div>
           
@@ -180,6 +188,16 @@ export default function FoodListingTable({ providerId, onEditListing }) {
                 className="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-400 transition-all duration-300 text-gray-100 placeholder-gray-400 backdrop-blur-sm text-sm sm:text-base"
               />
             </div>
+
+            {/* History Link when there are expired listings */}
+            {allListings.length > listings.length && (
+              <Link href="/providerDashboard/history">
+                <button className="flex items-center px-4 py-2 sm:py-3 bg-orange-600/20 border border-orange-500/30 text-orange-400 rounded-xl hover:bg-orange-600/30 hover:border-orange-500/50 transition-all duration-300 text-sm sm:text-base">
+                  <History className="w-4 h-4 mr-2" />
+                  View {allListings.length - listings.length} Expired
+                </button>
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -192,8 +210,21 @@ export default function FoodListingTable({ providerId, onEditListing }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
             </div>
-            <h3 className="text-xl sm:text-2xl font-semibold text-gray-100 mb-2">No listings available</h3>
-            <p className="text-gray-400 text-base sm:text-lg">There are currently no active food listings.</p>
+            <h3 className="text-xl sm:text-2xl font-semibold text-gray-100 mb-2">No active listings</h3>
+            <p className="text-gray-400 text-base sm:text-lg mb-6">
+              {allListings.length > 0
+                ? `All your listings have expired and moved to history.`
+                : `There are currently no active food listings. Create your first listing to get started.`
+              }
+            </p>
+            {allListings.length > 0 && (
+              <Link href="/providerDashboard/history">
+                <button className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white rounded-xl hover:from-orange-700 hover:to-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-slate-900 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
+                  <History className="w-5 h-5 mr-2" />
+                  View History
+                </button>
+              </Link>
+            )}
           </div>
         </div>
       ) : (

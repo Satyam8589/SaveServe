@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Bell,
   Calendar,
+  Clock,
   Home,
   Users,
   Package,
@@ -41,6 +42,12 @@ const sidebarItems = [
     href: "/providerDashboard/listings",
     icon: Package,
     label: "My Listings",
+    badge: null,
+  },
+  {
+    href: "/providerDashboard/history",
+    icon: Clock,
+    label: "History",
     badge: null,
   },
   {

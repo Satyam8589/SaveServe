@@ -10,5 +10,4 @@ export const { GET, POST, PUT } = serve({
   signingKey: process.env.INNGEST_SIGNING_KEY,
 });
 
-// Export the handler for all HTTP methods
-export { GET as GET, POST as POST, PUT as PUT };
+
