@@ -9,5 +9,3 @@ export const { GET, POST, PUT } = serve({
   functions: inngestFunctions,
   signingKey: process.env.INNGEST_SIGNING_KEY,
 });
-
-
