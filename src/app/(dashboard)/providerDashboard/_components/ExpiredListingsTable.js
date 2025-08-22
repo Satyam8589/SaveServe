@@ -1,4 +1,4 @@
-// File: /components/ExpiredListingsTable.js
+// File: /components/ExpiredListingsTable.js.
 'use client';
 
 import { useState, useEffect } from 'react';
