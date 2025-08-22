@@ -19,6 +19,7 @@ import {
   X,
   ChevronDown,
   ChevronRight,
+  FileText,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -53,6 +54,12 @@ const sidebarItems = [
     href: "/providerDashboard/analytics",
     icon: BarChart3,
     label: "Analytics",
+    badge: null,
+  },
+  {
+    href: "/providerDashboard/reports",
+    icon: FileText,
+    label: "My Report",
     badge: null,
   },
   {
