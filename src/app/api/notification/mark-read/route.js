@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { connectDB } from '@/lib/db';
 import Notification from '@/models/Notification';
+import mongoose from 'mongoose';
 
 export async function POST(request) {
   try {
@@ -30,13 +31,21 @@ export async function POST(request) {
       );
     }
 
-    // Find and update the notification
+    // Validate ObjectId format - all notifications now use MongoDB ObjectIds
+    if (!mongoose.Types.ObjectId.isValid(notificationId)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid notification ID format. Expected MongoDB ObjectId.' },
+        { status: 400 }
+      );
+    }
+
+    // Find and update the MongoDB notification
     const notification = await Notification.findOneAndUpdate(
-      { 
-        _id: notificationId, 
-        userId: userId 
+      {
+        _id: notificationId,
+        userId: userId
       },
-      { 
+      {
         read: true,
         readAt: new Date()
       },

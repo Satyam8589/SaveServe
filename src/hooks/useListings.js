@@ -38,3 +38,39 @@ export function useCreateListing() {
     },
   });
 }
+
+// Hook to update an existing listing
+export function useUpdateListing() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }) => listingService.updateListing(id, data),
+    onSuccess: () => {
+      // Invalidate and refetch listings
+      queryClient.invalidateQueries({
+        queryKey: LISTING_KEYS.lists()
+      });
+    },
+    onError: (error) => {
+      console.error('Failed to update listing:', error);
+    },
+  });
+}
+
+// Hook to delete a listing
+export function useDeleteListing() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (listingId) => listingService.deleteListing(listingId),
+    onSuccess: () => {
+      // Invalidate and refetch listings
+      queryClient.invalidateQueries({
+        queryKey: LISTING_KEYS.lists()
+      });
+    },
+    onError: (error) => {
+      console.error('Failed to delete listing:', error);
+    },
+  });
+}

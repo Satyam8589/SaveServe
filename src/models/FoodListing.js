@@ -38,7 +38,18 @@ const foodListingSchema = new mongoose.Schema(
     quantity: {
       type: Number,
       required: [true, "Quantity is required"],
-      min: [1, "Quantity must be at least 1"],
+      min: [0, "Quantity cannot be negative"],
+      validate: {
+        validator: function(value) {
+          // Allow 0 quantity only if this is an existing document being updated
+          // (i.e., during booking process when quantity becomes 0)
+          if (value === 0) {
+            return !this.isNew; // Allow 0 only for existing documents
+          }
+          return value >= 1; // New documents must have quantity >= 1
+        },
+        message: "New food listings must have at least 1 quantity. Existing listings can have 0 when fully booked."
+      }
     },
     unit: {
       type: String,

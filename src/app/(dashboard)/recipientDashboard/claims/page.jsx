@@ -19,12 +19,14 @@ import {
   User,
   MessageCircle,
   X,
+  Navigation,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useTimeCalculations } from "@/hooks/useTimeCalculations";
+import DirectionModal from "@/components/DirectionModal";
 
 const ClaimsPage = () => {
   const { user } = useUser();
@@ -32,6 +34,176 @@ const ClaimsPage = () => {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [contactProvider, setContactProvider] = useState(null);
+  const [directionModal, setDirectionModal] = useState(null);
+  const [loadingDirections, setLoadingDirections] = useState(null); // Track which claim is loading directions
+
+  // Function to handle direction modal
+  const handleShowDirections = async (claim) => {
+    setLoadingDirections(claim._id); // Set loading state for this specific claim
+
+    try {
+      console.log('🗺️ Fetching location data for directions...');
+      console.log('📍 Current user ID:', user?.id);
+      console.log('📍 Provider ID:', claim.providerId);
+
+      // Fetch current user's profile data
+      const currentUserResponse = await fetch(`/api/profile?userId=${user?.id}`);
+      const currentUserData = await currentUserResponse.json();
+
+      // Fetch provider's profile data
+      const providerResponse = await fetch(`/api/profile?userId=${claim.providerId}`);
+      const providerData = await providerResponse.json();
+
+      console.log('📍 Current user data:', currentUserData);
+      console.log('📍 Provider data:', providerData);
+
+      if (currentUserData.success && providerData.success) {
+        // Enhanced coordinate parsing with better error handling
+        const parseCoordinates = (areaString, userType) => {
+          console.log(`📍 Parsing coordinates for ${userType}:`, areaString);
+
+          if (!areaString || typeof areaString !== 'string') {
+            console.log(`❌ ${userType}: No area string provided`);
+            return { latitude: null, longitude: null, error: 'No location data' };
+          }
+
+          // Try multiple coordinate formats
+          const formats = [
+            /Lat:\s*(-?\d+\.?\d*),?\s*Lon:\s*(-?\d+\.?\d*)/i,  // "Lat: 22.5151549, Lon: 88.4104219"
+            /(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/,                   // "22.5151549, 88.4104219"
+            /latitude:\s*(-?\d+\.?\d*),?\s*longitude:\s*(-?\d+\.?\d*)/i, // "latitude: 22.5151549, longitude: 88.4104219"
+          ];
+
+          for (const regex of formats) {
+            const match = areaString.match(regex);
+            if (match && match[1] && match[2]) {
+              const latitude = parseFloat(match[1]);
+              const longitude = parseFloat(match[2]);
+
+              if (!isNaN(latitude) && !isNaN(longitude) &&
+                  latitude >= -90 && latitude <= 90 &&
+                  longitude >= -180 && longitude <= 180) {
+                console.log(`✅ ${userType}: Valid coordinates found - Lat: ${latitude}, Lon: ${longitude}`);
+                return { latitude, longitude, error: null };
+              }
+            }
+          }
+
+          console.log(`❌ ${userType}: Invalid coordinate format in area string`);
+          return { latitude: null, longitude: null, error: 'Invalid coordinate format' };
+        };
+
+        const currentUserCoords = parseCoordinates(currentUserData.data.area, 'Current User');
+        const providerCoords = parseCoordinates(providerData.data.area, 'Provider');
+
+        // Check if both users have valid coordinates
+        if (currentUserCoords.latitude && currentUserCoords.longitude &&
+            providerCoords.latitude && providerCoords.longitude) {
+
+          const recipient = {
+            id: currentUserData.data.userId,
+            fullName: currentUserData.data.fullName,
+            role: currentUserData.data.role,
+            subrole: currentUserData.data.subrole,
+            area: currentUserData.data.area,
+            latitude: currentUserCoords.latitude,
+            longitude: currentUserCoords.longitude
+          };
+
+          const provider = {
+            id: providerData.data.userId,
+            fullName: providerData.data.fullName,
+            role: providerData.data.role,
+            subrole: providerData.data.subrole,
+            area: providerData.data.area,
+            latitude: providerCoords.latitude,
+            longitude: providerCoords.longitude
+          };
+
+          console.log('✅ Opening direction modal with valid coordinates');
+          setDirectionModal({ provider, recipient });
+        } else {
+          // Provide detailed error message
+          let errorMessage = 'Location data not available for mapping:\n\n';
+
+          if (!currentUserCoords.latitude || !currentUserCoords.longitude) {
+            errorMessage += `• Your location: ${currentUserCoords.error || 'No valid coordinates found'}\n`;
+            errorMessage += `  Area data: "${currentUserData.data.area || 'Not set'}"\n\n`;
+          }
+
+          if (!providerCoords.latitude || !providerCoords.longitude) {
+            errorMessage += `• Provider location: ${providerCoords.error || 'No valid coordinates found'}\n`;
+            errorMessage += `  Area data: "${providerData.data.area || 'Not set'}"\n\n`;
+          }
+
+          errorMessage += 'Please ensure both you and the provider have set valid location coordinates in the format:\n';
+          errorMessage += '"Lat: 22.5151549, Lon: 88.4104219"\n\n';
+          errorMessage += 'To set your location:\n';
+          errorMessage += '1. Go to your Profile settings\n';
+          errorMessage += '2. Update the "Area" field with coordinates\n';
+          errorMessage += '3. Use this format: "Lat: YOUR_LATITUDE, Lon: YOUR_LONGITUDE"\n';
+          errorMessage += '4. You can get coordinates from Google Maps by right-clicking on your location';
+
+          // Try to use the locations API as fallback
+          console.log('🔄 Trying fallback: fetching from /api/users/locations');
+          try {
+            const locationsResponse = await fetch('/api/users/locations');
+            const locationsData = await locationsResponse.json();
+
+            if (locationsData.success && locationsData.data) {
+              const currentUserFromAPI = locationsData.data.find(u => u.id === user?.id);
+              const providerFromAPI = locationsData.data.find(u => u.id === claim.providerId);
+
+              if (currentUserFromAPI?.hasValidCoordinates && providerFromAPI?.hasValidCoordinates) {
+                console.log('✅ Found valid coordinates in locations API, using fallback');
+
+                const recipient = {
+                  id: currentUserFromAPI.id,
+                  fullName: currentUserFromAPI.fullName,
+                  role: currentUserFromAPI.role,
+                  subrole: currentUserFromAPI.subrole,
+                  area: currentUserFromAPI.area,
+                  latitude: currentUserFromAPI.latitude,
+                  longitude: currentUserFromAPI.longitude
+                };
+
+                const provider = {
+                  id: providerFromAPI.id,
+                  fullName: providerFromAPI.fullName,
+                  role: providerFromAPI.role,
+                  subrole: providerFromAPI.subrole,
+                  area: providerFromAPI.area,
+                  latitude: providerFromAPI.latitude,
+                  longitude: providerFromAPI.longitude
+                };
+
+                setDirectionModal({ provider, recipient });
+                return; // Exit early, don't show error
+              }
+            }
+          } catch (fallbackError) {
+            console.error('❌ Fallback API also failed:', fallbackError);
+          }
+
+          alert(errorMessage);
+        }
+      } else {
+        let errorMessage = 'Failed to fetch user location data:\n\n';
+        if (!currentUserData.success) {
+          errorMessage += `• Your profile: ${currentUserData.message || 'Unknown error'}\n`;
+        }
+        if (!providerData.success) {
+          errorMessage += `• Provider profile: ${providerData.message || 'Unknown error'}\n`;
+        }
+        alert(errorMessage);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching location data:', error);
+      alert(`Error loading location data: ${error.message}\n\nPlease try again or contact support if the issue persists.`);
+    } finally {
+      setLoadingDirections(null); // Reset loading state
+    }
+  };
 
   // Early loading state
   if (isLoading) {
@@ -177,6 +349,26 @@ const ClaimsPage = () => {
                       <MessageCircle className="h-4 w-4 mr-2" />
                       Contact
                     </Button>
+
+                    <Button
+                      variant="outline"
+                      onClick={() => handleShowDirections(claim)}
+                      disabled={loadingDirections === claim._id}
+                      className="bg-purple-600 hover:bg-purple-700 text-white border-purple-600 hover:border-purple-700 disabled:opacity-50"
+                      title="Show route from your location to the provider's location"
+                    >
+                      {loadingDirections === claim._id ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <Navigation className="h-4 w-4 mr-2" />
+                          Directions
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
 
@@ -234,6 +426,15 @@ const ClaimsPage = () => {
         <ContactProviderModal
           booking={contactProvider}
           onClose={() => setContactProvider(null)}
+        />
+      )}
+
+      {/* Direction Modal */}
+      {directionModal && (
+        <DirectionModal
+          provider={directionModal.provider}
+          recipient={directionModal.recipient}
+          onClose={() => setDirectionModal(null)}
         />
       )}
     </div>
