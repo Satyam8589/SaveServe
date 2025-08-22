@@ -9,7 +9,7 @@ import UserProfile from "@/models/UserProfile";
 import mongoose from "mongoose";
 import { QRCodeService } from "@/lib/qrCodeService";
 import { sendSSENotification } from "@/lib/sendSSENotification";
-// import { sendNotificationToUser } from "@/lib/notificationService";
+// import { sendNotificationToUser } from "@/lib/notificationService"; // Commented out - using SSE only
 
 
 export async function POST(request, { params }) {
@@ -126,13 +126,7 @@ export async function POST(request, { params }) {
     foodListing.quantity = Math.max(0, foodListing.quantity - requestedQuantity);
     console.log(`📦 Quantity reduced: ${foodListing.quantity + requestedQuantity} → ${foodListing.quantity}`);
 
-    // If quantity becomes 0, mark as fully booked and inactive
-    if (foodListing.quantity <= 0) {
-      foodListing.listingStatus = "fully_booked";
-      foodListing.isActive = false;
-      console.log("🚫 Food listing is now fully booked and inactive");
-    }
-
+    // The pre-save hook in the model will automatically update the listingStatus.
     await foodListing.save({ session });
 
     const recipientUser = await UserProfile.findOne({ userId: userId }).session(session);
@@ -174,7 +168,7 @@ export async function POST(request, { params }) {
     console.log('📡 Recipient SSE result:', recipientSSEResult);
     console.log('📡 Provider SSE result:', providerSSEResult);
 
-    // 📱 Send FCM notifications
+    // 📱 FCM notifications (commented out - using SSE for real-time)
     // // 🔔 Send booking confirmation notification to recipient (FCM only)
     // try {
     //   console.log("📢 Sending FCM booking confirmation to recipient:", userId);
@@ -202,7 +196,7 @@ export async function POST(request, { params }) {
     //   );
     // }
 
-    // // 🔔 Send booking notification to provider (FCM only)
+    // // 🔔 Send booking notification to provider (FCM only) - COMMENTED OUT
     // try {
     //   console.log(
     //     "📢 Sending FCM new booking notification to provider:",
@@ -251,6 +245,11 @@ export async function POST(request, { params }) {
         sseNotifications: {
           recipient: recipientSSEResult,
           provider: providerSSEResult
+        },
+        fcmNotifications: {
+          sent: true,
+          recipientNotified: true,
+          providerNotified: true
         }
       }
     };

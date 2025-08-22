@@ -4,18 +4,26 @@ import { createMongoNotification } from './mongoNotificationService';
 
 export const sendSSENotification = async (userId, notification) => {
   try {
+    console.log(`🔍 Attempting to send SSE notification to user: ${userId}`);
+    console.log(`📋 Notification title: ${notification.title}`);
+
     if (!global.sseConnections) {
       console.log('📭 No SSE connections initialized');
       return false;
     }
 
+    console.log(`📊 Total SSE connections: ${global.sseConnections.size}`);
+    console.log(`📋 Available user IDs: ${Array.from(global.sseConnections.keys()).join(', ')}`);
+
     const controller = global.sseConnections.get(userId);
 
     if (!controller) {
       console.log(`📭 No SSE connection found for user: ${userId}`);
-      console.log(`📊 Available connections: ${Array.from(global.sseConnections.keys()).join(', ')}`);
+      console.log(`❌ User ${userId} is not in the connections map`);
       return false;
     }
+
+    console.log(`✅ Found SSE connection for user: ${userId}`);
 
     // First, create the notification in MongoDB to get a proper ObjectId
     const mongoResult = await createMongoNotification(

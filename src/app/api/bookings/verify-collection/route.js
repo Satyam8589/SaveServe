@@ -155,100 +155,67 @@ export async function POST(request) {
     }).lean();
 
     // --- Start: Notifications Update ---
+    // Using SSE-only approach for real-time notifications (stores in DB + sends SSE)
 
-    // 📡 Send SSE to recipient for QR modal auto-close and confirmation
-    sendSSENotification(booking.recipientId, {
-        title: "Food Collected! 🎉",
-        message: `You've successfully collected "${listing.title}". Enjoy your meal!`,
-        type: 'success',
-        data: {
-            bookingId: booking._id.toString(),
-            listingId: listing._id.toString(),
-            status: "collected",
-            collectedAt: collectionTime.toISOString(),
-            action: "collection_verified",
-            autoCloseQR: true, // For the frontend to auto-close the modal
-        }
-    });
-
-    // 📡 Send SSE to provider for confirmation
-    sendSSENotification(providerClerkId, {
-        title: "Collection Verified! ✅",
-        message: `${recipient?.fullName || "A recipient"} has collected "${
-          listing.title
-        }".`,
-        type: 'success',
-        data: {
-            bookingId: booking._id.toString(),
-            listingId: listing._id.toString(),
-            recipientId: booking.recipientId,
-            action: "collection_completed_confirmation",
-        }
-    });
-
-    // 🔔 Send detailed collection confirmation notification to recipient (FCM + Firestore)
+    // 📡 Send SSE notification to recipient (stores in DB + real-time update)
     try {
-      await sendCompleteNotification(
-        booking.recipientId,
-        "Food Collected Successfully! 🎉",
-        `You've successfully collected "${listing.title}". Enjoy your meal!`,
-        {
+      await sendSSENotification(booking.recipientId, {
+        title: "Food Collected Successfully! 🎉",
+        message: `You've successfully collected "${listing.title}". Enjoy your meal!`,
+        type: 'collection_confirmed',
+        data: {
           bookingId: booking._id.toString(),
           listingId: listing._id.toString(),
           action: "collection_confirmed",
           collectedAt: collectionTime.toISOString(),
-        },
-        {
-          type: NOTIFICATION_TYPES.COLLECTION_CONFIRMED,
-          bookingId: booking._id.toString(),
-          listingId: listing._id.toString(),
+          autoCloseQR: true, // For the frontend to auto-close the modal
           listingTitle: listing.title,
           providerName: listing.providerName,
           quantity: booking.approvedQuantity,
           unit: listing.unit || "items",
-          collectedAt: collectionTime.toISOString(),
         }
-      );
+      });
+      console.log("✅ Recipient SSE notification sent");
     } catch (notificationError) {
       console.error(
-        "❌ Failed to send collection confirmation:",
+        "❌ Failed to send recipient SSE notification:",
         notificationError
       );
     }
 
-    // 🔔 Send collection notification to provider (FCM + Firestore)
+    // 📡 Send SSE notification to provider (stores in DB + real-time update)
     try {
-      await sendCompleteNotification(
-        providerClerkId,
-        "Food Collected Successfully! ✅",
-        `${recipient?.fullName || "A recipient"} has collected "${
-          listing.title
-        }". Thanks for sharing food!`,
-        {
+      await sendSSENotification(providerClerkId, {
+        title: "Food Collected Successfully! ✅",
+        message: `${recipient?.fullName || "A recipient"} has collected "${listing.title}". Thanks for sharing food!`,
+        type: 'collection_completed_confirmation',
+        data: {
           bookingId: booking._id.toString(),
           listingId: listing._id.toString(),
           recipientId: booking.recipientId,
           action: "collection_completed_confirmation",
-        },
-        {
-          type: NOTIFICATION_TYPES.COLLECTION_COMPLETED_CONFIRMATION,
-          bookingId: booking._id.toString(),
-          listingId: listing._id.toString(),
+          collectedAt: collectionTime.toISOString(),
           listingTitle: listing.title,
-          recipientId: booking.recipientId,
           recipientName: recipient?.fullName || "A recipient",
           quantity: booking.approvedQuantity,
           unit: listing.unit || "items",
-          collectedAt: collectionTime.toISOString(),
         }
-      );
+      });
+      console.log("✅ Provider SSE notification sent");
     } catch (notificationError) {
       console.error(
-        "❌ Failed to send provider collection confirmation:",
+        "❌ Failed to send provider SSE notification:",
         notificationError
       );
     }
-    
+
+    // 🔔 FCM notifications (commented out for now - focusing on SSE real-time)
+    // try {
+    //   await sendCompleteNotification(...);
+    // } catch (error) {
+    //   console.error("FCM notification error:", error);
+    // }
+
     // --- End: Notifications Update ---
 
     return NextResponse.json({

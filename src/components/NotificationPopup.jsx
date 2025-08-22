@@ -126,8 +126,10 @@ export default function NotificationPopup({ isOpen, onClose, onBellClick }) {
     markAsRead,
     markAllAsRead,
     isLoading,
-    error
-  } = useNotifications(user?.id, {
+    error,
+    isSSEConnected,
+    sseError
+  } = useNotifications({
     limit: 10,
     enableRealtime: true,
   });
@@ -193,10 +195,20 @@ export default function NotificationPopup({ isOpen, onClose, onBellClick }) {
                   <Bell className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-100">Notifications</h3>
+                  <div className="flex items-center space-x-2">
+                    <h3 className="text-lg font-semibold text-gray-100">Notifications</h3>
+                    {/* SSE Connection Status Indicator */}
+                    <div className={`w-2 h-2 rounded-full ${isSSEConnected ? 'bg-green-400' : 'bg-red-400'}`}
+                         title={isSSEConnected ? 'Real-time connected' : 'Real-time disconnected'} />
+                  </div>
                   {unreadCount > 0 && (
                     <p className="text-xs text-amber-400">
                       {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
+                    </p>
+                  )}
+                  {sseError && (
+                    <p className="text-xs text-red-400">
+                      Real-time: {sseError}
                     </p>
                   )}
                 </div>

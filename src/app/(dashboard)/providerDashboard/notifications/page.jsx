@@ -27,7 +27,7 @@ export default function NotificationsPage() {
     markAllAsReadError,
   } = useNotifications({
     limit: 50,
-    enableRealtime: false, // MongoDB doesn't support real-time
+    enableRealtime: true, // Enable real-time SSE notifications
   });
 
   // Manual retry function
