@@ -57,10 +57,10 @@ function ListingsContent() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
             <div className="space-y-3">
               <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-400 to-green-300 bg-clip-text text-transparent">
-                Food Listings
+                Active Food Listings
               </h1>
               <p className="text-gray-400 text-lg">
-                Share surplus food or find available meals in your area
+                Manage your active food listings • Expired listings are moved to History
               </p>
             </div>
             

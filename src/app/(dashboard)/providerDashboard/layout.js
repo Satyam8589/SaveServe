@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Bell,
   Calendar,
+  Clock,
   Home,
   Users,
   Package,
@@ -18,6 +19,7 @@ import {
   X,
   ChevronDown,
   ChevronRight,
+  FileText,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -43,9 +45,21 @@ const sidebarItems = [
     badge: null,
   },
   {
+    href: "/providerDashboard/history",
+    icon: Clock,
+    label: "History",
+    badge: null,
+  },
+  {
     href: "/providerDashboard/analytics",
     icon: BarChart3,
     label: "Analytics",
+    badge: null,
+  },
+  {
+    href: "/providerDashboard/reports",
+    icon: FileText,
+    label: "My Report",
     badge: null,
   },
   {

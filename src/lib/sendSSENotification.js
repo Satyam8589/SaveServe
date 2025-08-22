@@ -4,26 +4,33 @@ import { createMongoNotification } from './mongoNotificationService';
 
 export const sendSSENotification = async (userId, notification) => {
   try {
-    console.log(`🔍 Attempting to send SSE notification to user: ${userId}`);
-    console.log(`📋 Notification title: ${notification.title}`);
+    console.log(`
+--- SSE SEND ATTEMPT ---`);
+    console.log(`[${new Date().toISOString()}]`);
+    console.log(`- Target User ID: ${userId}`);
+    console.log(`- Notification Title: ${notification.title}`);
 
     if (!global.sseConnections) {
-      console.log('📭 No SSE connections initialized');
+      console.error(`- ❌ CRITICAL: global.sseConnections object does not exist!`);
+      console.log(`--- END SSE SEND ATTEMPT ---
+`);
       return false;
     }
 
-    console.log(`📊 Total SSE connections: ${global.sseConnections.size}`);
-    console.log(`📋 Available user IDs: ${Array.from(global.sseConnections.keys()).join(', ')}`);
+    const connectionKeys = Array.from(global.sseConnections.keys());
+    console.log(`- 맵에 연결된 사용자 ID/Connections in map: [${connectionKeys.join(', ') || 'None'}]`);
+    console.log(`- 전체 연결 수/Total connections: ${global.sseConnections.size}`);
 
     const controller = global.sseConnections.get(userId);
 
     if (!controller) {
-      console.log(`📭 No SSE connection found for user: ${userId}`);
-      console.log(`❌ User ${userId} is not in the connections map`);
+      console.error(`- ❌ FAILED: No active SSE connection found for user: ${userId}`);
+      console.log(`--- END SSE SEND ATTEMPT ---
+`);
       return false;
     }
 
-    console.log(`✅ Found SSE connection for user: ${userId}`);
+    console.log(`- ✅ SUCCESS: Found active SSE connection for user: ${userId}`);
 
     // First, create the notification in MongoDB to get a proper ObjectId
     const mongoResult = await createMongoNotification(
@@ -35,13 +42,14 @@ export const sendSSENotification = async (userId, notification) => {
     );
 
     if (!mongoResult.success) {
-      console.error('❌ Failed to create MongoDB notification for SSE:', mongoResult.error);
+      console.error('- ❌ FAILED: Could not create MongoDB notification for SSE:', mongoResult.error);
+      console.log(`--- END SSE SEND ATTEMPT ---
+`);
       return false;
     }
 
-    // Use the MongoDB ObjectId for the SSE notification
     const notificationData = {
-      id: mongoResult.notification._id.toString(), // Use MongoDB ObjectId instead of custom string
+      id: mongoResult.notification._id.toString(),
       userId,
       title: notification.title,
       message: notification.message,
@@ -52,21 +60,29 @@ export const sendSSENotification = async (userId, notification) => {
     };
 
     const encoder = new TextEncoder();
-    const data = `data: ${JSON.stringify(notificationData)}\n\n`;
+    const data = `data: ${JSON.stringify(notificationData)}
+
+`;
     
     try {
       controller.enqueue(encoder.encode(data));
-      console.log(`📤 SSE notification sent to user: ${userId}`);
-      console.log(`📋 Notification: ${notification.title}`);
+      console.log(`- 📤 SENT: SSE data enqueued for user: ${userId}`);
+      console.log(`--- END SSE SEND ATTEMPT ---
+`);
       return true;
     } catch (error) {
-      console.log(`💔 Failed to send SSE notification to user ${userId}:`, error.message);
-      // Connection closed, remove from map
+      console.error(`- 💔 FAILED: Could not enqueue data. Connection likely closed. Error: ${error.message}`);
+      // Connection is broken, remove it from the map
       global.sseConnections.delete(userId);
+      console.log(`- 🗑️ REMOVED: Broken connection for user ${userId} from map.`);
+      console.log(`--- END SSE SEND ATTEMPT ---
+`);
       return false;
     }
   } catch (error) {
-    console.error('❌ Failed to send SSE notification:', error);
+    console.error(`- 🚨 UNEXPECTED ERROR in sendSSENotification: ${error.message}`);
+    console.log(`--- END SSE SEND ATTEMPT ---
+`);
     return false;
   }
 };
