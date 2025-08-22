@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Bell, X, Check, CheckCheck, Wifi, WifiOff } from 'lucide-react';
-import useSocketNotifications from '@/hooks/useSSENotifications';
+import useSSENotifications from '@/hooks/useSSENotifications';
 
 /**
  * 🔔 Notification Bell Component
@@ -23,7 +23,7 @@ const NotificationBell = () => {
     clearAllNotifications,
     reconnect,
     requestNotificationPermission
-  } = useSocketNotifications();
+  } = useSSENotifications();
 
   // 🔔 Request notification permission on first render
   useEffect(() => {

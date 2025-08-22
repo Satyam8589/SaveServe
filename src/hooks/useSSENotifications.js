@@ -66,20 +66,19 @@ const useSSENotifications = () => {
 
   // Connect to SSE stream
   const connect = useCallback(async () => {
-    if (!getToken || eventSourceRef.current) return;
+    if (!userId || eventSourceRef.current) return;
 
     try {
-      // Get auth token using Clerk useAuth
-      const token = await getToken();
-      if (!token) throw new Error('Failed to get Clerk token');
+      console.log('🔗 Connecting to SSE stream for user:', userId);
+      console.log('🔍 Current SSE connections map size:', global.sseConnections?.size || 0);
 
-      // Create EventSource with auth header (via URL param for browser compatibility)
-      const eventSource = new EventSource(
-        `/api/notification/stream?token=${encodeURIComponent(token)}`
-      );
+      // Create EventSource - Clerk auth will work via cookies
+      const eventSource = new EventSource('/api/notification/stream');
+      console.log('📡 EventSource created, waiting for connection...');
 
       eventSource.onopen = () => {
-        console.log('✅ SSE Connected');
+        console.log('✅ SSE Connected for user:', userId);
+        console.log('📊 Connection state updated');
         setIsConnected(true);
         setConnectionError(null);
       };
@@ -105,87 +104,27 @@ const useSSENotifications = () => {
             userObject: user
           });
 
-          // Store notification in DB via POST API and update the notification with DB ID
-          console.log('🔍 Checking conditions for DB storage:', {
-            hasUserId: !!userId,
-            userIdValue: userId,
-            hasTitle: !!notification.title,
-            hasMessage: !!notification.message,
-            hasType: !!notification.type,
-            conditionResult: !!(userId && notification.title && notification.message && notification.type)
+          // SSE notification is already stored in DB by the backend
+          // Just add it to the local state for real-time display
+          console.log('📩 SSE notification received (already stored in DB):', {
+            id: notification.id,
+            title: notification.title,
+            message: notification.message,
+            type: notification.type,
+            userId: notification.userId
           });
-
-          if (userId && notification.title && notification.message && notification.type) {
-            console.log('✅ ALL CONDITIONS MET - Starting database storage...');
-
-            (async () => {
-              console.log('🚀 ASYNC FUNCTION STARTED - Inside database storage function');
-              try {
-                console.log('🔑 Getting authentication token...');
-                const token = getToken ? await getToken() : null;
-                console.log('🔑 Token obtained:', !!token);
-
-                const requestBody = {
-                  userId: userId,
-                  title: notification.title,
-                  message: notification.message,
-                  type: notification.type,
-                  data: notification.data || {}
-                };
-                console.log('📤 Request body prepared:', requestBody);
-
-                console.log('🌐 Making fetch request to /api/notification/store...');
-                const res = await fetch('/api/notification/store', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { Authorization: `Bearer ${token}` } : {})
-                  },
-                  body: JSON.stringify(requestBody)
-                });
-                console.log('📥 Fetch response received:', res.status, res.ok);
-
-                if (!res.ok) {
-                  const errorText = await res.text().catch(() => '');
-                  console.error('❌ Failed to store notification:', res.status, errorText);
-                } else {
-                  const result = await res.json();
-
-                  if (result.success && result.notification) {
-                    // Update the notification in state with the database ID
-                    setNotifications(prev =>
-                      prev.map(n =>
-                        n.id === notification.id
-                          ? { ...n, id: result.notification.id }
-                          : n
-                      )
-                    );
-                    console.log('✅ Notification stored in DB with ID:', result.notification.id);
-                  } else {
-                    console.error('❌ Store notification failed:', result);
-                  }
-                }
-              } catch (e) {
-                console.error('❌ Error while storing notification:', e);
-              }
-            })();
-          } else {
-            console.log('❌ Cannot store notification - missing required data:', {
-              hasUserId: !!userId,
-              hasTitle: !!notification.title,
-              hasMessage: !!notification.message,
-              hasType: !!notification.type,
-              userIdValue: userId,
-              titleValue: notification.title,
-              messageValue: notification.message,
-              typeValue: notification.type
-            });
-          }
           setNotifications(prev => {
             // Avoid duplicates
             const exists = prev.some(n => n.id === notification.id);
-            if (exists) return prev;
-            return [notification, ...prev];
+            if (exists) {
+              console.log('🔄 Duplicate notification ignored:', notification.id);
+              return prev;
+            }
+            console.log('✅ Adding new notification to state:', notification.id);
+            console.log('📊 Previous notifications count:', prev.length);
+            const newNotifications = [notification, ...prev];
+            console.log('📊 New notifications count:', newNotifications.length);
+            return newNotifications;
           });
 
           // Show browser notification if supported
@@ -221,7 +160,7 @@ const useSSENotifications = () => {
       console.error('❌ Failed to connect SSE:', error);
       setConnectionError(error.message);
     }
-  }, [getToken]);
+  }, [userId]);
 
   // Disconnect
   const disconnect = useCallback(() => {
