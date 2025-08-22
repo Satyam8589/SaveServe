@@ -151,7 +151,7 @@ export default function ExpiredListingsTable({ providerId }) {
               <Archive className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400" />
             </div>
             <h3 className="text-xl sm:text-2xl font-semibold text-gray-100 mb-2">No expired listings</h3>
-            <p className="text-gray-400 text-base sm:text-lg">You don't have any expired food listings yet.</p>
+            <p className="text-gray-400 text-base sm:text-lg">You don&apos;t have any expired food listings yet.</p>
           </div>
         </div>
       ) : (
