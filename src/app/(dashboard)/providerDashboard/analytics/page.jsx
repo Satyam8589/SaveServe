@@ -17,12 +17,12 @@ import {
   BarChart,
   Bar
 } from 'recharts';
-import { 
-  TrendingUp, 
-  Leaf, 
-  Droplets, 
-  Target, 
-  AlertTriangle, 
+import {
+  TrendingUp,
+  Leaf,
+  Droplets,
+  Target,
+  AlertTriangle,
   CheckCircle,
   Clock,
   BarChart3,
@@ -34,7 +34,10 @@ import {
   TrendingDown,
   Award,
   Calendar,
-  MapPin
+  MapPin,
+  Brain,
+  Sparkles,
+  TrendingUp as TrendingUpIcon
 } from 'lucide-react';
 import providerAnalyticsService from '@/services/providerAnalyticsService';
 
@@ -46,6 +49,7 @@ const COLORS = {
   blue: '#60a5fa',    // blue-400
   red: '#f87171',     // red-400
   green: '#4ade80',   // green-400
+  purple: '#a855f7',  // purple-500
   slate: '#1e293b',   // slate-800
   gray: '#374151',    // gray-700
 };
@@ -139,8 +143,8 @@ const ErrorCard = ({ error, retry, title = "Error Loading Data" }) => (
   </Card>
 );
 
-// Recommendation Card Component
-const RecommendationCard = ({ recommendation }) => {
+// Enhanced Recommendation Card Component with AI indicators
+const RecommendationCard = ({ recommendation, isAIPowered = false }) => {
   const getPriorityColor = (priority) => {
     switch (priority) {
       case 'high': return COLORS.red;
@@ -156,6 +160,8 @@ const RecommendationCard = ({ recommendation }) => {
       case 'success': return CheckCircle;
       case 'timing': return Clock;
       case 'category': return Utensils;
+      case 'strategy': return Brain;
+      case 'portion': return TrendingDown;
       default: return Lightbulb;
     }
   };
@@ -164,22 +170,39 @@ const RecommendationCard = ({ recommendation }) => {
   const color = getPriorityColor(recommendation.priority);
 
   return (
-    <div className="flex items-start space-x-4 p-4 border border-gray-700 rounded-lg bg-gray-800/50 hover:bg-gray-800/70 transition-all duration-200 hover:border-gray-600">
+    <div className={`flex items-start space-x-4 p-4 border rounded-lg transition-all duration-200 hover:border-gray-600 ${
+      isAIPowered
+        ? 'border-emerald-500/30 bg-gradient-to-r from-emerald-900/10 to-gray-800/50 hover:from-emerald-900/20'
+        : 'border-gray-700 bg-gray-800/50 hover:bg-gray-800/70'
+    }`}>
       <div className="flex-shrink-0">
-        <div 
-          className="w-10 h-10 rounded-full flex items-center justify-center"
+        <div
+          className="w-10 h-10 rounded-full flex items-center justify-center relative"
           style={{ backgroundColor: `${color}20` }}
         >
           <Icon className="w-5 h-5" style={{ color }} />
+          {isAIPowered && (
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center">
+              <Sparkles className="w-2.5 h-2.5 text-white" />
+            </div>
+          )}
         </div>
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-1">
-          <h4 className="font-medium text-white truncate">{recommendation.title}</h4>
-          <span 
+          <div className="flex items-center space-x-2">
+            <h4 className="font-medium text-white truncate">{recommendation.title}</h4>
+            {isAIPowered && (
+              <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs rounded-full border border-emerald-500/30 flex items-center">
+                <Brain className="w-3 h-3 mr-1" />
+                AI
+              </span>
+            )}
+          </div>
+          <span
             className="px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 ml-2"
-            style={{ 
-              backgroundColor: `${color}20`, 
+            style={{
+              backgroundColor: `${color}20`,
               color: color,
               border: `1px solid ${color}40`
             }}
@@ -187,7 +210,13 @@ const RecommendationCard = ({ recommendation }) => {
             {recommendation.priority}
           </span>
         </div>
-        <p className="text-gray-400 text-sm leading-relaxed">{recommendation.description}</p>
+        <p className="text-gray-400 text-sm leading-relaxed mb-2">{recommendation.description}</p>
+        {recommendation.expectedImpact && (
+          <div className="flex items-center text-xs text-emerald-400">
+            <TrendingUpIcon className="w-3 h-3 mr-1" />
+            <span>Expected impact: {recommendation.expectedImpact}</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -574,10 +603,26 @@ export default function ProviderAnalyticsPage() {
           <Card className="lg:col-span-2">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center">
-                <div className="w-10 h-10 bg-green-600/20 rounded-full flex items-center justify-center mr-3">
-                  <Lightbulb className="w-5 h-5" style={{ color: COLORS.green }} />
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${
+                  recommendations?.aiPowered
+                    ? 'bg-gradient-to-r from-emerald-600/20 to-green-600/20'
+                    : 'bg-green-600/20'
+                }`}>
+                  {recommendations?.aiPowered ? (
+                    <Brain className="w-5 h-5" style={{ color: COLORS.emerald }} />
+                  ) : (
+                    <Lightbulb className="w-5 h-5" style={{ color: COLORS.green }} />
+                  )}
                 </div>
-                <h3 className="text-xl font-semibold text-white">Smart Recommendations</h3>
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-xl font-semibold text-white">Smart Recommendations</h3>
+                  {recommendations?.aiPowered && (
+                    <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-full border border-emerald-500/30 flex items-center">
+                      <Sparkles className="w-3 h-3 mr-1" />
+                      AI-Powered
+                    </span>
+                  )}
+                </div>
               </div>
               {!recommendationsLoading && !recommendationsError && recommendations && (
                 <button
@@ -608,7 +653,11 @@ export default function ProviderAnalyticsPage() {
               <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
                 {recommendations.recommendations.length > 0 ? (
                   recommendations.recommendations.map((rec, index) => (
-                    <RecommendationCard key={index} recommendation={rec} />
+                    <RecommendationCard
+                      key={index}
+                      recommendation={rec}
+                      isAIPowered={recommendations.aiPowered}
+                    />
                   ))
                 ) : (
                   <div className="text-center py-12">
@@ -625,7 +674,82 @@ export default function ProviderAnalyticsPage() {
           </Card>
         </section>
 
-        
+        {/* AI Insights Section - Only show if AI-powered recommendations are available */}
+        {recommendations?.aiPowered && recommendations?.insights && (
+          <section>
+            <Card>
+              <div className="flex items-center mb-6">
+                <div className="w-10 h-10 bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-full flex items-center justify-center mr-3">
+                  <Brain className="w-5 h-5" style={{ color: COLORS.purple }} />
+                </div>
+                <h3 className="text-xl font-semibold text-white">AI Insights & Patterns</h3>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Category Performance */}
+                {recommendations.insights.categoryBreakdown && recommendations.insights.categoryBreakdown.length > 0 && (
+                  <div className="space-y-4">
+                    <h4 className="text-lg font-medium text-white flex items-center">
+                      <Utensils className="w-4 h-4 mr-2" style={{ color: COLORS.orange }} />
+                      Category Performance
+                    </h4>
+                    <div className="space-y-3">
+                      {recommendations.insights.categoryBreakdown.map((category, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg border border-gray-700">
+                          <div className="flex-1">
+                            <span className="text-white font-medium">{category.category}</span>
+                            <div className="text-sm text-gray-400">
+                              {category.totalListed} listed • {category.totalCollected} collected
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className={`text-sm font-medium ${
+                              parseFloat(category.wasteRate) > 25 ? 'text-red-400' :
+                              parseFloat(category.wasteRate) > 15 ? 'text-orange-400' : 'text-emerald-400'
+                            }`}>
+                              {category.wasteRate}% waste
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Day of Week Patterns */}
+                {recommendations.insights.dayOfWeekPatterns && recommendations.insights.dayOfWeekPatterns.length > 0 && (
+                  <div className="space-y-4">
+                    <h4 className="text-lg font-medium text-white flex items-center">
+                      <Calendar className="w-4 h-4 mr-2" style={{ color: COLORS.blue }} />
+                      Weekly Patterns
+                    </h4>
+                    <div className="space-y-3">
+                      {recommendations.insights.dayOfWeekPatterns.map((day, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg border border-gray-700">
+                          <div className="flex-1">
+                            <span className="text-white font-medium">{day.day}</span>
+                            <div className="text-sm text-gray-400">
+                              {day.totalListed} listed • {day.totalCollected} collected
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className={`text-sm font-medium ${
+                              parseFloat(day.wasteRate) > 30 ? 'text-red-400' :
+                              parseFloat(day.wasteRate) > 20 ? 'text-orange-400' : 'text-emerald-400'
+                            }`}>
+                              {day.wasteRate}% waste
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </section>
+        )}
+
       </div>
     </div>
   );
