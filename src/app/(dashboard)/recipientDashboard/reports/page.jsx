@@ -105,65 +105,97 @@ export default function RecipientReportsPage() {
   const renderReportContent = (report) => {
     if (!report) return null;
 
+    // Handle different data structures - check if data is nested or direct
+    const impactData = report.data?.impact || report.impact || {};
+    const activityData = report.data?.activity || report.activity || {};
+    const periodData = report.period || {};
+
+    // Provide fallback values for missing data
+    const metrics = {
+      mealsSaved: impactData.mealsSaved || 0,
+      carbonSaved: impactData.carbonSaved || '0.0',
+      waterSaved: impactData.waterSaved || 0,
+      impactScore: impactData.impactScore || 0,
+      totalBooked: activityData.totalBooked || 0,
+      totalCompleted: activityData.totalCompleted || 0,
+      successRate: activityData.successRate || 0
+    };
+
     return (
       <div className="space-y-6">
         {/* Report Header */}
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-xl font-semibold text-white">
-              {report.reportType.charAt(0).toUpperCase() + report.reportType.slice(1)} Impact Report
+              {(report.reportType || 'Weekly').charAt(0).toUpperCase() + (report.reportType || 'weekly').slice(1)} Impact Report
             </h3>
             <p className="text-gray-400">
-              {formatDate(report.period.start)} - {formatDate(report.period.end)}
+              {periodData.start ? formatDate(periodData.start) : 'Recent Period'} - {periodData.end ? formatDate(periodData.end) : 'Now'}
             </p>
           </div>
           <div className="flex items-center space-x-2">
             <span className="text-sm text-gray-500">
-              Generated: {formatDate(report.generatedAt)}
+              Generated: {report.generatedAt ? formatDate(report.generatedAt) : 'Just now'}
             </span>
             <CheckCircle className="w-4 h-4 text-green-400" />
           </div>
         </div>
 
-        {/* Key Impact Metrics */}
+        {/* Data Status Indicator */}
+        {report.hasRealData === false && (
+          <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-3">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 text-yellow-400" />
+              <span className="text-sm text-yellow-200">
+                Using demo data - Start using SaveServe to see your real impact!
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Key Impact Metrics - Only Completed Food */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <ReportCard className="bg-gradient-to-r from-emerald-900 to-emerald-800 border-emerald-700">
             <div className="text-center">
               <Utensils className="w-8 h-8 text-emerald-300 mx-auto mb-2" />
               <div className="text-2xl font-bold text-white">
-                {report.data.impact.mealsSaved}
+                {metrics.mealsSaved}
               </div>
-              <div className="text-sm text-emerald-200">Meals Saved</div>
+              <div className="text-sm text-emerald-200">Meals Rescued</div>
+              <div className="text-xs text-emerald-300 mt-1">Actually Picked Up</div>
             </div>
           </ReportCard>
-          
+
           <ReportCard className="bg-gradient-to-r from-blue-900 to-blue-800 border-blue-700">
             <div className="text-center">
               <Globe className="w-8 h-8 text-blue-300 mx-auto mb-2" />
               <div className="text-2xl font-bold text-white">
-                {report.data.impact.carbonSaved}kg
+                {metrics.carbonSaved}kg
               </div>
               <div className="text-sm text-blue-200">CO₂ Saved</div>
+              <div className="text-xs text-blue-300 mt-1">From Completed Rescues</div>
             </div>
           </ReportCard>
-          
+
           <ReportCard className="bg-gradient-to-r from-cyan-900 to-cyan-800 border-cyan-700">
             <div className="text-center">
               <Droplet className="w-8 h-8 text-cyan-300 mx-auto mb-2" />
               <div className="text-2xl font-bold text-white">
-                {report.data.impact.waterSaved}L
+                {metrics.waterSaved}L
               </div>
               <div className="text-sm text-cyan-200">Water Saved</div>
+              <div className="text-xs text-cyan-300 mt-1">From Rescued Food</div>
             </div>
           </ReportCard>
-          
+
           <ReportCard className="bg-gradient-to-r from-yellow-900 to-yellow-800 border-yellow-700">
             <div className="text-center">
               <Award className="w-8 h-8 text-yellow-300 mx-auto mb-2" />
               <div className="text-2xl font-bold text-white">
-                {report.data.impact.impactScore}
+                {metrics.impactScore}
               </div>
               <div className="text-sm text-yellow-200">Impact Score</div>
+              <div className="text-xs text-yellow-300 mt-1">Based on Completions</div>
             </div>
           </ReportCard>
         </div>
@@ -173,90 +205,118 @@ export default function RecipientReportsPage() {
           <ReportCard>
             <div className="text-center">
               <div className="text-xl font-bold text-blue-400">
-                {report.data.activity.totalBooked}
+                {metrics.totalBooked}
               </div>
               <div className="text-sm text-gray-400">Total Bookings</div>
+              <div className="text-xs text-gray-500 mt-1">All Attempts</div>
             </div>
           </ReportCard>
-          
+
           <ReportCard>
             <div className="text-center">
               <div className="text-xl font-bold text-green-400">
-                {report.data.activity.totalCompleted}
+                {metrics.totalCompleted}
               </div>
               <div className="text-sm text-gray-400">Completed</div>
+              <div className="text-xs text-gray-500 mt-1">Successfully Picked Up</div>
             </div>
           </ReportCard>
-          
+
           <ReportCard>
             <div className="text-center">
               <div className="text-xl font-bold text-emerald-400">
-                {report.data.activity.successRate}%
+                {metrics.successRate}%
               </div>
               <div className="text-sm text-gray-400">Success Rate</div>
+              <div className="text-xs text-gray-500 mt-1">Completion Rate</div>
             </div>
           </ReportCard>
         </div>
 
         {/* AI-Generated Report */}
-        <ReportCard>
-          <div className="space-y-4">
-            <div className="flex items-center">
-              <Award className="w-5 h-5 text-emerald-400 mr-2" />
-              <h4 className="text-lg font-semibold text-white">Your Impact Story</h4>
-            </div>
-            <div className="prose prose-invert max-w-none">
-              <div 
-                className="text-gray-300 leading-relaxed"
-                dangerouslySetInnerHTML={{ 
-                  __html: report.narrative.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') 
-                }}
-              />
-            </div>
-          </div>
-        </ReportCard>
-
-        {/* Achievements */}
-        {report.data.achievements && (
+        {report.narrative && (
           <ReportCard>
             <div className="space-y-4">
-              <h4 className="text-lg font-semibold text-white">Achievement Progress</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className={`text-center p-3 rounded-lg ${report.data.achievements.firstClaim ? 'bg-yellow-900/30' : 'bg-gray-700/30'}`}>
-                  <Award className={`w-6 h-6 mx-auto mb-2 ${report.data.achievements.firstClaim ? 'text-yellow-400' : 'text-gray-500'}`} />
-                  <p className={`text-sm font-medium ${report.data.achievements.firstClaim ? 'text-gray-300' : 'text-gray-400'}`}>First Claim</p>
-                  <p className={`text-xs ${report.data.achievements.firstClaim ? 'text-yellow-400' : 'text-gray-500'}`}>
-                    {report.data.achievements.firstClaim ? 'Completed' : 'Pending'}
-                  </p>
-                </div>
-                
-                <div className={`text-center p-3 rounded-lg ${report.data.achievements.tenMeals ? 'bg-emerald-900/30' : 'bg-gray-700/30'}`}>
-                  <Award className={`w-6 h-6 mx-auto mb-2 ${report.data.achievements.tenMeals ? 'text-emerald-400' : 'text-gray-500'}`} />
-                  <p className={`text-sm font-medium ${report.data.achievements.tenMeals ? 'text-gray-300' : 'text-gray-400'}`}>10 Meals</p>
-                  <p className={`text-xs ${report.data.achievements.tenMeals ? 'text-emerald-400' : 'text-gray-500'}`}>
-                    {report.data.achievements.tenMeals ? 'Achieved' : `${report.data.achievements.progress?.tenMeals || 0}/10`}
-                  </p>
-                </div>
-                
-                <div className={`text-center p-3 rounded-lg ${report.data.achievements.fiftyMeals ? 'bg-blue-900/30' : 'bg-gray-700/30'}`}>
-                  <Award className={`w-6 h-6 mx-auto mb-2 ${report.data.achievements.fiftyMeals ? 'text-blue-400' : 'text-gray-500'}`} />
-                  <p className={`text-sm font-medium ${report.data.achievements.fiftyMeals ? 'text-gray-300' : 'text-gray-400'}`}>50 Meals</p>
-                  <p className={`text-xs ${report.data.achievements.fiftyMeals ? 'text-blue-400' : 'text-gray-500'}`}>
-                    {report.data.achievements.fiftyMeals ? 'Achieved' : `${report.data.achievements.progress?.fiftyMeals || 0}/50`}
-                  </p>
-                </div>
-                
-                <div className={`text-center p-3 rounded-lg ${report.data.achievements.ecoHero ? 'bg-purple-900/30' : 'bg-gray-700/30'}`}>
-                  <Award className={`w-6 h-6 mx-auto mb-2 ${report.data.achievements.ecoHero ? 'text-purple-400' : 'text-gray-500'}`} />
-                  <p className={`text-sm font-medium ${report.data.achievements.ecoHero ? 'text-gray-300' : 'text-gray-400'}`}>Eco Hero</p>
-                  <p className={`text-xs ${report.data.achievements.ecoHero ? 'text-purple-400' : 'text-gray-500'}`}>
-                    {report.data.achievements.ecoHero ? 'Achieved' : `${report.data.achievements.progress?.ecoHero || 0}/1000`}
-                  </p>
-                </div>
+              <div className="flex items-center">
+                <Award className="w-5 h-5 text-emerald-400 mr-2" />
+                <h4 className="text-lg font-semibold text-white">Your Impact Story</h4>
+              </div>
+              <div className="prose prose-invert max-w-none">
+                <div
+                  className="text-gray-300 leading-relaxed"
+                  dangerouslySetInnerHTML={{
+                    __html: report.narrative.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                  }}
+                />
               </div>
             </div>
           </ReportCard>
         )}
+
+        {/* Summary Card when no narrative */}
+        {!report.narrative && (
+          <ReportCard>
+            <div className="space-y-4">
+              <div className="flex items-center">
+                <Award className="w-5 h-5 text-emerald-400 mr-2" />
+                <h4 className="text-lg font-semibold text-white">Your Impact Summary</h4>
+              </div>
+              <div className="text-gray-300 leading-relaxed">
+                <p className="mb-3">
+                  <strong>Great work this {report.reportType || 'period'}!</strong> You've made a real difference in fighting food waste.
+                </p>
+                <p className="mb-3">
+                  Your <strong>{metrics.mealsSaved} rescued meals</strong> represent actual food that was saved from waste and put to good use.
+                  This prevented <strong>{metrics.carbonSaved}kg of CO₂</strong> from entering the atmosphere and saved <strong>{metrics.waterSaved} liters</strong> of water.
+                </p>
+                <p>
+                  With a <strong>{metrics.successRate}% completion rate</strong> ({metrics.totalCompleted} completed out of {metrics.totalBooked} bookings),
+                  you're showing real commitment to the cause. Keep up the excellent work! 🌱
+                </p>
+              </div>
+            </div>
+          </ReportCard>
+        )}
+
+        {/* Achievements */}
+        <ReportCard>
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold text-white">Achievement Progress</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className={`text-center p-3 rounded-lg ${metrics.totalCompleted > 0 ? 'bg-yellow-900/30' : 'bg-gray-700/30'}`}>
+                <Award className={`w-6 h-6 mx-auto mb-2 ${metrics.totalCompleted > 0 ? 'text-yellow-400' : 'text-gray-500'}`} />
+                <p className={`text-sm font-medium ${metrics.totalCompleted > 0 ? 'text-gray-300' : 'text-gray-400'}`}>First Rescue</p>
+                <p className={`text-xs ${metrics.totalCompleted > 0 ? 'text-yellow-400' : 'text-gray-500'}`}>
+                  {metrics.totalCompleted > 0 ? 'Completed' : 'Pending'}
+                </p>
+              </div>
+
+              <div className={`text-center p-3 rounded-lg ${metrics.mealsSaved >= 10 ? 'bg-emerald-900/30' : 'bg-gray-700/30'}`}>
+                <Award className={`w-6 h-6 mx-auto mb-2 ${metrics.mealsSaved >= 10 ? 'text-emerald-400' : 'text-gray-500'}`} />
+                <p className={`text-sm font-medium ${metrics.mealsSaved >= 10 ? 'text-gray-300' : 'text-gray-400'}`}>10 Meals</p>
+                <p className={`text-xs ${metrics.mealsSaved >= 10 ? 'text-emerald-400' : 'text-gray-500'}`}>
+                  {metrics.mealsSaved >= 10 ? 'Achieved' : `${metrics.mealsSaved}/10`}
+                </p>
+              </div>
+
+              <div className={`text-center p-3 rounded-lg ${metrics.mealsSaved >= 50 ? 'bg-blue-900/30' : 'bg-gray-700/30'}`}>
+                <Award className={`w-6 h-6 mx-auto mb-2 ${metrics.mealsSaved >= 50 ? 'text-blue-400' : 'text-gray-500'}`} />
+                <p className={`text-sm font-medium ${metrics.mealsSaved >= 50 ? 'text-gray-300' : 'text-gray-400'}`}>50 Meals</p>
+                <p className={`text-xs ${metrics.mealsSaved >= 50 ? 'text-blue-400' : 'text-gray-500'}`}>
+                  {metrics.mealsSaved >= 50 ? 'Achieved' : `${metrics.mealsSaved}/50`}
+                </p>
+              </div>
+
+              <div className={`text-center p-3 rounded-lg ${metrics.successRate >= 80 ? 'bg-purple-900/30' : 'bg-gray-700/30'}`}>
+                <Award className={`w-6 h-6 mx-auto mb-2 ${metrics.successRate >= 80 ? 'text-purple-400' : 'text-gray-500'}`} />
+                <p className={`text-sm font-medium ${metrics.successRate >= 80 ? 'text-gray-300' : 'text-gray-400'}`}>Reliable</p>
+                <p className={`text-xs ${metrics.successRate >= 80 ? 'text-purple-400' : 'text-gray-500'}`}>
+                  {metrics.successRate >= 80 ? 'Achieved' : `${metrics.successRate}%/80%`}
+                </p>
+              </div>
+            </div>
+          </div>
+        </ReportCard>
 
         {/* Summary */}
         <ReportCard>
