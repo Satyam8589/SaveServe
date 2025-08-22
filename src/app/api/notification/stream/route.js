@@ -5,10 +5,11 @@ import { auth } from '@clerk/nextjs/server';
 
 export async function GET(request) {
   try {
-    // Authenticate the user
+    // Authenticate the user using standard Clerk auth (cookies)
     const { userId } = await auth(request);
-    
+
     if (!userId) {
+      console.log('❌ SSE authentication failed - no userId found');
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
@@ -45,11 +46,13 @@ export async function GET(request) {
         // Store connection globally for sending notifications
         if (!global.sseConnections) {
           global.sseConnections = new Map();
+          console.log('🆕 Created new SSE connections map');
         }
         global.sseConnections.set(userId, controller);
 
         console.log(`✅ SSE connection established for user: ${userId}`);
         console.log(`📊 Total active SSE connections: ${global.sseConnections.size}`);
+        console.log(`📋 Active user IDs: ${Array.from(global.sseConnections.keys()).join(', ')}`);
 
         // Cleanup on disconnect
         request.signal?.addEventListener('abort', () => {

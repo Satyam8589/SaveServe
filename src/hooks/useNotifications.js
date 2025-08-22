@@ -1,10 +1,11 @@
 // hooks/useNotifications.js
-// MongoDB-based notification hook (updated from Firestore)
+// MongoDB-based notification hook with SSE integration
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useUser } from '@clerk/nextjs';
+import { useAuth } from '@clerk/nextjs';
 
 const NOTIFICATIONS_QUERY_KEY = 'mongo-notifications';
 
@@ -14,17 +15,23 @@ const NOTIFICATIONS_QUERY_KEY = 'mongo-notifications';
 export function useNotifications(options = {}) {
   const {
     limit = 50,
-    enableRealtime = false, // Disabled real-time for MongoDB
+    enableRealtime = false, // Now enables SSE real-time notifications
     filterUnread = false,
-    refetchInterval = 30000, // Refetch every 30 seconds instead of real-time
+    refetchInterval = 30000, // Fallback polling interval
   } = options;
 
   // Get user ID from Clerk
   const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
+  const { getToken } = useAuth();
   const userId = clerkUser?.id;
 
   const queryClient = useQueryClient();
   const [isConnected, setIsConnected] = useState(true);
+
+  // SSE connection state
+  const [isSSEConnected, setIsSSEConnected] = useState(false);
+  const [sseError, setSSEError] = useState(null);
+  const eventSourceRef = useRef(null);
 
   // Query key for this user's notifications
   const queryKey = [NOTIFICATIONS_QUERY_KEY, userId, { limit, filterUnread }];
@@ -86,6 +93,91 @@ export function useNotifications(options = {}) {
   const notifications = notificationsData?.notifications || [];
   const unreadCount = notificationsData?.unreadCount || 0;
   const hasUnread = unreadCount > 0;
+
+  // SSE Connection Logic
+  const connectSSE = useCallback(async () => {
+    if (!enableRealtime || !getToken || eventSourceRef.current || !isReady) return;
+
+    try {
+      console.log('🔗 Connecting to SSE for real-time notifications...');
+
+      // Get auth token using Clerk useAuth
+      const token = await getToken();
+      if (!token) throw new Error('Failed to get Clerk token');
+
+      // Create EventSource with auth header (via URL param for browser compatibility)
+      const eventSource = new EventSource(
+        `/api/notification/stream?token=${encodeURIComponent(token)}`
+      );
+
+      eventSource.onopen = () => {
+        console.log('✅ SSE Connected for real-time notifications');
+        setIsSSEConnected(true);
+        setSSEError(null);
+      };
+
+      eventSource.onmessage = (event) => {
+        console.log('📩 Real-time notification received:', event.data);
+        try {
+          const notification = JSON.parse(event.data);
+
+          // Invalidate and refetch notifications to get the latest data
+          queryClient.invalidateQueries({ queryKey: [NOTIFICATIONS_QUERY_KEY, userId] });
+
+          // Show browser notification if supported and page is hidden
+          if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+            new Notification(notification.title, {
+              body: notification.message,
+              icon: '/favicon.ico'
+            });
+          }
+        } catch (error) {
+          console.error('Error parsing SSE notification:', error);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error('❌ SSE Error:', error);
+        setIsSSEConnected(false);
+        setSSEError('Connection lost');
+
+        // Auto-reconnect after delay
+        setTimeout(() => {
+          if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+            eventSourceRef.current = null;
+            connectSSE();
+          }
+        }, 5000);
+      };
+
+      eventSourceRef.current = eventSource;
+
+    } catch (error) {
+      console.error('❌ Failed to connect SSE:', error);
+      setSSEError(error.message);
+    }
+  }, [enableRealtime, getToken, isReady, userId, queryClient]);
+
+  // Disconnect SSE
+  const disconnectSSE = useCallback(() => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+      setIsSSEConnected(false);
+    }
+  }, []);
+
+  // Connect/disconnect SSE when conditions change
+  useEffect(() => {
+    if (enableRealtime && isReady) {
+      connectSSE();
+    } else {
+      disconnectSSE();
+    }
+
+    return disconnectSSE;
+  }, [enableRealtime, isReady, connectSSE, disconnectSSE]);
 
   // Mark notification as read mutation
   const markAsReadMutation = useMutation({
@@ -153,10 +245,14 @@ export function useNotifications(options = {}) {
     isLoading,
     isConnected,
     isReady,
-    
+
+    // SSE connection states
+    isSSEConnected,
+    sseError,
+
     // User info
     userId,
-    
+
     // Error handling
     error,
     

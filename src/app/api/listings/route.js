@@ -11,6 +11,10 @@ import {
   sendCompleteNotificationToRole,
   NOTIFICATION_TYPES,
 } from "@/lib/mongoNotificationService";
+import {
+  sendSSENotification,
+  sendSSENotificationToRole,
+} from "@/lib/sendSSENotification";
 
 // GET - Retrieve listings with pagination and filtering
 export async function GET(request) {
@@ -271,45 +275,36 @@ export async function POST(request) {
     try {
       console.log("📢 Sending listing confirmation to provider:", providerId);
 
-      // 📱 Send complete notification (FCM + MongoDB)
-      console.log("📢 Sending listing confirmation to provider:", providerId);
-
-      const providerNotificationResult = await sendCompleteNotification(
-        providerId,
-        "Listing Created Successfully! ✅",
-        `Your food listing "${title}" has been posted and recipients have been notified.`,
-        {
-          listingId: savedListing._id.toString(),
-          action: "listing_created_confirmation",
-        },
-        {
-          type: NOTIFICATION_TYPES.LISTING_CREATED_CONFIRMATION,
-          listingId: savedListing._id.toString(),
-          listingTitle: title,
-          location: location,
-        }
-      );
-      console.log(
-        "📨 Provider FCM+MongoDB result:",
-        providerNotificationResult
-      );
-
-      // 📡 Send SSE to provider
-      const providerSSEResult = sendSSENotification(providerId, {
+      // 📡 Send SSE to provider (stores in DB + real-time notification)
+      const providerSSEResult = await sendSSENotification(providerId, {
         title: "Listing Created Successfully! ✅",
         message: `Your food listing "${title}" has been posted and recipients have been notified.`,
-        type: "success",
+        type: "listing_created_confirmation",
         data: {
           listingId: savedListing._id.toString(),
           action: "listing_created_confirmation",
+          listingTitle: title,
+          location: location,
         },
       });
       console.log("📡 Provider SSE result:", providerSSEResult);
 
-      console.log(
-        "📨 Provider notification result:",
-        providerNotificationResult
-      );
+      // // 📱 FCM notification (commented out - using SSE for real-time)
+      // const providerNotificationResult = await sendCompleteNotification(
+      //   providerId,
+      //   "Listing Created Successfully! ✅",
+      //   `Your food listing "${title}" has been posted and recipients have been notified.`,
+      //   {
+      //     listingId: savedListing._id.toString(),
+      //     action: "listing_created_confirmation",
+      //   },
+      //   {
+      //     type: NOTIFICATION_TYPES.LISTING_CREATED_CONFIRMATION,
+      //     listingId: savedListing._id.toString(),
+      //     listingTitle: title,
+      //     location: location,
+      //   }
+      // );
     } catch (notificationError) {
       console.error(
         "❌ Failed to send provider confirmation:",
