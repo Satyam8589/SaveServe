@@ -141,7 +141,6 @@ class EmailService {
    */
   formatReportEmail(template, report) {
     const isProvider = report.type === 'provider';
-    const data = report.data;
     
     return `
 <!DOCTYPE html>
@@ -386,6 +385,63 @@ Your Impact:
   }
 
   /**
+   * Generate impact highlight section
+   */
+  generateImpactSection(report) {
+    if (report.type === 'provider') {
+      const { kpis } = report.data;
+      const wasteReduced = kpis.totalFoodListed - kpis.totalFoodCollected;
+      return `
+        <div class="impact-highlight">
+          <h3>🌍 Your Environmental Impact</h3>
+          <p>You've prevented <strong>${wasteReduced} items</strong> from going to waste!</p>
+          <p>That's equivalent to saving <strong>${kpis.carbonSaved}kg CO₂</strong> and <strong>${kpis.waterSaved}L water</strong></p>
+        </div>`;
+    } else {
+      const { impact } = report.data;
+      return `
+        <div class="impact-highlight">
+          <h3>🏆 Your Food Rescue Impact</h3>
+          <p>You've rescued <strong>${impact.mealsSaved} meals</strong> from waste!</p>
+          <p>Your actions saved <strong>${impact.carbonSaved}kg CO₂</strong> and <strong>${impact.waterSaved}L water</strong></p>
+        </div>`;
+    }
+  }
+
+  /**
+   * Generate prevention tips section
+   */
+  generatePreventionTips(report) {
+    if (report.type === 'provider') {
+      return `
+        <div class="prevention-tips">
+          <h4>💡 Food Waste Prevention Tips for Providers</h4>
+          <ul>
+            <li><strong>Plan Better:</strong> Use historical data to predict demand more accurately</li>
+            <li><strong>First In, First Out:</strong> Rotate stock to use older items first</li>
+            <li><strong>Portion Control:</strong> Offer multiple portion sizes to reduce plate waste</li>
+            <li><strong>Staff Training:</strong> Train staff on proper food storage and handling</li>
+            <li><strong>Quick Listing:</strong> List surplus food on SaveServe as soon as possible</li>
+            <li><strong>Partner with NGOs:</strong> Build relationships for regular bulk donations</li>
+          </ul>
+        </div>`;
+    } else {
+      return `
+        <div class="prevention-tips">
+          <h4>🌱 How You're Helping Prevent Food Waste</h4>
+          <ul>
+            <li><strong>Rescue Meals:</strong> Every claim saves food from landfills</li>
+            <li><strong>Reduce Methane:</strong> Preventing food waste reduces greenhouse gas emissions</li>
+            <li><strong>Save Resources:</strong> You're conserving water, energy, and land used in food production</li>
+            <li><strong>Support Community:</strong> Your actions help build a sustainable food system</li>
+            <li><strong>Spread Awareness:</strong> Share SaveServe with friends to multiply the impact</li>
+            <li><strong>Be Consistent:</strong> Regular participation creates lasting change</li>
+          </ul>
+        </div>`;
+    }
+  }
+
+  /**
    * Simple markdown to HTML converter
    */
   markdownToHTML(markdown) {
@@ -398,6 +454,44 @@ Your Impact:
       .replace(/^\- (.*$)/gim, '<li>$1</li>')
       .replace(/(<li>.*<\/li>)/gims, '<ul>$1</ul>')
       .replace(/\n/gim, '<br>');
+  }
+
+  /**
+   * Send bulk listing notification email to NGO
+   */
+  async sendBulkListingNotification(listing, provider, ngo) {
+    if (!this.transporter) {
+      console.log('Email transporter not configured. Skipping NGO notification.');
+      return { success: false, reason: 'Email not configured' };
+    }
+
+    try {
+      const ngoNotificationService = (await import('./ngoNotificationService')).default;
+      const emailContent = ngoNotificationService.generateBulkListingEmailHTML(listing, provider, ngo);
+      const textContent = ngoNotificationService.generateBulkListingEmailText(listing, provider, ngo);
+
+      const mailOptions = {
+        from: process.env.FROM_EMAIL || process.env.SMTP_USER,
+        to: ngo.email,
+        subject: `🚨 Bulk Food Available: ${listing.quantity} items from ${provider.name}`,
+        html: emailContent,
+        text: textContent,
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+
+      console.log(`NGO notification sent successfully to ${ngo.email}:`, result.messageId);
+
+      return {
+        success: true,
+        messageId: result.messageId,
+        recipient: ngo.email,
+        listingId: listing._id,
+      };
+    } catch (error) {
+      console.error('Error sending NGO notification:', error);
+      throw new Error(`Failed to send NGO notification: ${error.message}`);
+    }
   }
 
   /**
