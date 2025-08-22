@@ -15,6 +15,7 @@ import {
   sendSSENotification,
   sendSSENotificationToRole,
 } from "@/lib/sendSSENotification";
+import ngoNotificationService from "@/services/ngoNotificationService";
 
 // GET - Retrieve listings with pagination and filtering
 export async function GET(request) {
@@ -223,6 +224,30 @@ export async function POST(request) {
     console.log("🆔 Saved listing ID:", savedListing._id);
     console.log("🖼️ Saved imageUrl:", savedListing.imageUrl);
 
+    // 🚨 Check for bulk listing and notify NGOs if quantity >= 50
+    let ngoNotificationResult = null;
+    try {
+      if (savedListing.quantity >= 50) {
+        console.log(`🚨 Bulk listing detected (${savedListing.quantity} items). Notifying NGOs...`);
+
+        ngoNotificationResult = await ngoNotificationService.notifyNGOsOfBulkListing(
+          savedListing.toObject(),
+          {
+            name: providerName,
+            email: "", // We don't have provider email here, but NGO service will handle it
+            id: providerId
+          }
+        );
+
+        console.log("📧 NGO notification result:", ngoNotificationResult);
+      } else {
+        console.log(`📦 Regular listing (${savedListing.quantity} items). No NGO notification needed.`);
+      }
+    } catch (ngoError) {
+      console.error("❌ Failed to notify NGOs:", ngoError);
+      // Don't fail the whole request if NGO notification fails
+    }
+
     // 📢 Send notifications to recipients
     try {
       console.log("📢 Sending notifications to all recipients");
@@ -321,23 +346,14 @@ export async function POST(request) {
           recipientsNotified: true,
           providerConfirmed: true,
           sseNotifications: true,
+          ngoNotified: ngoNotificationResult ? ngoNotificationResult.emailsSent > 0 : false,
+          ngoNotificationDetails: ngoNotificationResult,
         },
       },
       { status: 201 }
     );
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: savedListing,
-        notifications: {
-          sent: true,
-          recipientsNotified: true,
-          providerConfirmed: true,
-        },
-      },
-      { status: 201 }
-    );
+
   } catch (error) {
     console.error("❌ POST /api/listings error:", error);
 
