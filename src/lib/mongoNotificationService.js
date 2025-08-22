@@ -80,8 +80,7 @@ export async function createMongoNotification(
 
     return {
       success: true,
-      notificationId: notification._id.toString(),
-      data: notificationData,
+      notification: notification, // Return the entire saved notification object
     };
   } catch (error) {
     console.error("❌ MongoDB notification failed:", error);
