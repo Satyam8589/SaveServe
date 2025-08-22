@@ -22,8 +22,15 @@ class GeminiReportService {
       const response = await result.response;
       return response.text();
     } catch (error) {
-      console.error('Error generating provider report:', error);
-      throw new Error('Failed to generate provider report');
+      console.error('Gemini API error for provider report:', error);
+
+      // Check if it's a quota/rate limit error
+      if (error.message.includes('quota') || error.message.includes('429') || error.message.includes('Too Many Requests')) {
+        console.log('Gemini API quota exceeded. Using fallback report generation.');
+        return this.generateFallbackProviderReport(data, reportType);
+      }
+
+      throw new Error(`Failed to generate provider report: ${error.message}`);
     }
   }
 
@@ -38,8 +45,15 @@ class GeminiReportService {
       const response = await result.response;
       return response.text();
     } catch (error) {
-      console.error('Error generating recipient report:', error);
-      throw new Error('Failed to generate recipient report');
+      console.error('Gemini API error for recipient report:', error);
+
+      // Check if it's a quota/rate limit error
+      if (error.message.includes('quota') || error.message.includes('429') || error.message.includes('Too Many Requests')) {
+        console.log('Gemini API quota exceeded. Using fallback report generation.');
+        return this.generateFallbackRecipientReport(data, reportType);
+      }
+
+      throw new Error(`Failed to generate recipient report: ${error.message}`);
     }
   }
 
@@ -196,6 +210,101 @@ Format in professional markdown suitable for stakeholder communication.
       console.error('Error generating summary report:', error);
       throw new Error('Failed to generate summary report');
     }
+  }
+  /**
+   * Generate fallback provider report when Gemini API is unavailable
+   */
+  generateFallbackProviderReport(data, reportType) {
+    const { kpis, provider, period } = data;
+    const periodName = reportType.charAt(0).toUpperCase() + reportType.slice(1);
+
+    return `# ${periodName} Analytics Report for ${provider.name}
+
+## 📊 Performance Summary
+
+Great work this ${reportType}! Here's your food waste reduction impact:
+
+### Key Achievements
+- **${kpis.totalFoodListed} items** listed on SaveServe
+- **${kpis.totalFoodCollected} items** successfully collected by recipients
+- **${kpis.carbonSaved}kg CO₂** saved from the environment
+- **${kpis.waterSaved} liters** of water conserved
+
+### Environmental Impact
+Your efforts this ${reportType} prevented **${kpis.totalFoodWasted} items** from going to waste, achieving a **${100 - parseFloat(kpis.wastePercentage)}%** success rate in food rescue operations.
+
+## 💡 Recommendations
+
+### Continue Your Great Work
+- Your current waste reduction rate of **${100 - parseFloat(kpis.wastePercentage)}%** shows excellent food management
+- Keep listing surplus food promptly to maximize rescue opportunities
+- Consider partnering with local NGOs for bulk donations
+
+### Areas for Growth
+- List food items earlier in the day for better visibility
+- Provide detailed descriptions to attract more recipients
+- Optimize pickup time windows for recipient convenience
+
+## 🌱 Community Impact
+
+Every item you list helps build a more sustainable food system. Your **${kpis.totalFoodCollected} rescued items** this ${reportType} made a real difference in reducing food waste and supporting community members.
+
+**Thank you for being a SaveServe champion!** 🌟
+
+---
+*This report was generated automatically by SaveServe. Continue your amazing work in fighting food waste!*`;
+  }
+
+  /**
+   * Generate fallback recipient report when Gemini API is unavailable
+   */
+  generateFallbackRecipientReport(data, reportType) {
+    const { impact, activity, recipient, period } = data;
+    const periodName = reportType.charAt(0).toUpperCase() + reportType.slice(1);
+
+    return `# ${periodName} Impact Report for ${recipient.name}
+
+## 🌟 Your Food Rescue Impact
+
+Amazing work this ${reportType}! You're making a real difference in fighting food waste.
+
+### Your Achievements
+- **${impact.mealsSaved} meals** successfully rescued and collected
+- **${impact.carbonSaved}kg CO₂** prevented from entering the atmosphere
+- **${impact.waterSaved} liters** of water saved through food rescue
+- **${impact.wasteReduced}kg** of food waste prevented
+
+### Activity Summary
+- **${activity.totalCompleted}** successful food collections out of **${activity.totalBooked}** bookings
+- **${activity.successRate}%** completion rate - ${activity.successRate >= 80 ? 'Excellent!' : activity.successRate >= 60 ? 'Good work!' : 'Room for improvement!'}
+- Impact Score: **${impact.impactScore}** points
+
+## 🌍 Environmental Impact
+
+Your **${impact.mealsSaved} rescued meals** this ${reportType} represent real environmental action:
+
+- **Carbon Footprint**: You prevented ${impact.carbonSaved}kg of CO₂ emissions
+- **Water Conservation**: Your actions saved ${impact.waterSaved} liters of precious water
+- **Waste Reduction**: ${impact.wasteReduced}kg of food was rescued instead of wasted
+
+## 💪 Keep Up the Great Work!
+
+### Your Impact Matters
+Every meal you rescue helps create a more sustainable food system. Your ${activity.successRate}% completion rate shows your commitment to the cause.
+
+### Tips for Even Greater Impact
+- Complete your bookings to maximize food rescue
+- Share SaveServe with friends to multiply the impact
+- Try different food categories to diversify your rescue efforts
+
+## 🏆 Community Recognition
+
+You're part of a growing community of food waste fighters. Your **${impact.mealsSaved} meals rescued** this ${reportType} contribute to our collective mission of building a world without food waste.
+
+**Thank you for being a SaveServe hero!** 🦸‍♀️🦸‍♂️
+
+---
+*This report was generated automatically by SaveServe. Every meal you rescue makes a difference!*`;
   }
 }
 
