@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
-  Bell, Search, Leaf, Settings, LogOut, ShoppingCart, BarChart3, Bookmark, History,
+  Bell, Search, Leaf, Settings, LogOut, ShoppingCart, BarChart3, Bookmark, History, FileText,
 } from "lucide-react";
 import {
   SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu,
@@ -21,6 +21,7 @@ const sidebarItems = [
   { icon: Search, label: "Browse Food", id: "browse", href: "/recipientDashboard" },
   { icon: ShoppingCart, label: "My Claims", id: "claims", href: "/recipientDashboard/claims" },
   { icon: BarChart3, label: "My Impact", id: "impact", href: "/recipientDashboard/impact" },
+  { icon: FileText, label: "My Report", id: "reports", href: "/recipientDashboard/reports" },
   { icon: Bookmark, label: "Favorites", id: "favorites", href: "/recipientDashboard/favorites" },
   { icon: History, label: "History", id: "history", href: "/recipientDashboard/history" },
   { icon: Bell, label: "Notifications", id: "notifications", href: "/recipientDashboard/notifications" },
