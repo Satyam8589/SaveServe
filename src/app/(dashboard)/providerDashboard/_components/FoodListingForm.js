@@ -182,6 +182,23 @@ export default function FoodListingForm({ onSuccess, onCancel, editingListing = 
     }
   }, [isEditMode, editingListing, userProfile, userId]);
 
+  // Effect to auto-calculate Available Until time when form loads with default values
+  useEffect(() => {
+    if (!isEditMode && formData.freshnessHours && !formData.availabilityWindow.endTime) {
+      // Set a default start time (current time + 1 hour) if none is set
+      const defaultStartTime = new Date(Date.now() + 60 * 60 * 1000);
+      const formattedStartTime = formatDateTimeLocal(defaultStartTime);
+      
+      setFormData(prev => ({
+        ...prev,
+        availabilityWindow: {
+          startTime: formattedStartTime,
+          endTime: calculateAvailableUntil(formattedStartTime, prev.freshnessHours)
+        }
+      }));
+    }
+  }, [isEditMode, formData.freshnessHours]);
+
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -195,13 +212,22 @@ export default function FoodListingForm({ onSuccess, onCancel, editingListing = 
 
     if (name.startsWith("availabilityWindow.")) {
       const field = name.split(".")[1];
-      setFormData((prev) => ({
-        ...prev,
-        availabilityWindow: {
+      setFormData((prev) => {
+        const newAvailabilityWindow = {
           ...prev.availabilityWindow,
           [field]: value,
-        },
-      }));
+        };
+        
+        // Auto-calculate endTime when startTime changes
+        if (field === "startTime" && value && prev.freshnessHours) {
+          newAvailabilityWindow.endTime = calculateAvailableUntil(value, prev.freshnessHours);
+        }
+        
+        return {
+          ...prev,
+          availabilityWindow: newAvailabilityWindow,
+        };
+      });
     } else if (name === "category") {
       const selectedCategory = FOOD_CATEGORIES.find(
         (cat) => cat.value === value
@@ -215,11 +241,25 @@ export default function FoodListingForm({ onSuccess, onCancel, editingListing = 
       const selectedOption = FRESHNESS_OPTIONS.find(
         (opt) => opt.value === value
       );
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-        freshnessHours: selectedOption ? selectedOption.hours : 24,
-      }));
+      const newFreshnessHours = selectedOption ? selectedOption.hours : 24;
+      
+      setFormData((prev) => {
+        // Auto-calculate endTime when freshness duration changes
+        let newEndTime = prev.availabilityWindow.endTime;
+        if (prev.availabilityWindow.startTime && newFreshnessHours) {
+          newEndTime = calculateAvailableUntil(prev.availabilityWindow.startTime, newFreshnessHours);
+        }
+        
+        return {
+          ...prev,
+          [name]: value,
+          freshnessHours: newFreshnessHours,
+          availabilityWindow: {
+            ...prev.availabilityWindow,
+            endTime: newEndTime,
+          },
+        };
+      });
     } else {
       setFormData((prev) => ({
         ...prev,
@@ -402,6 +442,26 @@ export default function FoodListingForm({ onSuccess, onCancel, editingListing = 
     const now = new Date(date || Date.now());
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     return now.toISOString().slice(0, 16);
+  };
+
+  const calculateAvailableUntil = (startTime, freshnessHours) => {
+    if (!startTime || !freshnessHours) return '';
+    const start = new Date(startTime);
+    const end = new Date(start.getTime() + freshnessHours * 60 * 60 * 1000);
+    return formatDateTimeLocal(end);
+  };
+
+  const formatTimeForDisplay = (dateTimeString) => {
+    if (!dateTimeString) return '';
+    const date = new Date(dateTimeString);
+    return date.toLocaleString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
   };
 
   const selectedCategory = FOOD_CATEGORIES.find(
@@ -637,6 +697,9 @@ export default function FoodListingForm({ onSuccess, onCancel, editingListing = 
                 </option>
               ))}
             </select>
+            <p className="text-xs text-gray-400 mt-1">
+              This will automatically set the Available Until time
+            </p>
           </div>
         </div>
 
@@ -683,12 +746,20 @@ export default function FoodListingForm({ onSuccess, onCancel, editingListing = 
               min={formatDateTimeLocal()}
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
             />
+            <p className="text-xs text-gray-400 mt-1">
+              Set when the food becomes available for pickup
+            </p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-amber-400 mb-2">
-              Available Until *
+              Available Until * (Auto-calculated)
             </label>
+            {formData.availabilityWindow.startTime && formData.freshnessHours && (
+              <div className="mb-2 p-2 bg-blue-900/20 border border-blue-500/30 rounded text-xs text-blue-300">
+                <span className="font-medium">Formula:</span> {formatTimeForDisplay(formData.availabilityWindow.startTime)} + {formData.freshnessHours} hours = {formatTimeForDisplay(formData.availabilityWindow.endTime)}
+              </div>
+            )}
             <input
               type="datetime-local"
               name="availabilityWindow.endTime"
@@ -696,26 +767,29 @@ export default function FoodListingForm({ onSuccess, onCancel, editingListing = 
               onChange={handleInputChange}
               required
               min={formData.availabilityWindow.startTime}
-              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+              readOnly
+              className="w-full px-4 py-3 bg-gray-600 border border-gray-600 text-gray-300 rounded-lg cursor-not-allowed transition-colors"
             />
+            <p className="text-xs text-gray-400 mt-1">
+              Automatically calculated based on Available From + Freshness Duration
+            </p>
           </div>
         </div>
 
         {/* Expiry Time Preview */}
         {formData.availabilityWindow.startTime && formData.freshnessHours && (
-          <div className="bg-gray-700 rounded-lg p-4">
-            <h4 className="text-amber-400 font-medium mb-2">
-              📅 Calculated Expiry Time
+          <div className="bg-emerald-900/20 border border-emerald-500/30 rounded-lg p-4">
+            <h4 className="text-emerald-400 font-medium mb-2 flex items-center gap-2">
+              <span>⏰</span> Auto-calculated Available Until Time
             </h4>
             <p className="text-gray-300">
-              This food will expire on:{" "}
+              Your food will be available until:{" "}
               <span className="font-medium text-white">
-                {calculateExpiryTime()?.toLocaleString()}
+                {formatTimeForDisplay(formData.availabilityWindow.endTime)}
               </span>
             </p>
-            <p className="text-sm text-gray-400 mt-1">
-              Based on availability start time + freshness duration (
-              {formData.freshnessHours} hours)
+            <p className="text-sm text-emerald-400 mt-1">
+              Calculated from: Available From + {formData.freshnessHours} hours freshness duration
             </p>
           </div>
         )}

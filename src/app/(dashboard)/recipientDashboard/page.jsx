@@ -23,6 +23,9 @@ import {
   Filter,
   Loader2,
   X,
+  User,
+  CheckCircle,
+  TrendingUp,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -86,6 +89,8 @@ export default function BrowseFoodPage() {
   const [foodListings, setFoodListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [recipientStats, setRecipientStats] = useState({
     impactScore: 0,
     mealsSaved: 0,
@@ -130,13 +135,20 @@ export default function BrowseFoodPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const fetchFoodListings = async () => {
+  const fetchFoodListings = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      
       const response = await fetch("/api/food-listings");
       const data = await response.json();
       if (data.success) {
         setFoodListings(data.data);
+        setLastUpdated(new Date());
+        console.log("✅ Food listings refreshed successfully");
       } else {
         setError(data.message || "Failed to fetch listings");
       }
@@ -144,6 +156,7 @@ export default function BrowseFoodPage() {
       setError("Failed to connect to server");
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -252,8 +265,21 @@ export default function BrowseFoodPage() {
       setRequestedQuantity(1); // Reset quantity
       setRequestMessage(""); // Reset message
 
-      // Refresh listings to show updated quantities
+      // Refresh listings to show updated quantities and claims count
+      console.log("🔄 Refreshing food listings after successful claim...");
       await fetchFoodListings();
+      
+      // Also trigger a refresh on the food listings API to update claims count
+      try {
+        await fetch("/api/food-listings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "refresh", listingId: selectedFood.id })
+        });
+      } catch (refreshError) {
+        console.log("Refresh API call failed, but listings were updated:", refreshError);
+      }
+      
     } catch (error) {
       console.error("Error claiming food:", error);
 
@@ -424,6 +450,7 @@ export default function BrowseFoodPage() {
         </Card>
       </div>
 
+<<<<<<< HEAD
       {/* NGO Priority Access Banner */}
       {userProfile?.subrole === 'NGO' && (
         <Card className="bg-gradient-to-r from-emerald-900/30 to-blue-900/30 border-emerald-500/30">
@@ -442,6 +469,99 @@ export default function BrowseFoodPage() {
           </CardContent>
         </Card>
       )}
+=======
+      {/* Enhanced Platform Statistics */}
+      <div className="mb-8">
+        <div className="bg-gradient-to-r from-gray-800/50 to-gray-700/50 rounded-lg p-6 border border-gray-700">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-gray-200 flex items-center gap-2">
+              <TrendingUp className="h-6 w-6 text-emerald-400" />
+              Platform Statistics
+            </h3>
+            {lastUpdated && (
+              <div className="text-xs text-gray-400 flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Last updated: {lastUpdated.toLocaleTimeString()}
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-600">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-400">Total Listings</p>
+                  <p className="text-2xl font-bold text-gray-100">{foodListings.length}</p>
+                  <p className="text-xs text-gray-500">
+                    {urgentCount > 0 && `${urgentCount} urgent`}
+                  </p>
+                </div>
+                <Package className="h-8 w-8 text-emerald-400" />
+              </div>
+            </div>
+            
+            <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-600">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-400">Average Rating</p>
+                  <p className="text-2xl font-bold text-gray-100">
+                    {(() => {
+                      const ratedListings = foodListings.filter(f => f.rating && f.rating > 0);
+                      if (ratedListings.length === 0) return "N/A";
+                      const average = ratedListings.reduce((sum, f) => sum + f.rating, 0) / ratedListings.length;
+                      return average.toFixed(1);
+                    })()}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {(() => {
+                      const ratedListings = foodListings.filter(f => f.rating && f.rating > 0);
+                      return `${ratedListings.length} rated listings`;
+                    })()}
+                  </p>
+                </div>
+                <Star className="h-8 w-8 text-yellow-400" />
+              </div>
+            </div>
+            
+            <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-600">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-400">Total Claims</p>
+                  <p className="text-2xl font-bold text-gray-100">
+                    {foodListings.reduce((sum, f) => sum + (f.claims || f.totalClaims || 0), 0)}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Across all listings
+                  </p>
+                </div>
+                <ShoppingCart className="h-8 w-8 text-blue-400" />
+              </div>
+            </div>
+            
+            <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-600">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-400">Success Rate</p>
+                  <p className="text-2xl font-bold text-gray-100">
+                    {(() => {
+                      const listingsWithSuccessRate = foodListings.filter(f => f.successRate);
+                      if (listingsWithSuccessRate.length === 0) return "N/A";
+                      const average = listingsWithSuccessRate.reduce((sum, f) => sum + f.successRate, 0) / listingsWithSuccessRate.length;
+                      return `${Math.round(average)}%`;
+                    })()}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Average completion rate
+                  </p>
+                </div>
+                <CheckCircle className="h-8 w-8 text-green-400" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      
+>>>>>>> 6dac708d82796a4eb31189d78ba8fe6585a8bfed
 
       {/* Filter Controls */}
       <div className="flex flex-wrap gap-4 items-center justify-between">
@@ -490,12 +610,17 @@ export default function BrowseFoodPage() {
 
         <div className="flex gap-2">
           <Button
-            onClick={fetchFoodListings}
+            onClick={() => fetchFoodListings(true)}
             variant="outline"
             className="border-gray-600 text-gray-300"
+            disabled={isRefreshing}
           >
-            <Timer className="h-4 w-4 mr-2" />
-            Refresh
+            {isRefreshing ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Timer className="h-4 w-4 mr-2" />
+            )}
+            {isRefreshing ? "Refreshing..." : "Refresh"}
           </Button>
           <Button variant="outline" className="border-gray-600 text-gray-300">
             <Filter className="h-4 w-4 mr-2" />
@@ -608,13 +733,56 @@ export default function BrowseFoodPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <Star className="h-4 w-4 text-yellow-400" />
-                          <span>{food.rating}</span>
-                          <span>({food.claims} claims)</span>
+                          <span className="font-medium">
+                            {food.rating ? `${food.rating.toFixed(1)}/5` : "No rating"}
+                          </span>
+                          {food.rating && (
+                            <span className="text-xs text-gray-500">
+                              ({food.totalRatings || food.claims || 0} reviews)
+                            </span>
+                          )}
                         </div>
-                        <span className="text-xs text-gray-500">
-                          {food.posted}
-                        </span>
+                        <div className="flex items-center space-x-2 text-xs text-gray-500">
+                          <Package className="h-3 w-3" />
+                          <span>
+                            {food.claims || food.totalClaims || 0} claims
+                          </span>
+                        </div>
                       </div>
+                      
+                      {/* Enhanced Statistics Row */}
+                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 mt-2 pt-2 border-t border-gray-700/30">
+                        <div className="flex items-center space-x-1">
+                          <Clock className="h-3 w-3 text-blue-400" />
+                          <span>
+                            {food.status === "urgent" ? (
+                              <span className="text-red-400 font-medium">Urgent</span>
+                            ) : (
+                              <span className="text-green-400 font-medium">Available</span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <MapPin className="h-3 w-3 text-emerald-400" />
+                          <span className="truncate">{food.distance}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Success Rate and Provider Rating */}
+                      {food.providerRating && (
+                        <div className="flex items-center justify-between text-xs text-gray-500 mt-2">
+                          <span>Provider: {food.providerRating.toFixed(1)}⭐</span>
+                          {food.successRate && (
+                            <span className="text-emerald-400">
+                              {food.successRate}% success
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      
+                      <span className="text-xs text-gray-500">
+                        {food.posted}
+                      </span>
                     </div>
 
                     <div className="mt-auto pt-4 flex space-x-2">
@@ -749,10 +917,55 @@ export default function BrowseFoodPage() {
                   <div className="flex items-center space-x-3">
                     <Star className="h-5 w-5 text-yellow-400" />
                     <span>
-                      Rating: <strong>{selectedFood.rating}</strong> (
-                      {selectedFood.claims} claims)
+                      Rating: <strong>
+                        {selectedFood.rating ? `${selectedFood.rating.toFixed(1)}/5` : "No rating"}
+                      </strong>
+                      {selectedFood.rating && (
+                        <span className="text-sm text-gray-400 ml-2">
+                          ({selectedFood.totalRatings || selectedFood.claims || 0} reviews)
+                        </span>
+                      )}
                     </span>
                   </div>
+                  
+                  {/* Enhanced Claims and Success Statistics */}
+                  <div className="flex items-center space-x-3">
+                    <Package className="h-5 w-5 text-emerald-400" />
+                    <span>
+                      Total Claims: <strong>{selectedFood.claims || selectedFood.totalClaims || 0}</strong>
+                    </span>
+                  </div>
+                  
+                  {/* Provider Statistics */}
+                  {selectedFood.providerRating && (
+                    <div className="flex items-center space-x-3">
+                      <User className="h-5 w-5 text-blue-400" />
+                      <span>
+                        Provider Rating: <strong>{selectedFood.providerRating.toFixed(1)}⭐</strong>
+                        {selectedFood.providerTotalRatings && (
+                          <span className="text-sm text-gray-400 ml-2">
+                            ({selectedFood.providerTotalRatings} reviews)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Success Rate and Completion Stats */}
+                  {selectedFood.successRate && (
+                    <div className="flex items-center space-x-3">
+                      <CheckCircle className="h-5 w-5 text-green-400" />
+                      <span>
+                        Success Rate: <strong className="text-green-400">{selectedFood.successRate}%</strong>
+                        {selectedFood.completedClaims && (
+                          <span className="text-sm text-gray-400 ml-2">
+                            ({selectedFood.completedClaims} completed)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  
                   <div className="flex items-center space-x-3">
                     <Timer className="h-5 w-5 text-emerald-400" />
                     <span>

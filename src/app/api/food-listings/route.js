@@ -70,6 +70,31 @@ export async function GET(request) {
       // Since quantity is now permanently reduced when booked, available = current quantity
       const available = Math.max(0, listing.quantity || 0);
 
+      // Get booking statistics for this listing
+      const stats = bookingStats[listing._id.toString()] || {
+        totalClaims: 0,
+        completedClaims: 0,
+        totalRating: 0,
+        ratedBookings: 0,
+        providerRatings: [],
+        successRate: 0
+      };
+
+      // Calculate success rate
+      const successRate = stats.totalClaims > 0 
+        ? Math.round((stats.completedClaims / stats.totalClaims) * 100) 
+        : 0;
+
+      // Calculate average rating
+      const averageRating = stats.ratedBookings > 0 
+        ? (stats.totalRating / stats.ratedBookings) 
+        : 0;
+
+      // Calculate provider rating
+      const providerRating = providerStats[listing.providerId]?.ratedBookings > 0
+        ? parseFloat((providerStats[listing.providerId].totalRating / providerStats[listing.providerId].ratedBookings).toFixed(1))
+        : null;
+
       return {
         id: listing._id.toString(),
         title: listing.title,
@@ -86,8 +111,14 @@ export async function GET(request) {
         type: "Main Course",
         distance: "0.5 km",
         posted: getTimeAgo(listing.createdAt),
-        rating: 4.5,
-        claims: 0,
+        rating: averageRating > 0 ? parseFloat(averageRating.toFixed(1)) : null,
+        claims: stats.totalClaims,
+        totalClaims: stats.totalClaims,
+        completedClaims: stats.completedClaims,
+        totalRatings: stats.ratedBookings,
+        successRate: successRate,
+        providerRating: providerRating,
+        providerTotalRatings: providerStats[listing.providerId]?.ratedBookings || 0,
         imageUrl: listing.imageUrl,
         expiryTime: listing.expiryTime,
         availabilityWindow: listing.availabilityWindow,
@@ -96,6 +127,8 @@ export async function GET(request) {
       };
     })
     .filter((l) => (l.availableNumeric ?? 0) > 0);
+
+
 
     return new Response(
       JSON.stringify({
@@ -114,6 +147,52 @@ export async function GET(request) {
       JSON.stringify({
         success: false,
         message: "Error fetching food listings",
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }
+}
+
+// Add POST method for real-time updates
+export async function POST(request) {
+  try {
+    const { action, listingId } = await request.json();
+    
+    if (action === 'refresh') {
+      // This endpoint can be called to trigger a refresh
+      // In a real app, you might want to implement WebSocket or Server-Sent Events
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Refresh request received",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+    
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: "Invalid action",
+      }),
+      {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  } catch (error) {
+    console.error("Error in POST food listings:", error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: "Error processing request",
       }),
       {
         status: 500,
