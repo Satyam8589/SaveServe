@@ -206,6 +206,18 @@ const foodListingSchema = new mongoose.Schema(
         lowercase: true,
       },
     },
+
+    // Time-based visibility fields for NGO exclusive access
+    isNGOExclusive: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    ngoExclusiveUntil: {
+      type: Date,
+      default: null,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -217,12 +229,21 @@ foodListingSchema.virtual("availableQuantity").get(function () {
   return Math.max(0, this.quantity);
 });
 
+// Virtual method to check if listing is currently NGO-exclusive
+foodListingSchema.virtual('isCurrentlyNGOExclusive').get(function() {
+  if (!this.isNGOExclusive || !this.ngoExclusiveUntil) {
+    return false;
+  }
+  return new Date() < this.ngoExclusiveUntil;
+});
+
 // Index for efficient querying
 foodListingSchema.index({ expiryTime: 1, isActive: 1 });
 foodListingSchema.index({ location: 1 });
 foodListingSchema.index({ category: 1 });
 foodListingSchema.index({ listingStatus: 1 });
 foodListingSchema.index({ providerId: 1 });
+foodListingSchema.index({ isNGOExclusive: 1, ngoExclusiveUntil: 1 });
 
 // Middleware to update listing status based on quantity and bookings
 foodListingSchema.pre("save", function (next) {
@@ -246,6 +267,22 @@ foodListingSchema.pre("save", function (next) {
 
   next();
 });
+
+// Instance method to check visibility for a specific user
+foodListingSchema.methods.isVisibleToUser = function(userRole, userSubrole) {
+  // If not NGO exclusive, visible to everyone
+  if (!this.isCurrentlyNGOExclusive) {
+    return true;
+  }
+
+  // If NGO exclusive and user is NGO, visible
+  if (userRole === 'RECIPIENT' && userSubrole === 'NGO') {
+    return true;
+  }
+
+  // Otherwise, not visible during NGO exclusive period
+  return false;
+};
 
 // Method to add a booking request
 foodListingSchema.methods.addBookingRequest = function (bookingData) {

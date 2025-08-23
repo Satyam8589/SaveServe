@@ -1,70 +1,55 @@
 import { connectDB } from "@/lib/db";
 import FoodListing from "@/models/FoodListing";
+import UserProfile from "@/models/UserProfile";
+import { createVisibilityQuery } from "@/lib/visibilityUtils";
+import { auth } from "@clerk/nextjs/server";
 import Booking from "@/models/Booking";
 
 export async function GET(request) {
   try {
     await connectDB();
 
-    const foodListings = await FoodListing.find({
-      isActive: true,
-      expiryTime: { $gte: new Date() },
-      quantity: { $gt: 0 }, // Only get listings with quantity > 0
-    }).sort({ createdAt: -1 });
+    // Get user authentication and role information
+    const { userId } = await auth();
 
-    // Get all active listings IDs for efficient querying
-    const listingIds = foodListings.map(listing => listing._id);
+    if (!userId) {
+      return Response.json(
+        { success: false, message: "Authentication required" },
+        { status: 401 }
+      );
+    }
 
-    // Fetch all bookings for these listings to calculate claims and ratings
-    const bookings = await Booking.find({
-      listingId: { $in: listingIds }
+    // Fetch user profile to get role and subrole
+    const userProfile = await UserProfile.findOne({ userId }).lean();
+
+    if (!userProfile) {
+      return Response.json(
+        { success: false, message: "User profile not found" },
+        { status: 404 }
+      );
+    }
+
+    console.log("🔍 Fetching food listings for user:", {
+      userId,
+      role: userProfile.role,
+      subrole: userProfile.subrole
     });
 
-    // Create a map for efficient lookup
-    const bookingStats = {};
-    const providerStats = {}; // Track provider ratings across all listings
-    
-    bookings.forEach(booking => {
-      const listingId = booking.listingId.toString();
-      if (!bookingStats[listingId]) {
-        bookingStats[listingId] = {
-          totalClaims: 0,
-          completedClaims: 0,
-          totalRating: 0,
-          ratedBookings: 0,
-          providerRatings: [],
-          successRate: 0
-        };
-      }
-      
-      // Count total claims
-      bookingStats[listingId].totalClaims++;
-      
-      // Count completed claims
-      if (booking.status === 'collected') {
-        bookingStats[listingId].completedClaims++;
-      }
-      
-      // Calculate average rating
-      if (booking.rating && booking.rating > 0) {
-        bookingStats[listingId].totalRating += booking.rating;
-        bookingStats[listingId].ratedBookings++;
-      }
+    // Create visibility query based on user role
+    const visibilityQuery = createVisibilityQuery(userProfile.role, userProfile.subrole);
 
-      // Track provider ratings
-      if (booking.providerId) {
-        if (!providerStats[booking.providerId]) {
-          providerStats[booking.providerId] = {
-            totalRating: 0,
-            ratedBookings: 0
-          };
-        }
-        if (booking.rating && booking.rating > 0) {
-          providerStats[booking.providerId].totalRating += booking.rating;
-          providerStats[booking.providerId].ratedBookings++;
-        }
-      }
-    });
+    console.log("📋 Visibility query:", JSON.stringify(visibilityQuery, null, 2));
+
+    const foodListings = await FoodListing.find(visibilityQuery)
+      .sort({ createdAt: -1 });
+
+    console.log("📊 Found", foodListings.length, "listings matching visibility criteria");
+
+    // Log NGO exclusive listings for debugging
+    const ngoExclusiveListings = foodListings.filter(l => l.isNGOExclusive && l.ngoExclusiveUntil && new Date() < new Date(l.ngoExclusiveUntil));
+    if (ngoExclusiveListings.length > 0) {
+      console.log("🔒 NGO exclusive listings currently active:", ngoExclusiveListings.length);
+    }
 
     // Compute available quantity per listing and filter out fully booked
     const transformedListings = foodListings

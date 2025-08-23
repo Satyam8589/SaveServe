@@ -18,8 +18,9 @@ async function sendFCMNotification(tokens, notification, data = {}) {
     return { success: false, error: 'FCM not configured' };
   }
 
+  const isMultiple = Array.isArray(tokens);
+
   try {
-    const isMultiple = Array.isArray(tokens);
     const payload = {
       notification,
       data,
