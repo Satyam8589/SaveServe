@@ -1,12 +1,11 @@
-// MapWithRouting.jsx
+
+// src/components/MapComponent.jsx
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-
-
+import React, { useEffect, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 // Fix for default markers in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -16,492 +15,175 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-/**
- * MapWithRouting - Food Surplus Distribution Platform Map Component
- * Features:
- * - OpenStreetMap tiles with dark theme
- * - Provider/Recipient markers with custom icons
- * - Interactive popups with user details
- * - Automatic routing between providers and recipients
- * - Responsive dark-themed design
- */
+const providerIconSVG = `
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-store">
+    <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/>
+    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+    <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/>
+    <path d="M2 7h20"/>
+    <path d="M22 7v3a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2V7"/>
+    <path d="M2 7v3a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2V7"/>
+  </svg>
+`;
 
-// Custom provider icon (food/restaurant)
-const createProviderIcon = (subrole) => {
-  const iconColors = {
-    CANTEEN: '#10b981', // emerald-500
-    HOSTEL: '#fb923c',  // orange-400
-    EVENTORGANIZER: '#fbbf24', // amber-400
-  };
-  
-  const color = iconColors[subrole] || '#10b981';
-  
+const recipientIconSVG = `
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user">
+    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+    <circle cx="12" cy="7" r="4"/>
+  </svg>
+`;
+
+// Custom provider icon
+const createProviderIcon = () => {
   return L.divIcon({
     className: 'custom-provider-icon',
     html: `
+      <div class="marker-pin-provider"></div>
       <div style="
-        background-color: ${color};
-        width: 30px;
-        height: 30px;
+        background-color: #10b981;
+        width: 40px;
+        height: 40px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        border: 3px solid white;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        font-size: 16px;
+        border: 4px solid white;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        animation: pulse 2s infinite;
       ">
-        🍲
+        ${providerIconSVG}
       </div>
     `,
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
-    popupAnchor: [0, -15],
+    iconSize: [40, 40],
+    iconAnchor: [20, 40],
+    popupAnchor: [0, -40],
   });
 };
 
-// Custom recipient icon (people/user)
-const createRecipientIcon = (subrole) => {
-  const iconColors = {
-    STUDENT: '#60a5fa', // blue-400
-    STAFF: '#3b82f6',   // blue-500
-    NGO: '#34d399',     // emerald-400
-  };
-  
-  const color = iconColors[subrole] || '#60a5fa';
-  
+// Custom recipient icon
+const createRecipientIcon = () => {
   return L.divIcon({
     className: 'custom-recipient-icon',
     html: `
+      <div class="marker-pin-recipient"></div>
       <div style="
-        background-color: ${color};
-        width: 30px;
-        height: 30px;
+        background-color: #60a5fa;
+        width: 40px;
+        height: 40px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        border: 3px solid white;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        font-size: 16px;
+        border: 4px solid white;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        animation: pulse 2s infinite;
       ">
-        👤
+        ${recipientIconSVG}
       </div>
     `,
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
-    popupAnchor: [0, -15],
+    iconSize: [40, 40],
+    iconAnchor: [20, 40],
+    popupAnchor: [0, -40],
   });
 };
 
-/**
- * Get role badge styling based on role
- */
-const getRoleBadgeClass = (role) => {
-  return role === 'PROVIDER' 
-    ? 'background-color: #059669; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;' 
-    : 'background-color: #2563eb; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;';
-};
-
-/**
- * Get subrole badge styling
- */
-const getSubroleBadgeClass = (subrole) => {
-  const subroleColors = {
-    CANTEEN: '#10b981',
-    HOSTEL: '#fb923c',
-    EVENTORGANIZER: '#fbbf24',
-    STUDENT: '#60a5fa',
-    STAFF: '#3b82f6',
-    NGO: '#34d399',
-  };
-  
-  const color = subroleColors[subrole] || '#6b7280';
-  return `background-color: ${color}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-left: 4px;`;
-};
-
-/**
- * Routing component to handle route drawing
- */
-const RoutingComponent = ({ providers, recipients }) => {
-  const map = useMap();
-  const routingControlRef = useRef(null);
+const MapComponent = ({ provider, recipient }) => {
+  const mapRef = useRef(null);
+  const [route, setRoute] = React.useState([]);
 
   useEffect(() => {
-    if (!providers.length || !recipients.length) return;
-    if (!map) return;
+    if (provider && recipient) {
+      const providerLatLng = [provider.latitude, provider.longitude];
+      const recipientLatLng = [recipient.latitude, recipient.longitude];
 
-    const loadRouting = async () => {
-
-      if (!L.Routing) {
-        console.error("❌ L.Routing not available");
-        return;
-      }
-
-      // Remove old route
-      if (routingControlRef.current) {
-        map.removeControl(routingControlRef.current);
-      }
-
-      const firstProvider = providers[0];
-      const firstRecipient = recipients[0];
-
-      routingControlRef.current = L.Routing.control({
-        waypoints: [
-          L.latLng(firstProvider.latitude, firstProvider.longitude),
-          L.latLng(firstRecipient.latitude, firstRecipient.longitude),
-        ],
-        addWaypoints: false,
-        routeWhileDragging: false,
-        createMarker: () => null,
-        lineOptions: {
-          styles: [{ color: "#3b82f6", weight: 4, opacity: 0.8, dashArray: "10, 10" }],
-        },
-        show: false,
-        collapsible: false,
-        fitSelectedRoutes: true,
-      }).addTo(map);
-
-      // Hide instruction panel
-      setTimeout(() => {
-        const routingContainer = document.querySelector(".leaflet-routing-container");
-        if (routingContainer) routingContainer.style.display = "none";
-      }, 100);
-    };
-
-    loadRouting();
-
-    return () => {
-      if (routingControlRef.current) {
-        map.removeControl(routingControlRef.current);
-        routingControlRef.current = null;
-      }
-    };
-  }, [map, providers, recipients]);
-
-  return null;
-};
-
-
-
-
-const MapWithRouting = ({ provider: singleProvider, recipient: singleRecipient }) => {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [mapLoaded, setMapLoaded] = useState(false);
-
-  const isSingleRouteMode = singleProvider && singleRecipient;
-
-  // Separate providers and recipients
-  const providers = isSingleRouteMode ? [singleProvider] : users.filter(user => user.role === 'PROVIDER' && user.latitude && user.longitude);
-  const recipients = isSingleRouteMode ? [singleRecipient] : users.filter(user => user.role === 'RECIPIENT' && user.latitude && user.longitude);
-
-  /**
-   * Fetch user locations from API
-   */
-  const fetchUserLocations = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await fetch('/api/users/locations');
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to fetch user locations');
-      }
-
-      // Handle both array response and object with data property
-      const userData = Array.isArray(result) ? result : result.data || result.validLocations || [];
-      
-      if (userData.length > 0) {
-        setUsers(userData);
-        console.log(`📍 Loaded ${userData.length} user locations`);
-      } else {
-        console.warn('⚠️ No user locations found');
-      }
-
-    } catch (err) {
-      console.error('❌ Error fetching user locations:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
+      // Fetch route from OSRM
+      fetch(`http://router.project-osrm.org/route/v1/driving/${providerLatLng[1]},${providerLatLng[0]};${recipientLatLng[1]},${recipientLatLng[0]}?overview=full&geometries=polyline`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.routes && data.routes.length > 0) {
+            const polyline = require('@mapbox/polyline');
+            const decoded = polyline.decode(data.routes[0].geometry);
+            setRoute(decoded);
+          }
+        });
     }
-  }, []);
+  }, [provider, recipient]);
 
-  // Fetch data on component mount
   useEffect(() => {
-    if (!isSingleRouteMode) {
-      fetchUserLocations();
-    } else {
-      setLoading(false);
+    if (mapRef.current && route.length > 0) {
+      mapRef.current.fitBounds(route);
     }
-  }, [fetchUserLocations, isSingleRouteMode]);
+  }, [route]);
 
-  // Handle map ready
-  const handleMapReady = useCallback(() => {
-    setMapLoaded(true);
-    console.log('🗺️ Leaflet map loaded successfully');
-  }, []);
-
-  // Default map center (Kolkata area based on your coordinates)
-  const defaultCenter = isSingleRouteMode 
-    ? [singleProvider.latitude, singleProvider.longitude] 
-    : [22.5151549, 88.4104219];
-
-  // Loading state
-  if (loading) {
-    return (
-      <div className="w-full h-96 bg-gray-800 rounded-xl flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
-          <p className="text-gray-300">Loading map...</p>
-        </div>
-      </div>
-    );
+  if (!provider || !recipient) {
+    return <div>Loading...</div>;
   }
 
-  // Error state
-  if (error) {
-    return (
-      <div className="w-full h-96 bg-gray-800 rounded-xl flex items-center justify-center border-2 border-red-400">
-        <div className="text-center p-6">
-          <div className="text-red-400 text-6xl mb-4">⚠️</div>
-          <h3 className="text-lg font-semibold text-red-400 mb-2">Map Error</h3>
-          <p className="text-gray-300 mb-4">{error}</p>
-          <button
-            onClick={fetchUserLocations}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const providerPosition = [provider.latitude, provider.longitude];
+  const recipientPosition = [recipient.latitude, recipient.longitude];
 
   return (
-    <div className="w-full">
-      {/* Map Header */}
-      {!isSingleRouteMode && (
-        <div className="mb-4 p-4 bg-gray-800 rounded-t-xl border-b border-gray-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-white">Food Distribution Network</h2>
-              <p className="text-gray-400 text-sm">
-                {users.length} active locations • 🍲 Providers ({providers.length}) • 👤 Recipients ({recipients.length})
-                {providers.length > 0 && recipients.length > 0 && (
-                  <span className="text-blue-400"> • 🚗 Route displayed</span>
-                )}
-              </p>
-            </div>
-            <div className="flex space-x-2">
-              <button
-                onClick={fetchUserLocations}
-                className="px-3 py-1 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors"
-                disabled={loading}
-              >
-                🔄 Refresh
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Leaflet Map Container */}
-      <div className="relative">
-        <MapContainer
-          center={defaultCenter}
-          zoom={13}
-          className="h-96 w-full rounded-lg border-2 border-gray-700 shadow-lg"
-          whenReady={handleMapReady}
-        >
-          {/* Dark themed tile layer */}
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            className="map-tiles"
-          />
-
-          {/* Provider Markers */}
-          {providers.map((user) => (
-            <Marker
-              key={`provider-${user.id}`}
-              position={[user.latitude, user.longitude]}
-              icon={createProviderIcon(user.subrole)}
-            >
-              <Popup>
-                <div style={{ 
-                  minWidth: '200px', 
-                  fontFamily: 'system-ui, -apple-system, sans-serif',
-                  backgroundColor: '#1f2937',
-                  color: 'white',
-                  padding: '8px',
-                  borderRadius: '8px'
-                }}>
-                  <h3 style={{
-                    fontWeight: 'bold',
-                    fontSize: '16px',
-                    marginBottom: '8px',
-                    color: '#10b981'
-                  }}>
-                    {user.fullName}
-                  </h3>
-                  
-                  <div style={{ marginBottom: '8px' }}>
-                    <span style={getRoleBadgeClass(user.role)}>
-                      {user.role}
-                    </span>
-                    <span style={getSubroleBadgeClass(user.subrole)}>
-                      {user.subrole}
-                    </span>
-                  </div>
-
-                  <div style={{ fontSize: '14px', color: '#d1d5db' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
-                      <span style={{ color: '#fbbf24' }}>📍</span>
-                      <span>{user.area}</span>
-                    </div>
-                  </div>
-
-                  <div style={{ 
-                    marginTop: '8px', 
-                    fontSize: '12px', 
-                    color: '#10b981' 
-                  }}>
-                    ✅ Available for food sharing
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
-
-          {/* Recipient Markers */}
-          {recipients.map((user) => (
-            <Marker
-              key={`recipient-${user.id}`}
-              position={[user.latitude, user.longitude]}
-              icon={createRecipientIcon(user.subrole)}
-            >
-              <Popup>
-                <div style={{ 
-                  minWidth: '200px', 
-                  fontFamily: 'system-ui, -apple-system, sans-serif',
-                  backgroundColor: '#1f2937',
-                  color: 'white',
-                  padding: '8px',
-                  borderRadius: '8px'
-                }}>
-                  <h3 style={{
-                    fontWeight: 'bold',
-                    fontSize: '16px',
-                    marginBottom: '8px',
-                    color: '#60a5fa'
-                  }}>
-                    {user.fullName}
-                  </h3>
-                  
-                  <div style={{ marginBottom: '8px' }}>
-                    <span style={getRoleBadgeClass(user.role)}>
-                      {user.role}
-                    </span>
-                    <span style={getSubroleBadgeClass(user.subrole)}>
-                      {user.subrole}
-                    </span>
-                  </div>
-
-                  <div style={{ fontSize: '14px', color: '#d1d5db' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
-                      <span style={{ color: '#fbbf24' }}>📍</span>
-                      <span>{user.area}</span>
-                    </div>
-                  </div>
-
-                  <div style={{ 
-                    marginTop: '8px', 
-                    fontSize: '12px', 
-                    color: '#60a5fa' 
-                  }}>
-                    🤝 Looking for food donations
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
-
-          {/* Routing Component */}
-          {providers.length > 0 && recipients.length > 0 && (
-            <RoutingComponent providers={providers} recipients={recipients} />
-          )}
-        </MapContainer>
-
-        {/* Dark theme overlay for map */}
-        <style jsx global>{`
-          .leaflet-container {
-            background-color: #1f2937 !important;
+    <>
+      <style>
+        {`
+          @keyframes pulse {
+            0% {
+              transform: scale(0.95);
+              box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.7);
+            }
+            70% {
+              transform: scale(1);
+              box-shadow: 0 0 0 10px rgba(0, 0, 0, 0);
+            }
+            100% {
+              transform: scale(0.95);
+              box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+            }
           }
-          
-          .leaflet-popup-content-wrapper {
-            background-color: #1f2937 !important;
-            color: white !important;
-            border-radius: 8px !important;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+          .marker-pin-provider {
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 8px solid #10b981;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: -2px;
           }
-          
-          .leaflet-popup-tip {
-            background-color: #1f2937 !important;
+          .marker-pin-recipient {
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 8px solid #60a5fa;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: -2px;
           }
-          
-          .leaflet-control-container .leaflet-control {
-            background-color: #374151 !important;
-            border: 1px solid #4b5563 !important;
-          }
-          
-          .leaflet-control-container .leaflet-control a {
-            background-color: #374151 !important;
-            color: white !important;
-          }
-          
-          .leaflet-control-container .leaflet-control a:hover {
-            background-color: #4b5563 !important;
-          }
-          
-          .leaflet-bar a:first-child {
-            border-top-left-radius: 4px !important;
-            border-top-right-radius: 4px !important;
-          }
-          
-          .leaflet-bar a:last-child {
-            border-bottom-left-radius: 4px !important;
-            border-bottom-right-radius: 4px !important;
-          }
-          
-          .leaflet-routing-container {
-            display: none !important;
-          }
-        `}</style>
-      </div>
-
-      {/* Map Footer Stats */}
-      {!isSingleRouteMode && (
-        <div className="mt-2 p-3 bg-gray-800 rounded-b-xl border-t border-gray-700">
-          <div className="flex justify-between items-center text-sm text-gray-400">
-            <div>
-              Providers: {providers.length} • Recipients: {recipients.length}
-              {providers.length > 0 && recipients.length > 0 && (
-                <span className="text-blue-400"> • Route: {providers[0]?.fullName} → {recipients[0]?.fullName}</span>
-              )}
-            </div>
-            <div className="flex items-center space-x-4">
-              {mapLoaded && <span className="text-emerald-400">🗺️ Map ready</span>}
-              <span>Powered by OpenStreetMap</span>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+        `}
+      </style>
+      <MapContainer
+        center={providerPosition}
+        zoom={13}
+        style={{ height: '400px', width: '100%' }}
+        whenCreated={mapInstance => { mapRef.current = mapInstance; }}
+      >
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        />
+        <Marker position={providerPosition} icon={createProviderIcon()}>
+          <Popup>Provider: {provider.fullName}</Popup>
+        </Marker>
+        <Marker position={recipientPosition} icon={createRecipientIcon()}>
+          <Popup>Recipient: {recipient.fullName}</Popup>
+        </Marker>
+        {route.length > 0 && <Polyline positions={route} color="blue" />}
+      </MapContainer>
+    </>
   );
 };
 
-export default MapWithRouting;
+export default MapComponent;
