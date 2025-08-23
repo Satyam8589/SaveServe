@@ -3,6 +3,7 @@ import FoodListing from "@/models/FoodListing";
 import UserProfile from "@/models/UserProfile";
 import { createVisibilityQuery } from "@/lib/visibilityUtils";
 import { auth } from "@clerk/nextjs/server";
+import Booking from "@/models/Booking";
 
 export async function GET(request) {
   try {

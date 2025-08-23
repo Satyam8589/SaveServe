@@ -48,6 +48,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
+//result
 // --- Mock API functions for favorites (replace with your actual API calls) ---
 const fetchUserFavoritesAPI = async (userId) => {
   // In a real app, this would fetch from your database
@@ -450,7 +451,7 @@ export default function BrowseFoodPage() {
         </Card>
       </div>
 
-<<<<<<< HEAD
+
       {/* NGO Priority Access Banner */}
       {userProfile?.subrole === 'NGO' && (
         <Card className="bg-gradient-to-r from-emerald-900/30 to-blue-900/30 border-emerald-500/30">
@@ -469,7 +470,6 @@ export default function BrowseFoodPage() {
           </CardContent>
         </Card>
       )}
-=======
       {/* Enhanced Platform Statistics */}
       <div className="mb-8">
         <div className="bg-gradient-to-r from-gray-800/50 to-gray-700/50 rounded-lg p-6 border border-gray-700">
@@ -560,8 +560,6 @@ export default function BrowseFoodPage() {
         </div>
       </div>
 
-      
->>>>>>> 6dac708d82796a4eb31189d78ba8fe6585a8bfed
 
       {/* Filter Controls */}
       <div className="flex flex-wrap gap-4 items-center justify-between">
