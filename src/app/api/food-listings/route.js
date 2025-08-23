@@ -51,6 +51,80 @@ export async function GET(request) {
       console.log("🔒 NGO exclusive listings currently active:", ngoExclusiveListings.length);
     }
 
+    // Get all listing IDs for booking statistics
+    const listingIds = foodListings.map(listing => listing._id);
+
+    // Compute booking statistics for all listings
+    const bookingStats = {};
+    const providerStats = {};
+
+    if (listingIds.length > 0) {
+      // Get all bookings for these listings
+      const allBookings = await Booking.find({
+        listingId: { $in: listingIds }
+      }).lean();
+
+      // Group bookings by listing ID
+      for (const booking of allBookings) {
+        const listingId = booking.listingId.toString();
+
+        if (!bookingStats[listingId]) {
+          bookingStats[listingId] = {
+            totalClaims: 0,
+            completedClaims: 0,
+            totalRating: 0,
+            ratedBookings: 0,
+            providerRatings: [],
+            successRate: 0
+          };
+        }
+
+        // Count total claims (all bookings)
+        bookingStats[listingId].totalClaims++;
+
+        // Count completed claims (collected bookings)
+        if (booking.status === 'collected') {
+          bookingStats[listingId].completedClaims++;
+        }
+
+        // Add ratings if available
+        if (booking.rating && booking.rating > 0) {
+          bookingStats[listingId].totalRating += booking.rating;
+          bookingStats[listingId].ratedBookings++;
+        }
+
+        // Add provider ratings if available
+        if (booking.providerRating && booking.providerRating > 0) {
+          bookingStats[listingId].providerRatings.push(booking.providerRating);
+        }
+      }
+
+      // Compute provider statistics
+      for (const listing of foodListings) {
+        const providerId = listing.providerId;
+        if (!providerStats[providerId]) {
+          providerStats[providerId] = {
+            totalRating: 0,
+            ratedBookings: 0
+          };
+        }
+
+        // Get all bookings for this provider across all their listings
+        const providerBookings = allBookings.filter(booking => {
+          const bookingListing = foodListings.find(l => l._id.toString() === booking.listingId.toString());
+          return bookingListing && bookingListing.providerId === providerId;
+        });
+
+        // Calculate provider ratings
+        for (const booking of providerBookings) {
+          if (booking.providerRating && booking.providerRating > 0) {
+            providerStats[providerId].totalRating += booking.providerRating;
+            providerStats[providerId].ratedBookings++;
+          }
+        }
+      }
+    }
+
     // Compute available quantity per listing and filter out fully booked
     const transformedListings = foodListings
       .map((listing) => {
