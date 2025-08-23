@@ -45,7 +45,7 @@ const LayoutContent = ({ children }) => {
   return (
     <SidebarProvider open={isSidebarOpen} onOpenChange={setSidebarOpen}>
       <div className="flex min-h-screen w-full">
-        <Sidebar className="border-gray-700 bg-gray-800 w-64 flex-shrink-0 min-h-screen mt-16 flex flex-col">
+        <Sidebar className="border-gray-700 bg-gray-800 w-64 flex-shrink-0 h-[calc(100vh-4rem)] mt-16 flex flex-col">
           <SidebarHeader className="p-4 border-b border-gray-700">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-emerald-600 rounded-lg">
