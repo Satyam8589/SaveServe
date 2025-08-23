@@ -1,15 +1,54 @@
 import { connectDB } from "@/lib/db";
 import FoodListing from "@/models/FoodListing";
+import UserProfile from "@/models/UserProfile";
+import { createVisibilityQuery } from "@/lib/visibilityUtils";
+import { auth } from "@clerk/nextjs/server";
 
 export async function GET(request) {
   try {
     await connectDB();
 
-    const foodListings = await FoodListing.find({
-      isActive: true,
-      expiryTime: { $gte: new Date() },
-      quantity: { $gt: 0 }, // Only get listings with quantity > 0
-    }).sort({ createdAt: -1 });
+    // Get user authentication and role information
+    const { userId } = await auth();
+
+    if (!userId) {
+      return Response.json(
+        { success: false, message: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    // Fetch user profile to get role and subrole
+    const userProfile = await UserProfile.findOne({ userId }).lean();
+
+    if (!userProfile) {
+      return Response.json(
+        { success: false, message: "User profile not found" },
+        { status: 404 }
+      );
+    }
+
+    console.log("🔍 Fetching food listings for user:", {
+      userId,
+      role: userProfile.role,
+      subrole: userProfile.subrole
+    });
+
+    // Create visibility query based on user role
+    const visibilityQuery = createVisibilityQuery(userProfile.role, userProfile.subrole);
+
+    console.log("📋 Visibility query:", JSON.stringify(visibilityQuery, null, 2));
+
+    const foodListings = await FoodListing.find(visibilityQuery)
+      .sort({ createdAt: -1 });
+
+    console.log("📊 Found", foodListings.length, "listings matching visibility criteria");
+
+    // Log NGO exclusive listings for debugging
+    const ngoExclusiveListings = foodListings.filter(l => l.isNGOExclusive && l.ngoExclusiveUntil && new Date() < new Date(l.ngoExclusiveUntil));
+    if (ngoExclusiveListings.length > 0) {
+      console.log("🔒 NGO exclusive listings currently active:", ngoExclusiveListings.length);
+    }
 
     // Compute available quantity per listing and filter out fully booked
     const transformedListings = foodListings

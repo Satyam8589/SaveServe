@@ -4,6 +4,7 @@ import { useAuth, useUser } from "@clerk/nextjs";
 import { useBookFoodListing } from "@/hooks/useBookings";
 import { useBookingPermission } from "@/hooks/useBookingPermission";
 import { useImpactScore } from "@/hooks/useImpactScore";
+import { useUserProfile } from "@/hooks/useProfile";
 import SuspensionNotification from "@/components/SuspensionNotification";
 import {
   Utensils,
@@ -107,6 +108,13 @@ export default function BrowseFoodPage() {
     statistics,
     isLoading: impactLoading,
   } = useImpactScore(userId);
+
+  // --- User Profile for role-based features ---
+  const {
+    data: userProfile,
+    isLoading: profileLoading,
+    error: profileError,
+  } = useUserProfile();
 
   useEffect(() => {
     fetchFoodListings();
@@ -415,6 +423,25 @@ export default function BrowseFoodPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* NGO Priority Access Banner */}
+      {userProfile?.subrole === 'NGO' && (
+        <Card className="bg-gradient-to-r from-emerald-900/30 to-blue-900/30 border-emerald-500/30">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0">
+                <Award className="h-6 w-6 text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-emerald-400">NGO Priority Access</h3>
+                <p className="text-xs text-gray-300">
+                  As an NGO, you get exclusive 30-minute early access to high-quantity food posts (50+ servings)
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filter Controls */}
       <div className="flex flex-wrap gap-4 items-center justify-between">
