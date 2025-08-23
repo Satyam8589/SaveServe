@@ -416,6 +416,25 @@ export default function BrowseFoodPage() {
         </Card>
       </div>
 
+      {/* NGO Priority Information */}
+      {foodListings.some(food => food.isNGOPriority && food.ngoOnlyUntil && new Date(food.ngoOnlyUntil) > new Date()) && (
+        <Card className="bg-purple-900/20 border-purple-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-purple-600 p-2 rounded-full">
+                <Package className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <h3 className="text-purple-300 font-medium">NGO Priority Active</h3>
+                <p className="text-purple-200 text-sm">
+                  Large food donations (50+ servings) are shown to NGOs first for 30 minutes, then become available to everyone.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Filter Controls */}
       <div className="flex flex-wrap gap-4 items-center justify-between">
         <div className="flex gap-2">
@@ -535,10 +554,18 @@ export default function BrowseFoodPage() {
                           )}
                         </div>
                       </div>
-                      <Badge className={getStatusColor(food.status)}>
-                        {getStatusIcon(food.status)}
-                        <span className="ml-1 capitalize">{food.status}</span>
-                      </Badge>
+                      <div className="flex flex-col gap-1">
+                        <Badge className={getStatusColor(food.status)}>
+                          {getStatusIcon(food.status)}
+                          <span className="ml-1 capitalize">{food.status}</span>
+                        </Badge>
+                        {/* NGO Priority Indicator */}
+                        {food.isNGOPriority && food.ngoOnlyUntil && new Date(food.ngoOnlyUntil) > new Date() && (
+                          <Badge className="bg-purple-600 text-white text-xs">
+                            🏢 NGO Priority
+                          </Badge>
+                        )}
+                      </div>
                     </div>
 
                     {food.description && (
