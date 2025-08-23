@@ -61,7 +61,7 @@ const LayoutContent = ({ children }) => {
             <SidebarMenu>
               {sidebarItems.map((item) => (
                 <SidebarMenuItem key={item.id}>
-                  <Link href={item.href} passHref>
+                  <Link href={item.href} passHref prefetch={true}>
                     <SidebarMenuButton
                       className={`relative text-gray-300 hover:text-gray-100 hover:bg-gray-700 ${
                         pathname === item.href ? "bg-emerald-600 text-white" : ""
@@ -80,10 +80,12 @@ const LayoutContent = ({ children }) => {
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter className="p-4 border-t border-gray-700">
-             <SidebarMenuButton className="text-gray-300 hover:text-gray-100 hover:bg-gray-700">
-               <Settings className="h-4 w-4" />
-               <span>Settings</span>
-             </SidebarMenuButton>
+             <Link href="/settings" passHref prefetch={true}>
+               <SidebarMenuButton className="text-gray-300 hover:text-gray-100 hover:bg-gray-700">
+                 <Settings className="h-4 w-4" />
+                 <span>Settings</span>
+               </SidebarMenuButton>
+             </Link>
              <SidebarMenuButton className="text-red-400 hover:text-red-300 hover:bg-gray-700" onClick={() => signOut()}>
                <LogOut className="h-4 w-4" />
                <span>Sign Out</span>
