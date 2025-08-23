@@ -206,6 +206,18 @@ const foodListingSchema = new mongoose.Schema(
         lowercase: true,
       },
     },
+
+    // NGO Priority Fields
+    isNGOPriority: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    ngoOnlyUntil: {
+      type: Date,
+      default: null,
+      index: true,
+    },
   },
   {
     timestamps: true,
