@@ -14,6 +14,7 @@
     "@clerk/nextjs": "^6.30.2",
     "@clerk/themes": "^2.4.6",
     "@google/generative-ai": "^0.24.1",
+    "@mapbox/polyline": "^1.2.1",
     "@prisma/client": "^6.14.0",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-dialog": "^1.1.15",
