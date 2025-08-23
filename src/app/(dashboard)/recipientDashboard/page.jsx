@@ -88,7 +88,7 @@ export default function BrowseFoodPage() {
   const [isClaimDialogOpen, setIsClaimDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [foodListings, setFoodListings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Changed to false to prevent initial loading animation
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -123,6 +123,7 @@ export default function BrowseFoodPage() {
   } = useUserProfile();
 
   useEffect(() => {
+    // Fetch data silently in background without loading animation
     fetchFoodListings();
     fetchFavorites();
   }, [userId]); // Re-fetch favorites if the user ID changes
@@ -138,25 +139,33 @@ export default function BrowseFoodPage() {
 
   const fetchFoodListings = async (isRefresh = false) => {
     try {
+      // Only show refresh indicator for manual refresh, no loading animation for initial load
       if (isRefresh) {
         setIsRefreshing(true);
-      } else {
-        setLoading(true);
       }
-      
+
       const response = await fetch("/api/food-listings");
       const data = await response.json();
       if (data.success) {
         setFoodListings(data.data);
         setLastUpdated(new Date());
         console.log("✅ Food listings refreshed successfully");
+        // Set loading to false after first successful fetch
+        if (loading) {
+          setLoading(false);
+        }
       } else {
         setError(data.message || "Failed to fetch listings");
+        if (loading) {
+          setLoading(false);
+        }
       }
     } catch (err) {
       setError("Failed to connect to server");
+      if (loading) {
+        setLoading(false);
+      }
     } finally {
-      setLoading(false);
       setIsRefreshing(false);
     }
   };
@@ -353,14 +362,7 @@ export default function BrowseFoodPage() {
 
   const urgentCount = foodListings.filter((f) => f.status === "urgent").length;
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
-        <span className="ml-2 text-gray-300">Loading food listings...</span>
-      </div>
-    );
-  }
+  // Remove loading animation - data will load in background and populate when ready
 
   if (error) {
     return (
