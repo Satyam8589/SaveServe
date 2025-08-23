@@ -1,5 +1,7 @@
-// File: /components/ExpiredListingsTable.js.
+// File: /components/ExpiredListingsTable.js
 'use client';
+
+//trying to fix the vercel
 
 import { useState, useEffect } from 'react';
 import { useListings } from '@/hooks/useListings';
