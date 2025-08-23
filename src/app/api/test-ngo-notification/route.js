@@ -13,6 +13,7 @@ export async function GET(request) {
         // Get NGO count and system status
         const ngos = await ngoNotificationService.getAllNGOs();
         
+        //send the notification when the provider upload food more then 50
         return NextResponse.json({
           success: true,
           system: 'NGO Notification System',
