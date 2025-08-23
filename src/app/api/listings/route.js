@@ -186,12 +186,17 @@ export async function POST(request) {
     }
 
     // Create listing data
+    const parsedQuantity = parseInt(quantity, 10);
+    const isHighQuantity = parsedQuantity > 50;
+    const now = new Date();
+    const ngoOnlyUntil = isHighQuantity ? new Date(now.getTime() + 30 * 60 * 1000) : null; // 30 minutes from now
+
     const listingData = {
       title,
       description: body.description || "",
       category: body.category || "",
       foodType: body.foodType, // Add food type field
-      quantity: parseInt(quantity, 10),
+      quantity: parsedQuantity,
       unit: body.unit || "",
       freshnessStatus,
       freshnessHours: body.freshnessHours || 24,
@@ -207,8 +212,11 @@ export async function POST(request) {
       providerName: providerName || "Provider", // Fallback if providerName is empty
       imageUrl: body.imageUrl || "", // ✅ Always include imageUrl, even if empty
       bookedBy: body.bookedBy || [],
-      remainingQuantity: body.remainingQuantity || parseInt(quantity, 10),
+      remainingQuantity: body.remainingQuantity || parsedQuantity,
       isActive: body.isActive !== undefined ? body.isActive : true,
+      // NGO Priority fields
+      isNGOPriority: isHighQuantity,
+      ngoOnlyUntil: ngoOnlyUntil,
     };
 
     console.log("📦 Final listing data to save:");

@@ -369,6 +369,17 @@ export default function FoodListingTable({ providerId, onEditListing }) {
                       </div>
                     </div>
                     
+                    {/* NGO Priority Indicator */}
+                    {listing.isNGOPriority && listing.ngoOnlyUntil && new Date(listing.ngoOnlyUntil) > new Date() && (
+                      <div className="flex items-center gap-2 bg-purple-900/30 border border-purple-500/30 rounded-lg p-2">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+                        <span className="text-purple-300 text-xs font-medium">NGO Priority Active</span>
+                        <span className="text-purple-400 text-xs">
+                          (Until {new Date(listing.ngoOnlyUntil).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})
+                        </span>
+                      </div>
+                    )}
+
                     {/* Location */}
                     <div className="flex items-center text-gray-400 pt-2 sm:pt-2 border-t border-gray-700/50">
                       <MapPin className="w-4 h-4 mr-2 text-purple-400 shrink-0" />

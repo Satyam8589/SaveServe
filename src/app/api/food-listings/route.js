@@ -1,15 +1,45 @@
 import { connectDB } from "@/lib/db";
 import FoodListing from "@/models/FoodListing";
+import UserProfile from "@/models/UserProfile";
+import { auth } from "@clerk/nextjs/server";
 
 export async function GET(request) {
   try {
     await connectDB();
 
-    const foodListings = await FoodListing.find({
+    // Get the current user's ID from authentication
+    const { userId } = await auth();
+
+    // Get user profile to determine if they are NGO
+    let isNGOUser = false;
+    if (userId) {
+      try {
+        const userProfile = await UserProfile.findOne({ userId });
+        isNGOUser = userProfile?.role === 'RECIPIENT' && userProfile?.subrole === 'NGO';
+      } catch (error) {
+        console.warn('Could not fetch user profile for NGO check:', error);
+      }
+    }
+
+    const now = new Date();
+
+    // Build the base query
+    let query = {
       isActive: true,
-      expiryTime: { $gte: new Date() },
+      expiryTime: { $gte: now },
       quantity: { $gt: 0 }, // Only get listings with quantity > 0
-    }).sort({ createdAt: -1 });
+    };
+
+    // If user is not NGO, exclude listings that are still in NGO-only period
+    if (!isNGOUser) {
+      query.$or = [
+        { isNGOPriority: false }, // Not NGO priority
+        { isNGOPriority: true, ngoOnlyUntil: { $lte: now } }, // NGO priority but period expired
+        { ngoOnlyUntil: null }, // No NGO period set
+      ];
+    }
+
+    const foodListings = await FoodListing.find(query).sort({ createdAt: -1 });
 
     // Compute available quantity per listing and filter out fully booked
     const transformedListings = foodListings
