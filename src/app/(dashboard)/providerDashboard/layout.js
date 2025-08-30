@@ -36,7 +36,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import NotificationBell from "@/hooks/NotificationBell";;
+import NotificationBell from "@/hooks/NotificationBell";
 const sidebarItems = [
   {
     href: "/providerDashboard/listings",
@@ -103,8 +103,10 @@ export default function ProviderDashboardLayout({ children }) {
   };
 
   const getCurrentPageLabel = () => {
-    const currentItem = sidebarItems.find((item) => 
-      pathname === item.href || (item.href !== "/providerDashboard" && pathname.startsWith(item.href))
+    const currentItem = sidebarItems.find(
+      (item) =>
+        pathname === item.href ||
+        (item.href !== "/providerDashboard" && pathname.startsWith(item.href))
     );
     return currentItem?.label || "Dashboard";
   };
@@ -137,7 +139,9 @@ export default function ProviderDashboardLayout({ children }) {
                 </div>
                 <div>
                   <h2 className="font-bold text-gray-100 text-lg">SmartFood</h2>
-                  <p className="text-xs text-orange-400 font-medium">Provider Portal</p>
+                  <p className="text-xs text-orange-400 font-medium">
+                    Provider Portal
+                  </p>
                 </div>
               </div>
             </SidebarHeader>
@@ -155,11 +159,17 @@ export default function ProviderDashboardLayout({ children }) {
                             : ""
                         )}
                       >
-                        <item.icon className={cn(
-                          "h-5 w-5 flex-shrink-0",
-                          isActiveRoute(item.href) ? "text-white" : "text-orange-400"
-                        )} />
-                        <span className="font-medium truncate">{item.label}</span>
+                        <item.icon
+                          className={cn(
+                            "h-5 w-5 flex-shrink-0",
+                            isActiveRoute(item.href)
+                              ? "text-white"
+                              : "text-orange-400"
+                          )}
+                        />
+                        <span className="font-medium truncate">
+                          {item.label}
+                        </span>
                         {item.badge && (
                           <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md">
                             {item.badge}
@@ -228,10 +238,11 @@ export default function ProviderDashboardLayout({ children }) {
                     size="icon"
                     onClick={handleBellClick}
                     className="text-gray-300 hover:text-gray-100 hover:bg-gray-700/50 transition-all duration-200 relative h-8 w-8 sm:h-10 sm:w-10"
+                    aria-label="Notifications"
                   >
                     <NotificationBell />
                   </Button>
-                  
+
                   {/* <NotificationPopup
                     isOpen={isNotificationPopupOpen}
                     onClose={handleCloseNotifications}

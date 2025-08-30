@@ -15,6 +15,18 @@ export const metadata = {
   title: "SaveServe",
   description:
     "SaveServe is a smart food redistribution platform that connects food providers with recipients in need, reducing food waste and supporting communities.",
+  manifest: "/manifest.json",
+  themeColor: "#047857",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "SaveServe",
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+  },
 };
 
 export default async function RootLayout({ children }) {
@@ -27,8 +39,14 @@ export default async function RootLayout({ children }) {
       <html lang="en" suppressHydrationWarning>
         <head>
           <link rel="icon" href="/logo.svg" />
+          <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+          <meta name="apple-mobile-web-app-capable" content="yes" />
+          <meta
+            name="apple-mobile-web-app-status-bar-style"
+            content="black-translucent"
+          />
+          <meta name="theme-color" content="#047857" />
           {/* Leaflet Routing Machine CSS and JS */}
-        
         </head>
         <body className={`${inter.className}`}>
           <ThemeProvider
@@ -45,6 +63,15 @@ export default async function RootLayout({ children }) {
                 {children}
                 <SpeedInsights />
                 <Analytics />
+
+                {/* Install button (hidden by default, shown by PWA component) */}
+                <button
+                  id="install-button"
+                  style={{ display: "none" }}
+                  className="fixed bottom-4 right-4 bg-emerald-600 text-white px-4 py-2 rounded-full shadow-lg z-50"
+                >
+                  Install App
+                </button>
               </main>
 
               {/* Location Permission Service - Uses native browser prompts */}

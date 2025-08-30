@@ -5,6 +5,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "react-hot-toast";
 import { NotificationProvider } from "@/provider/NotificationProvider";
 import { useState } from "react";
+import PWARegistration from "@/components/PWARegistration";
 
 export function Providers({ children }) {
   const [queryClient] = useState(
@@ -13,7 +14,7 @@ export function Providers({ children }) {
         defaultOptions: {
           queries: {
             staleTime: 1000 * 60 * 5, // 5 minutes
-            gcTime: 1000 * 60 * 30,   // 30 minutes
+            gcTime: 1000 * 60 * 30, // 30 minutes
             retry: (failureCount, error) => {
               if (error?.status === 404) return false;
               return failureCount < 2;
@@ -38,6 +39,7 @@ export function Providers({ children }) {
               },
             }}
           />
+          <PWARegistration />
         </NotificationProvider>
       </QueryClientProvider>
     </ClerkProvider>

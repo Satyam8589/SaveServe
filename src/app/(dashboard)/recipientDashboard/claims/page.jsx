@@ -42,35 +42,43 @@ const ClaimsPage = () => {
     setLoadingDirections(claim._id); // Set loading state for this specific claim
 
     try {
-      console.log('🗺️ Fetching location data for directions...');
-      console.log('📍 Current user ID:', user?.id);
-      console.log('📍 Provider ID:', claim.providerId);
+      console.log("🗺️ Fetching location data for directions...");
+      console.log("📍 Current user ID:", user?.id);
+      console.log("📍 Provider ID:", claim.providerId);
 
       // Fetch current user's profile data
-      const currentUserResponse = await fetch(`/api/profile?userId=${user?.id}`);
+      const currentUserResponse = await fetch(
+        `/api/profile?userId=${user?.id}`
+      );
       const currentUserData = await currentUserResponse.json();
 
       // Fetch provider's profile data
-      const providerResponse = await fetch(`/api/profile?userId=${claim.providerId}`);
+      const providerResponse = await fetch(
+        `/api/profile?userId=${claim.providerId}`
+      );
       const providerData = await providerResponse.json();
 
-      console.log('📍 Current user data:', currentUserData);
-      console.log('📍 Provider data:', providerData);
+      console.log("📍 Current user data:", currentUserData);
+      console.log("📍 Provider data:", providerData);
 
       if (currentUserData.success && providerData.success) {
         // Enhanced coordinate parsing with better error handling
         const parseCoordinates = (areaString, userType) => {
           console.log(`📍 Parsing coordinates for ${userType}:`, areaString);
 
-          if (!areaString || typeof areaString !== 'string') {
+          if (!areaString || typeof areaString !== "string") {
             console.log(`❌ ${userType}: No area string provided`);
-            return { latitude: null, longitude: null, error: 'No location data' };
+            return {
+              latitude: null,
+              longitude: null,
+              error: "No location data",
+            };
           }
 
           // Try multiple coordinate formats
           const formats = [
-            /Lat:\s*(-?\d+\.?\d*),?\s*Lon:\s*(-?\d+\.?\d*)/i,  // "Lat: 22.5151549, Lon: 88.4104219"
-            /(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/,                   // "22.5151549, 88.4104219"
+            /Lat:\s*(-?\d+\.?\d*),?\s*Lon:\s*(-?\d+\.?\d*)/i, // "Lat: 22.5151549, Lon: 88.4104219"
+            /(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/, // "22.5151549, 88.4104219"
             /latitude:\s*(-?\d+\.?\d*),?\s*longitude:\s*(-?\d+\.?\d*)/i, // "latitude: 22.5151549, longitude: 88.4104219"
           ];
 
@@ -80,26 +88,48 @@ const ClaimsPage = () => {
               const latitude = parseFloat(match[1]);
               const longitude = parseFloat(match[2]);
 
-              if (!isNaN(latitude) && !isNaN(longitude) &&
-                  latitude >= -90 && latitude <= 90 &&
-                  longitude >= -180 && longitude <= 180) {
-                console.log(`✅ ${userType}: Valid coordinates found - Lat: ${latitude}, Lon: ${longitude}`);
+              if (
+                !isNaN(latitude) &&
+                !isNaN(longitude) &&
+                latitude >= -90 &&
+                latitude <= 90 &&
+                longitude >= -180 &&
+                longitude <= 180
+              ) {
+                console.log(
+                  `✅ ${userType}: Valid coordinates found - Lat: ${latitude}, Lon: ${longitude}`
+                );
                 return { latitude, longitude, error: null };
               }
             }
           }
 
-          console.log(`❌ ${userType}: Invalid coordinate format in area string`);
-          return { latitude: null, longitude: null, error: 'Invalid coordinate format' };
+          console.log(
+            `❌ ${userType}: Invalid coordinate format in area string`
+          );
+          return {
+            latitude: null,
+            longitude: null,
+            error: "Invalid coordinate format",
+          };
         };
 
-        const currentUserCoords = parseCoordinates(currentUserData.data.area, 'Current User');
-        const providerCoords = parseCoordinates(providerData.data.area, 'Provider');
+        const currentUserCoords = parseCoordinates(
+          currentUserData.data.area,
+          "Current User"
+        );
+        const providerCoords = parseCoordinates(
+          providerData.data.area,
+          "Provider"
+        );
 
         // Check if both users have valid coordinates
-        if (currentUserCoords.latitude && currentUserCoords.longitude &&
-            providerCoords.latitude && providerCoords.longitude) {
-
+        if (
+          currentUserCoords.latitude &&
+          currentUserCoords.longitude &&
+          providerCoords.latitude &&
+          providerCoords.longitude
+        ) {
           const recipient = {
             id: currentUserData.data.userId,
             fullName: currentUserData.data.fullName,
@@ -107,7 +137,7 @@ const ClaimsPage = () => {
             subrole: currentUserData.data.subrole,
             area: currentUserData.data.area,
             latitude: currentUserCoords.latitude,
-            longitude: currentUserCoords.longitude
+            longitude: currentUserCoords.longitude,
           };
 
           const provider = {
@@ -117,45 +147,65 @@ const ClaimsPage = () => {
             subrole: providerData.data.subrole,
             area: providerData.data.area,
             latitude: providerCoords.latitude,
-            longitude: providerCoords.longitude
+            longitude: providerCoords.longitude,
           };
 
-          console.log('✅ Opening direction modal with valid coordinates');
+          console.log("✅ Opening direction modal with valid coordinates");
           setDirectionModal({ provider, recipient });
         } else {
           // Provide detailed error message
-          let errorMessage = 'Location data not available for mapping:\n\n';
+          let errorMessage = "Location data not available for mapping:\n\n";
 
           if (!currentUserCoords.latitude || !currentUserCoords.longitude) {
-            errorMessage += `• Your location: ${currentUserCoords.error || 'No valid coordinates found'}\n`;
-            errorMessage += `  Area data: "${currentUserData.data.area || 'Not set'}"\n\n`;
+            errorMessage += `• Your location: ${
+              currentUserCoords.error || "No valid coordinates found"
+            }\n`;
+            errorMessage += `  Area data: "${
+              currentUserData.data.area || "Not set"
+            }"\n\n`;
           }
 
           if (!providerCoords.latitude || !providerCoords.longitude) {
-            errorMessage += `• Provider location: ${providerCoords.error || 'No valid coordinates found'}\n`;
-            errorMessage += `  Area data: "${providerData.data.area || 'Not set'}"\n\n`;
+            errorMessage += `• Provider location: ${
+              providerCoords.error || "No valid coordinates found"
+            }\n`;
+            errorMessage += `  Area data: "${
+              providerData.data.area || "Not set"
+            }"\n\n`;
           }
 
-          errorMessage += 'Please ensure both you and the provider have set valid location coordinates in the format:\n';
+          errorMessage +=
+            "Please ensure both you and the provider have set valid location coordinates in the format:\n";
           errorMessage += '"Lat: 22.5151549, Lon: 88.4104219"\n\n';
-          errorMessage += 'To set your location:\n';
-          errorMessage += '1. Go to your Profile settings\n';
+          errorMessage += "To set your location:\n";
+          errorMessage += "1. Go to your Profile settings\n";
           errorMessage += '2. Update the "Area" field with coordinates\n';
-          errorMessage += '3. Use this format: "Lat: YOUR_LATITUDE, Lon: YOUR_LONGITUDE"\n';
-          errorMessage += '4. You can get coordinates from Google Maps by right-clicking on your location';
+          errorMessage +=
+            '3. Use this format: "Lat: YOUR_LATITUDE, Lon: YOUR_LONGITUDE"\n';
+          errorMessage +=
+            "4. You can get coordinates from Google Maps by right-clicking on your location";
 
           // Try to use the locations API as fallback
-          console.log('🔄 Trying fallback: fetching from /api/users/locations');
+          console.log("🔄 Trying fallback: fetching from /api/users/locations");
           try {
-            const locationsResponse = await fetch('/api/users/locations');
+            const locationsResponse = await fetch("/api/users/locations");
             const locationsData = await locationsResponse.json();
 
             if (locationsData.success && locationsData.data) {
-              const currentUserFromAPI = locationsData.data.find(u => u.id === user?.id);
-              const providerFromAPI = locationsData.data.find(u => u.id === claim.providerId);
+              const currentUserFromAPI = locationsData.data.find(
+                (u) => u.id === user?.id
+              );
+              const providerFromAPI = locationsData.data.find(
+                (u) => u.id === claim.providerId
+              );
 
-              if (currentUserFromAPI?.hasValidCoordinates && providerFromAPI?.hasValidCoordinates) {
-                console.log('✅ Found valid coordinates in locations API, using fallback');
+              if (
+                currentUserFromAPI?.hasValidCoordinates &&
+                providerFromAPI?.hasValidCoordinates
+              ) {
+                console.log(
+                  "✅ Found valid coordinates in locations API, using fallback"
+                );
 
                 const recipient = {
                   id: currentUserFromAPI.id,
@@ -164,7 +214,7 @@ const ClaimsPage = () => {
                   subrole: currentUserFromAPI.subrole,
                   area: currentUserFromAPI.area,
                   latitude: currentUserFromAPI.latitude,
-                  longitude: currentUserFromAPI.longitude
+                  longitude: currentUserFromAPI.longitude,
                 };
 
                 const provider = {
@@ -174,7 +224,7 @@ const ClaimsPage = () => {
                   subrole: providerFromAPI.subrole,
                   area: providerFromAPI.area,
                   latitude: providerFromAPI.latitude,
-                  longitude: providerFromAPI.longitude
+                  longitude: providerFromAPI.longitude,
                 };
 
                 setDirectionModal({ provider, recipient });
@@ -182,24 +232,30 @@ const ClaimsPage = () => {
               }
             }
           } catch (fallbackError) {
-            console.error('❌ Fallback API also failed:', fallbackError);
+            console.error("❌ Fallback API also failed:", fallbackError);
           }
 
           alert(errorMessage);
         }
       } else {
-        let errorMessage = 'Failed to fetch user location data:\n\n';
+        let errorMessage = "Failed to fetch user location data:\n\n";
         if (!currentUserData.success) {
-          errorMessage += `• Your profile: ${currentUserData.message || 'Unknown error'}\n`;
+          errorMessage += `• Your profile: ${
+            currentUserData.message || "Unknown error"
+          }\n`;
         }
         if (!providerData.success) {
-          errorMessage += `• Provider profile: ${providerData.message || 'Unknown error'}\n`;
+          errorMessage += `• Provider profile: ${
+            providerData.message || "Unknown error"
+          }\n`;
         }
         alert(errorMessage);
       }
     } catch (error) {
-      console.error('❌ Error fetching location data:', error);
-      alert(`Error loading location data: ${error.message}\n\nPlease try again or contact support if the issue persists.`);
+      console.error("❌ Error fetching location data:", error);
+      alert(
+        `Error loading location data: ${error.message}\n\nPlease try again or contact support if the issue persists.`
+      );
     } finally {
       setLoadingDirections(null); // Reset loading state
     }
@@ -246,26 +302,28 @@ const ClaimsPage = () => {
       : claims.filter((claim) => claim.status === statusFilter);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto">
       {/* Enhanced Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <QrCode className="h-8 w-8 text-emerald-400" />
-          <h1 className="text-3xl font-bold text-gray-100">My Claims</h1>
+      <div className="mb-6 md:mb-8">
+        <div className="flex items-center gap-2 sm:gap-3 mb-2">
+          <QrCode className="h-6 w-6 sm:h-8 sm:w-8 text-emerald-400" />
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-100">
+            My Claims
+          </h1>
         </div>
-        <p className="text-gray-400 text-lg">
+        <p className="text-gray-400 text-base sm:text-lg">
           Track your food collection requests and access QR codes
         </p>
       </div>
 
       {/* Enhanced Filter Section */}
-      <div className="mb-8">
-        <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-200 mb-3 flex items-center gap-2">
+      <div className="mb-6 md:mb-8">
+        <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border border-gray-700">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-200 mb-2 sm:mb-3 flex items-center gap-2">
             <Package className="h-5 w-5 text-emerald-400" />
             Filter Claims
           </h3>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             {[
               { key: "all", label: "All Claims", icon: Package },
               { key: "pending", label: "Pending", icon: Clock },
@@ -276,13 +334,14 @@ const ClaimsPage = () => {
                 key={key}
                 variant={statusFilter === key ? "default" : "outline"}
                 onClick={() => setStatusFilter(key)}
-                className={`flex items-center gap-2 ${
+                className={`flex items-center gap-1 sm:gap-2 text-xs sm:text-sm ${
                   statusFilter === key
                     ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
                     : "border-gray-600 text-gray-300 hover:bg-gray-700"
                 }`}
+                size="sm"
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-3 w-3 sm:h-4 sm:w-4" />
                 {label}
               </Button>
             ))}
@@ -304,30 +363,30 @@ const ClaimsPage = () => {
               key={claim._id}
               className="bg-gradient-to-r from-gray-800 to-gray-800/90 hover:from-gray-700 hover:to-gray-700/90 transition-all duration-300 border-gray-700 shadow-lg"
             >
-              <CardContent className="p-6">
-                <div className="flex justify-between items-start mb-4">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Package className="h-5 w-5 text-emerald-400" />
-                      <h3 className="text-xl font-bold text-gray-100">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                      <Package className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" />
+                      <h3 className="text-base sm:text-xl font-bold text-gray-100 break-words">
                         {claim.listingId?.title || "Food Item"}
                       </h3>
                     </div>
-                    <div className="flex items-center gap-2 text-gray-400 mb-2">
-                      <MapPin className="h-4 w-4" />
-                      <p className="text-sm">
+                    <div className="flex items-start gap-2 text-gray-400 mb-2">
+                      <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs sm:text-sm break-words">
                         {claim.listingId?.location || "Location not specified"}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 text-gray-400">
-                      <User className="h-4 w-4" />
-                      <p className="text-sm">
+                      <User className="h-4 w-4 flex-shrink-0" />
+                      <p className="text-xs sm:text-sm break-words">
                         Provider: {claim.providerName || "Unknown Provider"}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-row flex-wrap md:flex-col gap-2 mt-2 md:mt-0">
                     <Button
                       variant="outline"
                       onClick={() => setSelectedBooking(claim)}
@@ -335,18 +394,20 @@ const ClaimsPage = () => {
                         claim.status === "cancelled" ||
                         claim.status === "expired"
                       }
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 hover:border-emerald-700"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 hover:border-emerald-700 text-xs sm:text-sm flex-1 md:flex-auto h-8 md:h-auto py-0 px-2 md:px-3"
+                      size="sm"
                     >
-                      <QrCode className="h-4 w-4 mr-2" />
-                      Show QR Code
+                      <QrCode className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                      <span className="whitespace-nowrap">Show QR</span>
                     </Button>
 
                     <Button
                       variant="outline"
                       onClick={() => setContactProvider(claim)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700"
+                      className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700 text-xs sm:text-sm flex-1 md:flex-auto h-8 md:h-auto py-0 px-2 md:px-3"
+                      size="sm"
                     >
-                      <MessageCircle className="h-4 w-4 mr-2" />
+                      <MessageCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                       Contact
                     </Button>
 
@@ -354,26 +415,27 @@ const ClaimsPage = () => {
                       variant="outline"
                       onClick={() => handleShowDirections(claim)}
                       disabled={loadingDirections === claim._id}
-                      className="bg-purple-600 hover:bg-purple-700 text-white border-purple-600 hover:border-purple-700 disabled:opacity-50"
+                      className="bg-purple-600 hover:bg-purple-700 text-white border-purple-600 hover:border-purple-700 disabled:opacity-50 text-xs sm:text-sm flex-1 md:flex-auto h-8 md:h-auto py-0 px-2 md:px-3"
                       title="Show route from your location to the provider's location"
+                      size="sm"
                     >
                       {loadingDirections === claim._id ? (
                         <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Loading...
+                          <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-1 sm:mr-2"></div>
+                          <span className="whitespace-nowrap">Loading...</span>
                         </>
                       ) : (
                         <>
-                          <Navigation className="h-4 w-4 mr-2" />
-                          Directions
+                          <Navigation className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                          <span className="whitespace-nowrap">Directions</span>
                         </>
                       )}
                     </Button>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <Badge
                       className={`${
                         claim.status === "approved"
@@ -383,14 +445,14 @@ const ClaimsPage = () => {
                           : claim.status === "collected"
                           ? "bg-blue-600 hover:bg-blue-700"
                           : "bg-red-600 hover:bg-red-700"
-                      } text-white`}
+                      } text-white text-xs`}
                     >
                       {claim.status.charAt(0).toUpperCase() +
                         claim.status.slice(1)}
                     </Badge>
 
                     {claim.requestedQuantity && (
-                      <span className="text-sm text-gray-400">
+                      <span className="text-xs sm:text-sm text-gray-400">
                         Quantity: {claim.requestedQuantity}{" "}
                         {claim.listingId?.unit || "items"}
                       </span>
@@ -398,11 +460,17 @@ const ClaimsPage = () => {
                   </div>
 
                   {claim.scheduledPickupTime && (
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <Clock className="h-4 w-4" />
-                      <span className="text-sm">
+                    <div className="flex items-center gap-1 sm:gap-2 text-gray-400">
+                      <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="text-xs sm:text-sm">
                         Pickup:{" "}
-                        {new Date(claim.scheduledPickupTime).toLocaleString()}
+                        {new Date(
+                          claim.scheduledPickupTime
+                        ).toLocaleDateString()}{" "}
+                        {new Date(claim.scheduledPickupTime).toLocaleTimeString(
+                          [],
+                          { hour: "2-digit", minute: "2-digit" }
+                        )}
                       </span>
                     </div>
                   )}
@@ -617,17 +685,17 @@ const QRCodeDisplay = ({ booking, onClose }) => {
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-2 sm:p-4"
       onClick={handleBackdropClick}
     >
-      <Card className="w-full max-w-md bg-gray-800 border-gray-700 max-h-[90vh] overflow-y-auto">
-        <CardHeader className="text-center">
-          <CardTitle className="text-gray-100 flex items-center justify-center">
-            <QrCode className="mr-2 h-6 w-6" />
+      <Card className="w-full max-w-md bg-gray-800 border-gray-700 max-h-[95vh] overflow-y-auto">
+        <CardHeader className="text-center py-3 sm:py-6">
+          <CardTitle className="text-gray-100 flex items-center justify-center text-lg sm:text-xl">
+            <QrCode className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
             Collection QR Code
           </CardTitle>
           <Badge
-            className={`mx-auto w-fit ${
+            className={`mx-auto w-fit text-xs sm:text-sm ${
               booking.status === "approved"
                 ? "bg-green-600"
                 : booking.status === "pending"
@@ -643,19 +711,19 @@ const QRCodeDisplay = ({ booking, onClose }) => {
           </Badge>
         </CardHeader>
 
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 sm:space-y-6 px-3 py-3 sm:p-6">
           {/* Scan Success Overlay */}
           {isScanned && (
             <div className="absolute inset-0 bg-green-900/90 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
-              <div className="text-center">
-                <CheckCircle className="h-16 w-16 text-green-400 mx-auto mb-4" />
-                <h3 className="text-2xl font-bold text-green-400 mb-2">
+              <div className="text-center p-4">
+                <CheckCircle className="h-12 w-12 sm:h-16 sm:w-16 text-green-400 mx-auto mb-3 sm:mb-4" />
+                <h3 className="text-xl sm:text-2xl font-bold text-green-400 mb-2">
                   QR Code Scanned!
                 </h3>
-                <p className="text-green-300">
+                <p className="text-green-300 text-sm sm:text-base">
                   Food collection verified successfully
                 </p>
-                <p className="text-sm text-green-400 mt-2">
+                <p className="text-xs sm:text-sm text-green-400 mt-2">
                   Redirecting to history...
                 </p>
               </div>
@@ -664,7 +732,7 @@ const QRCodeDisplay = ({ booking, onClose }) => {
 
           {/* Real-time Food Expiry Countdown */}
           <div
-            className={`p-4 rounded-lg border-2 ${
+            className={`p-3 sm:p-4 rounded-lg border-2 ${
               isExpired
                 ? "bg-red-900/30 border-red-500 text-red-300"
                 : timeUntilExpiry < 3600000 // Less than 1 hour
@@ -672,18 +740,18 @@ const QRCodeDisplay = ({ booking, onClose }) => {
                 : "bg-green-900/30 border-green-500 text-green-300"
             }`}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center space-x-2 sm:space-x-3">
                 {isExpired ? (
-                  <AlertTriangle className="h-6 w-6 flex-shrink-0" />
+                  <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" />
                 ) : (
-                  <Clock className="h-6 w-6 flex-shrink-0" />
+                  <Clock className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" />
                 )}
                 <div>
-                  <p className="text-lg font-bold">
+                  <p className="text-base sm:text-lg font-bold">
                     {isExpired ? "EXPIRED" : "Time Left"}
                   </p>
-                  <p className="text-sm opacity-80">
+                  <p className="text-xs sm:text-sm opacity-80">
                     {isExpired
                       ? "Food has expired - not safe to consume"
                       : "Collect before food expires"}
@@ -693,7 +761,7 @@ const QRCodeDisplay = ({ booking, onClose }) => {
 
               <div className="text-right">
                 <div
-                  className={`text-3xl font-mono font-bold tracking-wider ${
+                  className={`text-xl sm:text-3xl font-mono font-bold tracking-wider ${
                     isExpired
                       ? "text-red-400"
                       : timeUntilExpiry < 3600000
@@ -718,7 +786,7 @@ const QRCodeDisplay = ({ booking, onClose }) => {
           {/* QR Code */}
           <div className="text-center relative">
             <div
-              className={`inline-block p-4 bg-white rounded-lg relative ${
+              className={`inline-block p-3 sm:p-4 bg-white rounded-lg relative ${
                 isExpired ? "opacity-50 grayscale" : ""
               }`}
             >
@@ -726,41 +794,43 @@ const QRCodeDisplay = ({ booking, onClose }) => {
                 <img
                   src={booking.qrCodeImage}
                   alt="Collection QR Code"
-                  className="w-48 h-48 mx-auto"
+                  className="w-36 h-36 sm:w-48 sm:h-48 mx-auto"
                 />
               ) : (
-                <div className="w-48 h-48 flex items-center justify-center bg-gray-200">
-                  <QrCode className="h-16 w-16 text-gray-400" />
+                <div className="w-36 h-36 sm:w-48 sm:h-48 flex items-center justify-center bg-gray-200">
+                  <QrCode className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400" />
                 </div>
               )}
 
               {/* Scan monitoring indicator */}
               {!isExpired && !isScanned && (
-                <div className="absolute -top-2 -right-2 bg-blue-600 text-white rounded-full p-2 animate-pulse">
-                  <Eye className="h-4 w-4" />
+                <div className="absolute -top-2 -right-2 bg-blue-600 text-white rounded-full p-1.5 sm:p-2 animate-pulse">
+                  <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
                 </div>
               )}
             </div>
 
             {/* Scan status indicator */}
             {!isExpired && !isScanned && (
-              <div className="mt-3 flex items-center justify-center gap-2 text-blue-400">
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                <span className="text-sm">Monitoring for scan...</span>
+              <div className="mt-2 sm:mt-3 flex items-center justify-center gap-1.5 sm:gap-2 text-blue-400">
+                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                <span className="text-xs sm:text-sm">
+                  Monitoring for scan...
+                </span>
               </div>
             )}
           </div>
 
           {/* QR Actions */}
-          <div className="flex justify-center space-x-2 mt-4">
+          <div className="flex justify-center space-x-2 mt-3 sm:mt-4">
             <Button
               onClick={downloadQRCode}
               variant="outline"
               size="sm"
-              className="border-gray-600 text-gray-300"
+              className="border-gray-600 text-gray-300 text-xs sm:text-sm py-1 h-8"
               disabled={isExpired}
             >
-              <Download className="h-4 w-4 mr-1" />
+              <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
               Download
             </Button>
 
@@ -779,16 +849,16 @@ const QRCodeDisplay = ({ booking, onClose }) => {
                   }}
                   variant="outline"
                   size="sm"
-                  className="border-green-600 text-green-300 hover:bg-green-600"
+                  className="border-green-600 text-green-300 hover:bg-green-600 text-xs sm:text-sm py-1 h-8"
                 >
-                  <CheckCircle className="h-4 w-4 mr-1" />
+                  <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                   Test Scan
                 </Button>
               )}
           </div>
 
           {isExpired && (
-            <p className="text-red-400 text-sm mt-2 text-center">
+            <p className="text-red-400 text-xs sm:text-sm mt-2 text-center">
               ⚠️ QR Code disabled - Food has expired
             </p>
           )}
@@ -796,27 +866,27 @@ const QRCodeDisplay = ({ booking, onClose }) => {
           {/* Backup Code */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-gray-300">
+              <label className="text-xs sm:text-sm font-medium text-gray-300">
                 Backup Collection Code
               </label>
               <Button
                 onClick={() => setShowBackupCode(!showBackupCode)}
                 variant="ghost"
                 size="sm"
-                className="text-gray-400 hover:text-gray-100"
+                className="text-gray-400 hover:text-gray-100 p-1.5 h-7"
                 disabled={isExpired}
               >
                 {showBackupCode ? (
-                  <EyeOff className="h-4 w-4" />
+                  <EyeOff className="h-3 w-3 sm:h-4 sm:w-4" />
                 ) : (
-                  <Eye className="h-4 w-4" />
+                  <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
                 )}
               </Button>
             </div>
 
             <div className="flex items-center space-x-2">
               <div
-                className={`flex-1 bg-gray-700 p-3 rounded-lg font-mono text-center text-lg tracking-wider ${
+                className={`flex-1 bg-gray-700 p-2 sm:p-3 rounded-lg font-mono text-center text-base sm:text-lg tracking-wider ${
                   isExpired ? "opacity-50" : ""
                 }`}
               >
@@ -825,14 +895,14 @@ const QRCodeDisplay = ({ booking, onClose }) => {
               <Button
                 onClick={copyBackupCode}
                 variant="outline"
-                size="icon"
-                className="border-gray-600"
+                size="sm"
+                className="border-gray-600 p-1 h-8 w-8 sm:h-9 sm:w-9"
                 disabled={!showBackupCode || isExpired}
               >
                 {copied ? (
-                  <CheckCircle className="h-4 w-4 text-green-400" />
+                  <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-green-400" />
                 ) : (
-                  <Copy className="h-4 w-4" />
+                  <Copy className="h-3 w-3 sm:h-4 sm:w-4" />
                 )}
               </Button>
             </div>
@@ -842,33 +912,39 @@ const QRCodeDisplay = ({ booking, onClose }) => {
           </div>
 
           {/* Booking Details */}
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             <Separator className="bg-gray-600" />
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center space-x-2 text-gray-300">
-                <Package className="h-4 w-4 text-emerald-400" />
-                <span>{foodData.title || booking.title || "Food Item"}</span>
+            <div className="space-y-2 text-xs sm:text-sm">
+              <div className="flex items-start space-x-2 text-gray-300">
+                <Package className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                <span className="break-words">
+                  {foodData.title || booking.title || "Food Item"}
+                </span>
               </div>
-              <div className="flex items-center space-x-2 text-gray-300">
-                <MapPin className="h-4 w-4 text-emerald-400" />
-                <span>
+              <div className="flex items-start space-x-2 text-gray-300">
+                <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                <span className="break-words">
                   {foodData.location ||
                     booking.pickupLocation ||
                     "Pickup Location"}
                 </span>
               </div>
               {booking.scheduledPickupTime && (
-                <div className="flex items-center space-x-2 text-gray-300">
-                  <Clock className="h-4 w-4 text-emerald-400" />
-                  <span>
+                <div className="flex items-start space-x-2 text-gray-300">
+                  <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                  <span className="break-words">
                     Pickup:{" "}
-                    {new Date(booking.scheduledPickupTime).toLocaleString()}
+                    {new Date(booking.scheduledPickupTime).toLocaleDateString()}{" "}
+                    {new Date(booking.scheduledPickupTime).toLocaleTimeString(
+                      [],
+                      { hour: "2-digit", minute: "2-digit" }
+                    )}
                   </span>
                 </div>
               )}
 
               {/* Food Freshness Info - Using same data as main page */}
-              <div className="bg-gray-700/50 p-3 rounded text-xs space-y-1">
+              <div className="bg-gray-700/50 p-2 sm:p-3 rounded text-xs space-y-1">
                 <div className="flex justify-between">
                   <span className="text-gray-400">
                     <strong>Freshness:</strong>
@@ -893,10 +969,16 @@ const QRCodeDisplay = ({ booking, onClose }) => {
                     <span className="text-gray-400">
                       <strong>Available From:</strong>
                     </span>
-                    <span className="text-gray-300">
+                    <span className="text-gray-300 text-right">
                       {new Date(
                         foodData.availabilityWindow.startTime
-                      ).toLocaleString()}
+                      ).toLocaleDateString()}{" "}
+                      {new Date(
+                        foodData.availabilityWindow.startTime
+                      ).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </span>
                   </div>
                 )}
@@ -930,18 +1012,18 @@ const QRCodeDisplay = ({ booking, onClose }) => {
 
           {/* Instructions */}
           <div
-            className={`border p-4 rounded-lg ${
+            className={`border p-3 sm:p-4 rounded-lg ${
               isExpired
                 ? "bg-red-900/20 border-red-500/20"
                 : "bg-blue-900/20 border-blue-500/20"
             }`}
           >
             <h4
-              className={`font-medium mb-2 flex items-center ${
+              className={`text-sm font-medium mb-2 flex items-center ${
                 isExpired ? "text-red-400" : "text-blue-400"
               }`}
             >
-              <AlertTriangle className="h-4 w-4 mr-2" />
+              <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
               {isExpired ? "Food Expired" : "Collection Instructions"}
             </h4>
             {isExpired ? (
@@ -975,7 +1057,11 @@ const QRCodeDisplay = ({ booking, onClose }) => {
                     <li className="flex items-start">
                       <span className="text-blue-400 mr-2">4.</span>
                       Collect your food before it expires at{" "}
-                      {foodExpiryTime.toLocaleTimeString()}!
+                      {foodExpiryTime.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                      !
                     </li>
                   </>
                 )}
@@ -986,7 +1072,7 @@ const QRCodeDisplay = ({ booking, onClose }) => {
           {/* Close Button */}
           <Button
             onClick={handleClose}
-            className="w-full bg-gray-700 hover:bg-gray-600 text-gray-100"
+            className="w-full bg-gray-700 hover:bg-gray-600 text-gray-100 text-sm h-9"
           >
             Close
           </Button>
@@ -1058,29 +1144,29 @@ const ContactProviderModal = ({ booking, onClose }) => {
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-2 sm:p-4"
       onClick={handleBackdropClick}
     >
       <Card className="w-full max-w-md bg-gray-800 border-gray-700">
-        <CardHeader className="text-center relative">
+        <CardHeader className="text-center relative py-3 sm:py-6">
           <button
             onClick={onClose}
-            className="absolute right-4 top-4 text-gray-400 hover:text-white transition-colors"
+            className="absolute right-3 sm:right-4 top-3 sm:top-4 text-gray-400 hover:text-white transition-colors"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
-          <CardTitle className="text-gray-100 flex items-center justify-center">
-            <MessageCircle className="mr-2 h-6 w-6 text-blue-400" />
+          <CardTitle className="text-gray-100 flex items-center justify-center text-lg sm:text-xl">
+            <MessageCircle className="mr-2 h-5 w-5 sm:h-6 sm:w-6 text-blue-400" />
             Contact Provider
           </CardTitle>
         </CardHeader>
 
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 sm:space-y-6 px-3 py-3 sm:p-6">
           {/* Provider Information */}
-          <div className="bg-gray-700/50 rounded-lg p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <User className="h-5 w-5 text-emerald-400" />
-              <h3 className="text-lg font-semibold text-gray-100">
+          <div className="bg-gray-700/50 rounded-lg p-3 sm:p-4">
+            <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+              <User className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" />
+              <h3 className="text-base sm:text-lg font-semibold text-gray-100 break-words">
                 {loading ? (
                   <span className="animate-pulse">Loading...</span>
                 ) : (
@@ -1091,14 +1177,16 @@ const ContactProviderModal = ({ booking, onClose }) => {
               </h3>
             </div>
 
-            <div className="space-y-2 text-sm text-gray-300">
-              <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-gray-400" />
-                <span>{booking.listingId?.title || "Food Item"}</span>
+            <div className="space-y-2 text-xs sm:text-sm text-gray-300">
+              <div className="flex items-start gap-2">
+                <Package className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                <span className="break-words">
+                  {booking.listingId?.title || "Food Item"}
+                </span>
               </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-gray-400" />
-                <span>
+              <div className="flex items-start gap-2">
+                <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                <span className="break-words">
                   {booking.listingId?.location || "Location not specified"}
                 </span>
               </div>
@@ -1106,76 +1194,92 @@ const ContactProviderModal = ({ booking, onClose }) => {
           </div>
 
           {/* Contact Information */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-medium text-gray-300 mb-3">
+          <div className="space-y-3 sm:space-y-4">
+            <h4 className="text-xs sm:text-sm font-medium text-gray-300 mb-2 sm:mb-3">
               Contact Information
             </h4>
 
             {loading ? (
-              <div className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg animate-pulse">
-                <Phone className="h-5 w-5 text-gray-500" />
+              <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-700/30 rounded-lg animate-pulse">
+                <Phone className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
                 <div>
-                  <p className="text-sm font-medium text-gray-400">Phone</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-400">
+                    Phone
+                  </p>
                   <p className="text-xs text-gray-500">Loading...</p>
                 </div>
               </div>
             ) : contactInfo?.phone ? (
-              <div className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Phone className="h-5 w-5 text-green-400" />
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-2 sm:p-3 bg-gray-700/30 rounded-lg gap-2 sm:gap-0">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <Phone className="h-4 w-4 sm:h-5 sm:w-5 text-green-400" />
                   <div>
-                    <p className="text-sm font-medium text-gray-200">Phone</p>
-                    <p className="text-sm text-gray-400">{contactInfo.phone}</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-200">
+                      Phone
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-400 break-words">
+                      {contactInfo.phone}
+                    </p>
                   </div>
                 </div>
                 <Button
                   onClick={handleCall}
                   size="sm"
-                  className="bg-green-600 hover:bg-green-700 text-white"
+                  className="bg-green-600 hover:bg-green-700 text-white text-xs h-7 sm:h-8 px-2 sm:px-3"
                 >
                   Call
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg opacity-50">
-                <Phone className="h-5 w-5 text-gray-500" />
+              <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-700/30 rounded-lg opacity-50">
+                <Phone className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
                 <div>
-                  <p className="text-sm font-medium text-gray-400">Phone</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-400">
+                    Phone
+                  </p>
                   <p className="text-xs text-gray-500">Not provided</p>
                 </div>
               </div>
             )}
 
             {loading ? (
-              <div className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg animate-pulse">
-                <Mail className="h-5 w-5 text-gray-500" />
+              <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-700/30 rounded-lg animate-pulse">
+                <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
                 <div>
-                  <p className="text-sm font-medium text-gray-400">Email</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-400">
+                    Email
+                  </p>
                   <p className="text-xs text-gray-500">Loading...</p>
                 </div>
               </div>
             ) : contactInfo?.email ? (
-              <div className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Mail className="h-5 w-5 text-blue-400" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-200">Email</p>
-                    <p className="text-sm text-gray-400">{contactInfo.email}</p>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-2 sm:p-3 bg-gray-700/30 rounded-lg gap-2 sm:gap-0">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400" />
+                  <div className="max-w-[70%] sm:max-w-none">
+                    <p className="text-xs sm:text-sm font-medium text-gray-200">
+                      Email
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-400 break-words">
+                      {contactInfo.email}
+                    </p>
                   </div>
                 </div>
                 <Button
                   onClick={handleEmail}
                   size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-7 sm:h-8 px-2 sm:px-3"
                 >
                   Email
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg opacity-50">
-                <Mail className="h-5 w-5 text-gray-500" />
+              <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-700/30 rounded-lg opacity-50">
+                <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
                 <div>
-                  <p className="text-sm font-medium text-gray-400">Email</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-400">
+                    Email
+                  </p>
                   <p className="text-xs text-gray-500">Not provided</p>
                 </div>
               </div>
@@ -1184,23 +1288,24 @@ const ContactProviderModal = ({ booking, onClose }) => {
 
           {/* Pickup Instructions */}
           {booking.listingId?.pickupInstructions && (
-            <div className="bg-yellow-900/20 border border-yellow-600/30 rounded-lg p-4">
-              <h4 className="text-sm font-medium text-yellow-400 mb-2 flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4" />
+            <div className="bg-yellow-900/20 border border-yellow-600/30 rounded-lg p-3 sm:p-4">
+              <h4 className="text-xs sm:text-sm font-medium text-yellow-400 mb-2 flex items-center gap-2">
+                <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4" />
                 Pickup Instructions
               </h4>
-              <p className="text-sm text-gray-300">
+              <p className="text-xs sm:text-sm text-gray-300">
                 {booking.listingId.pickupInstructions}
               </p>
             </div>
           )}
 
           {/* Close Button */}
-          <div className="flex justify-center pt-4">
+          <div className="flex justify-center pt-3 sm:pt-4">
             <Button
               onClick={onClose}
               variant="outline"
-              className="border-gray-600 text-gray-300 hover:bg-gray-700"
+              size="sm"
+              className="border-gray-600 text-gray-300 hover:bg-gray-700 text-xs sm:text-sm h-8 sm:h-9"
             >
               Close
             </Button>
