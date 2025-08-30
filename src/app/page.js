@@ -4,6 +4,98 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import Footer from "@/components/Footer";
+import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+
+// Component for Start Sharing Food button with authentication logic
+const StartSharingButton = () => {
+  const { isLoaded, isSignedIn, user } = useUser();
+  const router = useRouter();
+
+  // For debugging purposes
+  useEffect(() => {
+    if (isLoaded && isSignedIn && user) {
+      const metadata = user.publicMetadata || {};
+      console.log("User auth state:", {
+        isSignedIn,
+        userId: user.id,
+        metadata: {
+          hasOnboarded: metadata.hasOnboarded,
+          hasCompleteProfile: metadata.hasCompleteProfile,
+          mainRole: metadata.mainRole,
+        },
+      });
+    }
+  }, [isLoaded, isSignedIn, user]);
+
+  const handleClick = () => {
+    if (isSignedIn && user) {
+      // Check if user has completed onboarding
+      const metadata = user.publicMetadata || {};
+      const hasOnboarded =
+        metadata.hasOnboarded === true || metadata.hasOnboarded === "true";
+      const hasCompleteProfile =
+        metadata.hasCompleteProfile === true ||
+        metadata.hasCompleteProfile === "true";
+      const mainRole = metadata.mainRole;
+
+      console.log("User metadata:", {
+        hasOnboarded,
+        hasCompleteProfile,
+        mainRole,
+      });
+
+      // Redirect based on onboarding status
+      if (!hasOnboarded) {
+        router.push("/onboarding");
+        return;
+      }
+
+      // If onboarded but profile not complete
+      if (!hasCompleteProfile) {
+        router.push("/profile");
+        return;
+      }
+
+      // Redirect based on role
+      if (mainRole === "provider") {
+        router.push("/providerDashboard/listings");
+      } else if (mainRole === "recipient") {
+        router.push("/recipientDashboard");
+      } else {
+        // Fallback if role is not properly set
+        router.push("/onboarding");
+      }
+    } else {
+      // If not signed in, redirect to sign in page
+      router.push("/sign-in");
+    }
+  };
+
+  // Show button with loading state if user info is still loading
+  return (
+    <motion.button
+      whileHover={{ scale: 1.05, y: -2 }}
+      whileTap={{ scale: 0.95 }}
+      className="relative px-8 py-4 rounded-full font-semibold text-lg overflow-hidden group"
+      onClick={handleClick}
+      disabled={!isLoaded}
+    >
+      <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 via-orange-500 to-amber-500"></div>
+      <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 via-orange-600 to-amber-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+      <span className="relative z-10 text-white">
+        {!isLoaded ? (
+          <>
+            <span className="inline-block w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+            Loading...
+          </>
+        ) : (
+          "Start Sharing Food"
+        )}
+      </span>
+    </motion.button>
+  );
+};
 
 export default function Home() {
   const [isVisible, setIsVisible] = useState(false);
@@ -18,9 +110,9 @@ export default function Home() {
       opacity: 1,
       transition: {
         delayChildren: 0.3,
-        staggerChildren: 0.2
-      }
-    }
+        staggerChildren: 0.2,
+      },
+    },
   };
 
   const itemVariants = {
@@ -30,9 +122,9 @@ export default function Home() {
       opacity: 1,
       transition: {
         duration: 0.8,
-        ease: "easeOut"
-      }
-    }
+        ease: "easeOut",
+      },
+    },
   };
 
   const floatingVariants = {
@@ -41,16 +133,16 @@ export default function Home() {
       transition: {
         duration: 4,
         repeat: Infinity,
-        ease: "easeInOut"
-      }
-    }
+        ease: "easeInOut",
+      },
+    },
   };
 
   const statsData = [
     { number: "2.5K+", label: "Meals Saved", icon: "🍽️" },
     { number: "150+", label: "Active Users", icon: "👥" },
     { number: "95%", label: "Waste Reduced", icon: "♻️" },
-    { number: "12", label: "Campus Partners", icon: "🏫" }
+    { number: "12", label: "Campus Partners", icon: "🏫" },
   ];
 
   return (
@@ -73,38 +165,30 @@ export default function Home() {
           >
             {/* Main Heading */}
             <motion.div variants={itemVariants} className="space-y-4">
-              <motion.h1 
+              <motion.h1
                 className="text-5xl md:text-7xl lg:text-8xl font-bold leading-tight"
                 variants={itemVariants}
               >
                 <span className="block bg-gradient-to-r from-emerald-400 via-orange-400 to-amber-400 bg-clip-text text-transparent">
                   Save Food
                 </span>
-                <span className="block text-white mt-2">
-                  Serve People
-                </span>
+                <span className="block text-white mt-2">Serve People</span>
               </motion.h1>
-              <motion.p 
+              <motion.p
                 variants={itemVariants}
                 className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto leading-relaxed"
               >
-                Transform campus food waste into community nourishment. Every meal saved is a step towards a sustainable future.
+                Transform campus food waste into community nourishment. Every
+                meal saved is a step towards a sustainable future.
               </motion.p>
             </motion.div>
 
             {/* CTA Buttons */}
-            <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Link href="/get-started">
-                <motion.button
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="relative px-8 py-4 rounded-full font-semibold text-lg overflow-hidden group"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 via-orange-500 to-amber-500"></div>
-                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 via-orange-600 to-amber-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  <Link href="/sign-up" className="relative z-10 text-white">Start Sharing Food</Link>
-                </motion.button>
-              </Link>
+            <motion.div
+              variants={itemVariants}
+              className="flex flex-col sm:flex-row gap-4 justify-center items-center"
+            >
+              <StartSharingButton />
               <Link href="/about">
                 <motion.button
                   whileHover={{ scale: 1.05, y: -2 }}
@@ -171,7 +255,8 @@ export default function Home() {
               </span>
             </h2>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-              Together, we&#39;re making a real difference in our campus community
+              Together, we&#39;re making a real difference in our campus
+              community
             </p>
           </motion.div>
 
@@ -208,7 +293,10 @@ export default function Home() {
             className="text-center mb-16"
           >
             <h2 className="text-4xl md:text-5xl font-bold mb-4">
-              How It <span className="bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">Works</span>
+              How It{" "}
+              <span className="bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">
+                Works
+              </span>
             </h2>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto">
               Simple steps to reduce waste and help your community
@@ -220,24 +308,27 @@ export default function Home() {
               {
                 step: "1",
                 title: "Share Surplus",
-                description: "List your excess food with details about quantity, freshness, and pickup time",
+                description:
+                  "List your excess food with details about quantity, freshness, and pickup time",
                 icon: "📱",
-                color: "from-emerald-500 to-green-500"
+                color: "from-emerald-500 to-green-500",
               },
               {
                 step: "2",
                 title: "Get Notified",
-                description: "Receive real-time alerts about available food near you with pickup instructions",
+                description:
+                  "Receive real-time alerts about available food near you with pickup instructions",
                 icon: "🔔",
-                color: "from-orange-500 to-amber-500"
+                color: "from-orange-500 to-amber-500",
               },
               {
                 step: "3",
                 title: "Make Impact",
-                description: "Track your environmental impact and see how you're helping build a sustainable campus",
+                description:
+                  "Track your environmental impact and see how you're helping build a sustainable campus",
                 icon: "🌍",
-                color: "from-amber-500 to-yellow-500"
-              }
+                color: "from-amber-500 to-yellow-500",
+              },
             ].map((feature, index) => (
               <motion.div
                 key={index}
@@ -248,15 +339,25 @@ export default function Home() {
                 whileHover={{ scale: 1.02, y: -8 }}
                 className="relative p-8 rounded-2xl bg-gray-800/80 border border-gray-700/50 backdrop-blur-sm overflow-hidden group"
               >
-                <div className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-5 group-hover:opacity-10 transition-opacity duration-300`}></div>
-                
+                <div
+                  className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-5 group-hover:opacity-10 transition-opacity duration-300`}
+                ></div>
+
                 <div className="relative z-10">
-                  <div className="text-5xl mb-6 text-center">{feature.icon}</div>
-                  <div className={`text-sm font-bold bg-gradient-to-r ${feature.color} bg-clip-text text-transparent mb-2`}>
+                  <div className="text-5xl mb-6 text-center">
+                    {feature.icon}
+                  </div>
+                  <div
+                    className={`text-sm font-bold bg-gradient-to-r ${feature.color} bg-clip-text text-transparent mb-2`}
+                  >
                     STEP {feature.step}
                   </div>
-                  <h3 className="text-2xl font-bold text-white mb-4">{feature.title}</h3>
-                  <p className="text-gray-300 leading-relaxed">{feature.description}</p>
+                  <h3 className="text-2xl font-bold text-white mb-4">
+                    {feature.title}
+                  </h3>
+                  <p className="text-gray-300 leading-relaxed">
+                    {feature.description}
+                  </p>
                 </div>
               </motion.div>
             ))}
@@ -275,10 +376,14 @@ export default function Home() {
             className="space-y-8"
           >
             <h2 className="text-4xl md:text-5xl font-bold">
-              Ready to Make a <span className="bg-gradient-to-r from-emerald-400 to-amber-400 bg-clip-text text-transparent">Difference?</span>
+              Ready to Make a{" "}
+              <span className="bg-gradient-to-r from-emerald-400 to-amber-400 bg-clip-text text-transparent">
+                Difference?
+              </span>
             </h2>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
-              Join thousands of students, staff, and organizations working together to create a zero-waste campus community.
+              Join thousands of students, staff, and organizations working
+              together to create a zero-waste campus community.
             </p>
             <Link href="/signup">
               <motion.button
@@ -288,7 +393,9 @@ export default function Home() {
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 via-orange-500 to-amber-500"></div>
                 <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 via-orange-600 to-amber-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                <span className="relative z-10 text-white">Join SaveServe Today</span>
+                <span className="relative z-10 text-white">
+                  Join SaveServe Today
+                </span>
               </motion.button>
             </Link>
           </motion.div>
@@ -296,7 +403,7 @@ export default function Home() {
       </section>
 
       {/* Footer Section */}
-            <Footer />
+      <Footer />
     </div>
   );
 }
