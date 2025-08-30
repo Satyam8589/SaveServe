@@ -3,20 +3,36 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 class GeminiReportService {
   constructor() {
-    if (!process.env.GOOGLE_GEMINI_API_KEY) {
-      throw new Error('GOOGLE_GEMINI_API_KEY is required');
+    this.isEnabled = !!process.env.GOOGLE_GEMINI_API_KEY;
+
+    if (this.isEnabled) {
+      this.genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY);
+      this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    } else {
+      console.warn('⚠️ GOOGLE_GEMINI_API_KEY not found. Gemini AI features will be disabled.');
+      this.genAI = null;
+      this.model = null;
     }
-    
-    this.genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY);
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  }
+
+  /**
+   * Check if Gemini AI is available
+   */
+  isAvailable() {
+    return this.isEnabled;
   }
 
   /**
    * Generate a provider analytics report using AI
    */
   async generateProviderReport(analyticsData, reportType = 'weekly') {
+    if (!this.isAvailable()) {
+      console.log('Gemini AI not available. Using fallback report generation.');
+      return this.generateFallbackProviderReport(analyticsData, reportType);
+    }
+
     const prompt = this.buildProviderPrompt(analyticsData, reportType);
-    
+
     try {
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
@@ -27,7 +43,7 @@ class GeminiReportService {
       // Check if it's a quota/rate limit error
       if (error.message.includes('quota') || error.message.includes('429') || error.message.includes('Too Many Requests')) {
         console.log('Gemini API quota exceeded. Using fallback report generation.');
-        return this.generateFallbackProviderReport(data, reportType);
+        return this.generateFallbackProviderReport(analyticsData, reportType);
       }
 
       throw new Error(`Failed to generate provider report: ${error.message}`);
@@ -38,8 +54,13 @@ class GeminiReportService {
    * Generate a recipient impact report using AI
    */
   async generateRecipientReport(impactData, reportType = 'weekly') {
+    if (!this.isAvailable()) {
+      console.log('Gemini AI not available. Using fallback report generation.');
+      return this.generateFallbackRecipientReport(impactData, reportType);
+    }
+
     const prompt = this.buildRecipientPrompt(impactData, reportType);
-    
+
     try {
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
@@ -50,7 +71,7 @@ class GeminiReportService {
       // Check if it's a quota/rate limit error
       if (error.message.includes('quota') || error.message.includes('429') || error.message.includes('Too Many Requests')) {
         console.log('Gemini API quota exceeded. Using fallback report generation.');
-        return this.generateFallbackRecipientReport(data, reportType);
+        return this.generateFallbackRecipientReport(impactData, reportType);
       }
 
       throw new Error(`Failed to generate recipient report: ${error.message}`);
@@ -186,6 +207,11 @@ The report should be approximately 350-500 words and suitable for email delivery
    * Generate a summary report for multiple users
    */
   async generateSummaryReport(aggregatedData, reportType = 'weekly') {
+    if (!this.isAvailable()) {
+      console.log('Gemini AI not available. Using fallback summary report generation.');
+      return this.generateFallbackSummaryReport(aggregatedData, reportType);
+    }
+
     const prompt = `
 You are generating a ${reportType} summary report for the SaveServe platform administrators.
 
@@ -194,7 +220,7 @@ ${JSON.stringify(aggregatedData, null, 2)}
 
 Create a concise executive summary (200-300 words) covering:
 1. Platform-wide metrics and trends
-2. Top performing providers and active recipients  
+2. Top performing providers and active recipients
 3. Environmental impact achievements
 4. Key insights and recommendations for platform improvement
 5. Notable patterns or concerns
@@ -305,6 +331,37 @@ You're part of a growing community of food waste fighters. Your **${impact.meals
 
 ---
 *This report was generated automatically by SaveServe. Every meal you rescue makes a difference!*`;
+  }
+
+  /**
+   * Generate fallback summary report when Gemini AI is unavailable
+   */
+  generateFallbackSummaryReport(aggregatedData, reportType) {
+    const periodName = reportType.charAt(0).toUpperCase() + reportType.slice(1);
+
+    return `# SaveServe Platform ${periodName} Summary Report
+
+## Executive Summary
+
+This ${reportType} summary provides an overview of platform activity and impact.
+
+### Platform Metrics
+- **Total Data Points**: ${Object.keys(aggregatedData).length}
+- **Report Period**: ${periodName}
+- **Generated**: ${new Date().toLocaleDateString()}
+
+### Key Highlights
+- Platform continues to facilitate food rescue operations
+- Multiple stakeholders actively participating
+- Environmental impact through food waste reduction
+
+### Recommendations
+- Continue monitoring platform usage patterns
+- Encourage provider and recipient engagement
+- Focus on expanding community reach
+
+---
+*This report was generated automatically by SaveServe. AI-enhanced insights are currently unavailable.*`;
   }
 }
 

@@ -185,13 +185,20 @@ export async function POST(request) {
       );
     }
 
+    // Calculate NGO exclusive period for high-quantity posts
+    const parsedQuantity = parseInt(quantity, 10);
+    const isHighQuantity = parsedQuantity > 50;
+    const ngoExclusiveUntil = isHighQuantity
+      ? new Date(Date.now() + 30 * 60 * 1000) // 30 minutes from now
+      : null;
+
     // Create listing data
     const listingData = {
       title,
       description: body.description || "",
       category: body.category || "",
       foodType: body.foodType, // Add food type field
-      quantity: parseInt(quantity, 10),
+      quantity: parsedQuantity,
       unit: body.unit || "",
       freshnessStatus,
       freshnessHours: body.freshnessHours || 24,
@@ -207,14 +214,19 @@ export async function POST(request) {
       providerName: providerName || "Provider", // Fallback if providerName is empty
       imageUrl: body.imageUrl || "", // ✅ Always include imageUrl, even if empty
       bookedBy: body.bookedBy || [],
-      remainingQuantity: body.remainingQuantity || parseInt(quantity, 10),
+      remainingQuantity: body.remainingQuantity || parsedQuantity,
       isActive: body.isActive !== undefined ? body.isActive : true,
+      // Time-based visibility fields
+      isNGOExclusive: isHighQuantity,
+      ngoExclusiveUntil: ngoExclusiveUntil,
     };
 
     console.log("📦 Final listing data to save:");
     console.log("🖼️ imageUrl being saved:", listingData.imageUrl);
-    console.log("📦 Final listing data to save:");
-    console.log("🖼️ imageUrl being saved:", listingData.imageUrl);
+    console.log("📊 Quantity:", listingData.quantity, "- NGO Exclusive:", listingData.isNGOExclusive);
+    if (listingData.isNGOExclusive) {
+      console.log("⏰ NGO exclusive until:", listingData.ngoExclusiveUntil);
+    }
     console.log("📋 Full listing data:", JSON.stringify(listingData, null, 2));
 
     const newListing = new FoodListing(listingData);
